@@ -50,7 +50,7 @@ X_dim = 50
 sigma = 1.2 # Variance
 delta = 1 # Scale # 0.4 in initial plot
 N = 3 # number of neurons 
-sigma_epsilon = 1
+sigma_epsilon = 0.1
 N_observations = 4
 x_array_positions = np.random.randint(0, X_dim, size=N_observations)
 
@@ -124,8 +124,8 @@ plt.xlim(0,2*np.pi)
 plt.plot(x_grid, mu_posterior, "-", color="grey")
 # Calculate standard deviations and add 95 % confidence interval to plot
 sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_observed_inverse, Kx_crossover))
-plt.plot(x_grid, mu_posterior + 1.96*np.diag(sigma_posterior), "--", color="grey")
-plt.plot(x_grid, mu_posterior - 1.96*np.diag(sigma_posterior), "--", color="grey")
+plt.plot(x_grid, mu_posterior + 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
+plt.plot(x_grid, mu_posterior - 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-grid-overview-posterior.png")
@@ -141,8 +141,8 @@ plt.figure()
 plt.title("Noisy observations")
 plt.xlim(0,2*np.pi)
 plt.plot(x_grid, noisy_mu_posterior, "-", color="grey")
-plt.plot(x_grid, noisy_mu_posterior + 1.96*np.diag(noisy_sigma_posterior), "--", color="grey")
-plt.plot(x_grid, noisy_mu_posterior - 1.96*np.diag(noisy_sigma_posterior), "--", color="grey")
+plt.plot(x_grid, noisy_mu_posterior + 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
+plt.plot(x_grid, noisy_mu_posterior - 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-grid-overview-noisy-posterior.png")
