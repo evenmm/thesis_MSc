@@ -36,20 +36,23 @@ def exponential_covariance(t1,t2):
 
 def gaussian_periodic_covariance(x1,x2):
     distancesquared = min([(x1-x2)**2, (x1+2*pi-x2)**2, (x1-2*pi-x2)**2])
-    return rho * exp(-distancesquared/(2*delta))
+    return sigma * exp(-distancesquared/(2*delta))
 
 def gaussian_NONPERIODIC_covariance(x1,x2):
     distancesquared = (x1-x2)**2
-    return rho * exp(-distancesquared/(2*delta))
+    return sigma * exp(-distancesquared/(2*delta))
 
 
 ## 1 Define a grid of points in X direction - draw a tuning curve on this grid
 
 # Model parameters: 
 X_dim = 50
-rho = 1.2 # Variance
-delta = 0.4 # Scale
+sigma = 1.2 # Variance
+delta = 1 # Scale # 0.4 in initial plot
 N = 3 # number of neurons 
+sigma_epsilon = 1
+N_observations = 4
+x_array_positions = np.random.randint(0, X_dim, size=N_observations)
 
 x_grid = np.linspace(0, 2*np.pi, num=X_dim)
 Kx_grid = np.zeros((X_dim,X_dim))
@@ -81,27 +84,20 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-grid-tuning.pdf",for
 plt.figure()#(figsize=(10,8))
 for i in range(N):
     plt.plot(x_grid, np.zeros_like(x_grid), color="grey")
-    plt.plot(x_grid, rho * 1.96 * np.ones_like(x_grid), "--", color="grey")
-    plt.plot(x_grid, -rho * 1.96 * np.ones_like(x_grid), "--", color="grey")
+    plt.plot(x_grid, sigma * 1.96 * np.ones_like(x_grid), "--", color="grey")
+    plt.plot(x_grid, -sigma * 1.96 * np.ones_like(x_grid), "--", color="grey")
     plt.plot(x_grid, f_tuning_curve[i,:], "-", color=colors[i])
     plt.plot(x_grid, f_tuning_curve[i,:], ".", color=colors[i])
 plt.xlabel("x")
 #plt.ylabel("Spike rate")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-grid-tuning.pdf",format="pdf")
-plt.show()
 
-# Observations and posterior
-N_observations = 4
-x_array_positions = np.random.randint(0, X_dim, size=N_observations)
+## Observations and posterior, noise free
 print(x_array_positions)
 x_values_observed = x_grid[x_array_positions]
 print(x_values_observed)
 f_values_observed = f_tuning_curve[0][x_array_positions]
 print(f_values_observed)
-# Plot observed data points
-plt.figure()
-plt.xlim(0,2*np.pi)
-plt.ylim(-rho * 1.96, rho * 1.96)
 
 # Calculate covariance matrices
 Kx_observed = np.zeros((N_observations,N_observations))
@@ -120,16 +116,41 @@ Kx_crossover_T = np.transpose(Kx_crossover)
 # Calculate posterior mean function
 pre = np.dot(Kx_observed_inverse, f_values_observed)
 mu_posterior = np.dot(Kx_crossover_T, pre)
+# Plot observed data points
+plt.figure()
+plt.title("Noise free")
+plt.xlim(0,2*np.pi)
 # Plot posterior mean
-plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_grid, mu_posterior, "-", color="grey")
 # Calculate standard deviations and add 95 % confidence interval to plot
-sigma_posterior = np.diag(Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_observed_inverse, Kx_crossover))
+sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_observed_inverse, Kx_crossover))
 plt.plot(x_grid, mu_posterior + 1.96*np.diag(sigma_posterior), "--", color="grey")
 plt.plot(x_grid, mu_posterior - 1.96*np.diag(sigma_posterior), "--", color="grey")
+plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-grid-overview-posterior.png")
+
+## Noisy observations
+noisy_Kx_observed = Kx_observed + sigma_epsilon*np.eye(N_observations)
+noisy_Kx_observed_inverse = np.linalg.inv(noisy_Kx_observed)
+noisy_pre = np.dot(noisy_Kx_observed_inverse, f_values_observed)
+noisy_mu_posterior = np.dot(Kx_crossover_T, pre)
+noisy_sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(noisy_Kx_observed_inverse, Kx_crossover))
+
+plt.figure()
+plt.title("Noisy observations")
+plt.xlim(0,2*np.pi)
+plt.plot(x_grid, noisy_mu_posterior, "-", color="grey")
+plt.plot(x_grid, noisy_mu_posterior + 1.96*np.diag(noisy_sigma_posterior), "--", color="grey")
+plt.plot(x_grid, noisy_mu_posterior - 1.96*np.diag(noisy_sigma_posterior), "--", color="grey")
+plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
+plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-grid-overview-noisy-posterior.png")
 plt.show()
+
+
+
+
 """
 # Checking if correct by pytting the tuning at every time equal to X, giving spike prob of 1 over entire interval
 #f_tuning_curve[-1] = [100 for i in range(len(f_tuning_curve[-1]))] # approved
@@ -197,7 +218,7 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-path.pdf",format="pd
 N = 3 # number of neurons 
 
 # Create Kx
-rho = 0.5 
+sigma = 0.5 
 delta = 1
 Kx = np.zeros((T, T)) 
 for t1 in range(T):
