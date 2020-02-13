@@ -11,24 +11,17 @@ from matplotlib import transforms
 import time
 import sys
 plt.rc('image', cmap='viridis')
-numpy.random.seed(20)
+numpy.random.seed(11)
 
-## There are two threads to follow here: 
 # Visualization of the GPLVM: 1) tuning curve 2) latent path 3) spikes
-# Visualization of GP inference: 1) prior 2) observations 3) posterior
 
-## 1 Define a grid of points in X direction - draw a tuning curve on this grid
-# This tuning curve is realized entirely randomly from its prior, evaluated at some points. 
-# This gives a good illustration of the prior. *As* good as if we let some X path define the points
+## 1 Draw a path randomly from its prior
 
-## 2 Draw a path randomly from its prior
-# The points of this path will not be exactly on the grid defined in 1. 
-# Therefore the value of the tuning curve GP is a random variable with a normal conditional distribution
-# We use the mean of its distribution to sample spikes
-# When we go the other way, from path X to grid to plot tuning curve, we will also present the mean of the distribution 
+## 1 Define a grid of points in X direction - draw a tuning curve on this grid from the prior
+# The points of the path will not be exactly on this grid.
+# But we make a MAP estimate of the tuning curve evaluated on the path.
 
-## 3 Compute spikes
-
+## 3 Use this f estimate to sample spikes
 
 def exponential_covariance(t1,t2):
     distance = abs(t1-t2)
@@ -42,18 +35,40 @@ def gaussian_NONPERIODIC_covariance(x1,x2):
     distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
 
-
-## 1 Define a grid of points in X direction - draw a tuning curve on this grid
-
 # Model parameters: 
-X_dim = 50
-sigma = 1.2 # Variance
-delta = 1 # Scale # 0.4 in initial plot
-N = 3 # number of neurons 
-sigma_epsilon = 0.1
-N_observations = 4
-x_array_positions = np.random.randint(0, X_dim, size=N_observations)
+X_dim = 40 # Number of grid points
+sigma = 4 # Variance for Kx
+delta = 4 # Scale for Kx
+N = 1 # number of neurons 
+sigma_epsilon = 0.05 # Uncertainty of observations
+T = 2000
+r_parameter = 10 # variance for kt 
+l_parameter = 700 # length for kt
 
+## 1. Generate random latent variable GP path
+Kt = np.zeros((T, T)) 
+for t1 in range(T):
+    for t2 in range(T):
+        Kt[t1,t2] = exponential_covariance(t1,t2)
+Kt = Kt + np.identity(T)*10e-10 
+
+# Plotting Kt
+fig, ax = plt.subplots()
+#ax.set(title='Kt')
+ktmat = ax.matshow(Kt, cmap=plt.cm.Blues) #plt.cm.viridis
+fig.colorbar(ktmat, ax=ax)
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-kt.pdf",format="pdf")
+
+path = numpy.random.multivariate_normal(np.zeros(T), Kt)
+#path = np.linspace(0,2*np.pi,2000)
+## plot path
+plt.figure()#(figsize=(10,2))
+plt.plot(path, '.', color='black', markersize=1.)
+plt.xlabel("Time")
+plt.ylabel("x value")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-path.pdf",format="pdf")
+
+## 2. Define a grid of points in X direction - draw a tuning curve on this grid
 x_grid = np.linspace(0, 2*np.pi, num=X_dim)
 Kx_grid = np.zeros((X_dim,X_dim))
 for x1 in range(X_dim):
@@ -64,12 +79,16 @@ Kx_grid_inverse = np.linalg.inv(Kx_grid)
 fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-grid-overview-kx_grid.png")
-#plt.show()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-kx_grid.png")
+# Tuning curves from GP prior
 # Draw tuning curves with zero mean and covariance prior
 f_tuning_curve = np.zeros((N,X_dim))
 for i in range(N):
     f_tuning_curve[i] = np.random.multivariate_normal(np.zeros(X_dim),Kx_grid)
+"""
+Sine tuning curve
+f_tuning_curve = np.array([np.sin(x_grid)])
+"""
 h_tuning_curve = np.exp(f_tuning_curve)
 
 colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
@@ -79,7 +98,7 @@ for i in range(N):
     plt.plot(x_grid, h_tuning_curve[i,:], color=colors[i])
 plt.xlabel("x")
 plt.ylabel("Spike rate")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-grid-tuning.pdf",format="pdf")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-tuning-h.png")
 # Plot f realizations with 95 % confidence interval
 plt.figure()#(figsize=(10,8))
 for i in range(N):
@@ -90,14 +109,29 @@ for i in range(N):
     plt.plot(x_grid, f_tuning_curve[i,:], ".", color=colors[i])
 plt.xlabel("x")
 #plt.ylabel("Spike rate")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-grid-tuning.pdf",format="pdf")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-tuning-f.png")
+plt.show()
 
+## Here, observations are grid points since this is the "true tuning curve"
+## And "grid" could be renamed "prediction". Here this is path
 ## Observations and posterior, noise free
-print(x_array_positions)
-x_values_observed = x_grid[x_array_positions]
-print(x_values_observed)
-f_values_observed = f_tuning_curve[0][x_array_positions]
-print(f_values_observed)
+N_observations = X_dim
+x_values_observed = x_grid
+f_values_observed = f_tuning_curve[0]
+
+X_dim = T
+x_grid = path
+
+Kx_grid = np.zeros((X_dim,X_dim))
+for x1 in range(X_dim):
+    for x2 in range(X_dim):
+        Kx_grid[x1,x2] = gaussian_NONPERIODIC_covariance(x_grid[x1],x_grid[x2])
+Kx_grid = Kx_grid + np.identity(X_dim)*10e-5 # To be able to invert Kx we add a small amount on the diagonal
+Kx_grid_inverse = np.linalg.inv(Kx_grid)
+fig, ax = plt.subplots()
+kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
+fig.colorbar(kxmat, ax=ax)
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-kx_path.png")
 
 # Calculate covariance matrices
 Kx_observed = np.zeros((N_observations,N_observations))
@@ -118,7 +152,6 @@ pre = np.dot(Kx_observed_inverse, f_values_observed)
 mu_posterior = np.dot(Kx_crossover_T, pre)
 # Plot observed data points
 plt.figure()
-plt.title("Noise free")
 plt.xlim(0,2*np.pi)
 # Plot posterior mean
 plt.plot(x_grid, mu_posterior, "-", color="grey")
@@ -128,7 +161,7 @@ plt.plot(x_grid, mu_posterior + 1.96*np.sqrt(np.diag(sigma_posterior)), "--", co
 plt.plot(x_grid, mu_posterior - 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-grid-overview-posterior.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-posterior.png")
 
 ## Noisy observations
 noisy_Kx_observed = Kx_observed + sigma_epsilon*np.eye(N_observations)
@@ -138,116 +171,18 @@ noisy_mu_posterior = np.dot(Kx_crossover_T, pre)
 noisy_sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(noisy_Kx_observed_inverse, Kx_crossover))
 
 plt.figure()
-plt.title("Noisy observations")
 plt.xlim(0,2*np.pi)
 plt.plot(x_grid, noisy_mu_posterior, "-", color="grey")
 plt.plot(x_grid, noisy_mu_posterior + 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, noisy_mu_posterior - 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-grid-overview-noisy-posterior.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-noisy-posterior.png")
 plt.show()
 
-
-
-
-"""
-# Checking if correct by pytting the tuning at every time equal to X, giving spike prob of 1 over entire interval
-#f_tuning_curve[-1] = [100 for i in range(len(f_tuning_curve[-1]))] # approved
-
-# Extracting actual tuning curve from the simulated Gaussian process f
-# Now doing Bernoulli spiking to see. For Poisson spiking:
-# h_tuning_curve = np.exp(f_tuning_curve)
-
-number_of_X_bins = 100
-bins = np.linspace(min(path)-0.000001, max(path)+0.0000001, num=number_of_X_bins + 1)
-evaluationpoints = 0.5*(bins[:(-1)]+bins[1:])
-estimated_tuning = np.zeros((N, number_of_X_bins))
-
-h_spike_rate = exp(f_tuning_curve)
-# Plot firing rates stupidly
-colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
-plt.figure()#(figsize=(10,8))
-for i in range(N):
-    plt.plot(h_spike_rate[i], color=colors[i])
-plt.xlabel("Time")
-plt.ylabel("Spike rate")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-firing-rate.pdf",format="pdf")
-
-# Estimated tuning curves
-for i in range(N):
-    for x in range(number_of_X_bins):
-        timesinbin = (path>bins[x])*(path<bins[x+1])
-        if(sum(timesinbin)>0):
-            estimated_tuning[i,x] = mean( exp(f_tuning_curve[i, timesinbin]))
-        else:
-            print("No observations of X between",bins[x],"and",bins[x+1],".")
-# Plot tuning curves for chosen neurons
-"""
-
-############################################################################################################
-## 2. Generate random latent variable GP path
-T = 2000
-# Create Kt
-r_parameter = 10
-l_parameter = 700
-
-Kt = np.zeros((T, T)) 
-for t1 in range(T):
-    for t2 in range(T):
-        Kt[t1,t2] = exponential_covariance(t1,t2)
-Kt = Kt + np.identity(T)*10e-10 # To be able to invert Kt we add a small amount on the diagonal
-
-# Plotting Kt
-fig, ax = plt.subplots()
-#ax.set(title='Kt')
-ktmat = ax.matshow(Kt, cmap=plt.cm.Blues) #plt.cm.viridis
-fig.colorbar(ktmat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-kt.pdf",format="pdf")
-
-path = numpy.random.multivariate_normal(np.zeros(T), Kt)
-#path = np.linspace(0,2*np.pi,2000)
-## plot path
-plt.figure()#(figsize=(10,2))
-plt.plot(path, '.', color='black', markersize=1.)
-plt.xlabel("Time")
-plt.ylabel("x value")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-path.pdf",format="pdf")
-
-## 2. Generate tuning curves
-N = 3 # number of neurons 
-
-# Create Kx
-sigma = 0.5 
-delta = 1
-Kx = np.zeros((T, T)) 
-for t1 in range(T):
-    for t2 in range(T):
-        Kx[t1,t2] = gaussian_periodic_covariance(path[t1],path[t2])
-Kx = Kx + np.identity(T)*10e-5 # To be able to invert Kx we add a small amount on the diagonal
-
-# Plotting Kx
-fig, ax = plt.subplots()
-#ax.set(title='Kx')
-kxmat = ax.matshow(Kx, cmap=plt.cm.Blues)
-fig.colorbar(kxmat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"new-overview-kx.pdf",format="pdf")
-
-f_tuning_curve = np.zeros((N,T))
-for i in range(N):
-    f_tuning_curve[i] = np.random.multivariate_normal(np.zeros(T),Kx)
-
-# Checking if correct by pytting the tuning at every time equal to X, giving spike prob of 1 over entire interval
-#f_tuning_curve[-1] = [100 for i in range(len(f_tuning_curve[-1]))] # approved
-
-# Extracting actual tuning curve from the simulated Gaussian process f
-# Now doing Bernoulli spiking to see. For Poisson spiking:
-# h_tuning_curve = np.exp(f_tuning_curve)
-
-number_of_X_bins = 100
-bins = np.linspace(min(path)-0.000001, max(path)+0.0000001, num=number_of_X_bins + 1)
-evaluationpoints = 0.5*(bins[:(-1)]+bins[1:])
-estimated_tuning = np.zeros((N, number_of_X_bins))
+## 3. Sample spikes
+# noisy_mu_posterior is our value of tuning curves 
+h_tuning_curve = exp(noisy_mu_posterior)
 
 h_spike_rate = exp(f_tuning_curve)
 # Plot firing rates stupidly
