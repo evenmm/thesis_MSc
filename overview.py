@@ -112,13 +112,18 @@ plt.xlabel("x")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-tuning-f.png")
 plt.show()
 
+N_observations = T
+x_values_observed = path
+f_values_observed = "HERE we must actually sample the things, NOT on the grid boy. 
+
+"""
+## Bad idea:
 ## Here, observations are grid points since this is the "true tuning curve"
 ## And "grid" could be renamed "prediction". Here this is path
 ## Observations and posterior, noise free
 N_observations = X_dim
 x_values_observed = x_grid
 f_values_observed = f_tuning_curve[0]
-
 X_dim = T
 x_grid = path
 
@@ -132,6 +137,7 @@ fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-kx_path.png")
+"""
 
 # Calculate covariance matrices
 Kx_observed = np.zeros((N_observations,N_observations))
