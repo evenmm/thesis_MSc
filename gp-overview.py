@@ -101,7 +101,6 @@ Kx_crossover_T = np.transpose(Kx_crossover)
 # Calculate posterior mean function
 pre = np.dot(Kx_observed_inverse, f_values_observed)
 mu_posterior = np.dot(Kx_crossover_T, pre)
-# Plot observed data points
 plt.figure()
 plt.xlim(0,2*np.pi)
 # Plot posterior mean
@@ -111,7 +110,7 @@ sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_observed_inverse,
 plt.plot(x_grid, mu_posterior + 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, mu_posterior - 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
-plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
+plt.plot(x_values_observed, f_values_observed, ".", color=colors[0]) # Plot observed data points
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-posterior.png")
 
 ## Noisy observations
