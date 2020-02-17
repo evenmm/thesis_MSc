@@ -38,14 +38,16 @@ def gaussian_NONPERIODIC_covariance(x1,x2):
     return sigma * exp(-distancesquared/(2*delta))
 
 # Model parameters: 
-X_dim = 40 # Number of grid points
+N = 1 # number of neurons 
+T = 1000 # time bins
+r_parameter = 10 # variance for kt 
+l_parameter = 700 # scale for kt
+# Generative GP
 sigma = 1.2 # Variance for Kx
 delta = 1 # Scale for Kx
-N = 1 # number of neurons 
 sigma_epsilon = 0.05 # Variance of observations
-T = 1000
-r_parameter = 10 # variance for kt 
-l_parameter = 700 # length for kt
+# Inferring GP on grid
+X_dim = 40 # Number of grid points
 
 ## 1. Generate random latent variable GP path
 print("Making Kt")
@@ -89,6 +91,9 @@ kx_obs_mat = ax.matshow(Kx_observed, cmap=plt.cm.Blues)
 fig.colorbar(kx_obs_mat, ax=ax)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-Kx_observed.png")
 Kx_observed_inverse = np.linalg.inv(Kx_observed)
+
+
+## Now we want to infer f based on observed values.
 # Sample f values
 f_values_observed = np.zeros((N,T))
 for i in range(N):

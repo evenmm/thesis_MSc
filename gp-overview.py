@@ -11,13 +11,13 @@ from matplotlib import transforms
 import time
 import sys
 plt.rc('image', cmap='viridis')
-numpy.random.seed(20)
+numpy.random.seed(22) # 20, 22 for tuning curve. # 20, 22 for latent
 
 # Visualization of GP inference: 1) prior 2) observations 3) posterior
 
 def exponential_covariance(t1,t2):
     distance = abs(t1-t2)
-    return r_parameter * exp(-distance/l_parameter)
+    return sigma * exp(-distance/delta)
 
 def gaussian_periodic_covariance(x1,x2):
     distancesquared = min([(x1-x2)**2, (x1+2*pi-x2)**2, (x1-2*pi-x2)**2])
@@ -27,13 +27,13 @@ def gaussian_NONPERIODIC_covariance(x1,x2):
     distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
 
-
-## 1 Define a grid of points in X direction - draw a tuning curve on this grid
+## Tuning curve GP
+# Define a grid of points in X direction - draw a tuning curve on this grid
 
 # Model parameters: 
 X_dim = 50
 sigma = 1.2 # Variance
-delta = 1 # Scale # 0.4 in initial plot
+delta = 0.15 # Scale 
 N = 3 # number of neurons 
 sigma_epsilon = 0.05
 N_observations = 4
@@ -110,7 +110,7 @@ sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_observed_inverse,
 plt.plot(x_grid, mu_posterior + 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, mu_posterior - 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
-plt.plot(x_values_observed, f_values_observed, ".", color=colors[0]) # Plot observed data points
+plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10) # Plot observed data points
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-posterior.png")
 
 ## Noisy observations
@@ -126,7 +126,34 @@ plt.plot(x_grid, noisy_mu_posterior, "-", color="grey")
 plt.plot(x_grid, noisy_mu_posterior + 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, noisy_mu_posterior - 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
-plt.plot(x_values_observed, f_values_observed, ".", color=colors[0])
+plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-noisy-posterior.png")
-plt.show()
 
+## Latent variable GP
+T = 2000
+sigma = 1 # Variance
+delta = 50 # Scale 
+sigma_epsilon = 0.0
+
+print("Making Kt")
+Kt = np.zeros((T, T)) 
+for t1 in range(T):
+    for t2 in range(T):
+        Kt[t1,t2] = exponential_covariance(t1,t2)
+
+# Plotting Kt
+fig, ax = plt.subplots()
+ktmat = ax.matshow(Kt, cmap=plt.cm.Blues) #plt.cm.viridis
+fig.colorbar(ktmat, ax=ax)
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-kt.pdf",format="pdf")
+
+path = numpy.random.multivariate_normal(np.zeros(T), Kt)
+#path = np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
+# plot path
+plt.figure()#(figsize=(10,2))
+plt.plot(path, '.', color='black', markersize=1.)
+plt.xlabel("Time")
+plt.ylabel("x value")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-path.pdf",format="pdf")
+
+plt.show()
