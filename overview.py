@@ -98,7 +98,7 @@ kx_obs_mat = ax.matshow(Kx_observed, cmap=plt.cm.Blues)
 fig.colorbar(kx_obs_mat, ax=ax)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-overview-Kx_observed.png")
 
-# Sample f values
+# Sample f values with noise
 f_values_observed = np.zeros((N,T))
 numpy.random.seed(4)
 for i in range(N):

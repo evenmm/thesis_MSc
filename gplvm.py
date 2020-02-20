@@ -10,5 +10,5 @@ import matplotlib.pyplot as plt
 import time
 import sys
 plt.rc('image', cmap='viridis')
-numpy.random.seed(13)
+
 
