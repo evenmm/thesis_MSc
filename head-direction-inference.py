@@ -11,6 +11,7 @@ import time
 import sys
 plt.rc('image', cmap='viridis')
 from gplvm import *
+from scipy import optimize
 numpy.random.seed(13)
 
 ##############
@@ -18,13 +19,18 @@ numpy.random.seed(13)
 ##############
 offset = 1000 # Starting point in observed X values
 T = 1000
+P = 1 # Dimensions of latent variable 
 sigma_fit = 8 # Variance for the GP that is fitted. 8
 delta_fit = 0.3 # Scale for the GP that is fitted. 0.3
 sigma_epsilon_fit = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
 X_dim = 50 # Number of grid points
 TOLERANCE_f = 1 # for Newton's method
 TOLERANCE_X = 0.1 # for X posterior
-LIKELIHOOD = "bernoulli"
+LIKELIHOOD_MODEL = 1 # 1. Bernoulli 2. Poisson
+N_iterations = 100
+Newton_iterations = 10
+sigma_t = 1 # Variance for K_t
+delta_t = 0.1 # Scale for K_t
 
 ##############################
 # Data fetch and definitions #
@@ -93,7 +99,7 @@ def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
     return sigma * exp(-distancesquared/(2*delta))
 
 # Function to check if loglikelihood is increasing for f_tuning_curve
-def loglikelihoodfunction(y_i, f_i):
+def f_loglikelihood(y_i, f_i, Kx_fit_at_observations_inverse):
     if (np.shape(y_i) != np.shape(f_i)):
         print("Size mismatch between y_i and f_i in loglikelihood function!")
     likelihoodterm = sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
@@ -101,26 +107,12 @@ def loglikelihoodfunction(y_i, f_i):
     return likelihoodterm + priorterm 
 
 
-def find_f_hat(N, T, path, y_spikes, likelihood):
-    ####################################################
-    ## Inference of tuning curves and latent variable ##
-    ####################################################
-    ## Using Gaussian Processes ########################
-    ####################################################
-
-    Kx_fit_at_observations = np.zeros((T,T))
-    for x1 in range(T):
-        for x2 in range(T):
-            Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_values_observed[x2], sigma_fit, delta_fit)
-    # By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
-    Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_epsilon_fit
-    Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
-
+def find_f_hat(N, T, path, y_spikes, likelihood_model, Kx_fit_at_observations_inverse):
     ## Finding f hat using Newton's method
-    f_tuning_curve = np.zeros(shape(y_spikes)) # Initialize f values
+    f_tuning_curve = np.sqrt(y_spikes) #np.zeros(shape(y_spikes)) # Initialize f values
     f_convergence_plot_for_neuron_0 = zeros((100,T)) ## Here we store f values of neuron 0 at every time at each iteration step
     iteration = 0
-    while (True):
+    while (iteration < Newton_iterations):
         iteration += 1
         if iteration<4: 
             learning_rate = 0.1
@@ -130,7 +122,7 @@ def find_f_hat(N, T, path, y_spikes, likelihood):
             learning_rate = 0.1
         else: 
             learning_rate = 0.1 
-        old_likelihoods = np.array([loglikelihoodfunction(y_spikes[i],f_tuning_curve[i]) for i in range(N)])
+        old_likelihoods = np.array([f_loglikelihood(y_spikes[i],f_tuning_curve[i], Kx_fit_at_observations_inverse) for i in range(N)])
         for i in range(N): # See equtaion 4.36 in overleaf
             # if LIKELIHOOD=="bernoulli"
             e_tilde = np.divide(exp(f_tuning_curve[i]), 1 + exp(f_tuning_curve[i]))
@@ -145,7 +137,7 @@ def find_f_hat(N, T, path, y_spikes, likelihood):
             f_tuning_curve[i] = new_f_i
             if (i==0):
                 f_convergence_plot_for_neuron_0[iteration-1] = f_tuning_curve[i]
-        new_likelihoods = np.array([loglikelihoodfunction(y_spikes[i],f_tuning_curve[i]) for i in range(N)])
+        new_likelihoods = np.array([f_loglikelihood(y_spikes[i],f_tuning_curve[i], Kx_fit_at_observations_inverse) for i in range(N)])
         print("\nNewton Iteration",iteration)
         print("Biggest likelihood difference", max(new_likelihoods - old_likelihoods)) #The biggest likelihood improvement across all neurons
         if (max(abs(new_likelihoods - old_likelihoods)) < TOLERANCE_f):
@@ -153,24 +145,59 @@ def find_f_hat(N, T, path, y_spikes, likelihood):
         old_likelihoods = new_likelihoods
     return f_tuning_curve
 
-##################
-# Inference of X #
-##################
-X_estimate = np.zeros(T)
-X_loglikelihood_old = -2*TOLERANCE_X
-X_loglikelihood_new = 0
+def x_posterior_loglikelihood(f, X, likelihood_model, Kx_fit_at_observations, Kx_fit_at_observations_inverse, K_t):
+    # Equation 4.26
+    if likelihood_model == 1: # Bernoulli
+        fy_term = sum(np.multiply(f_hat, y_spikes)) - sum(np.log(1 + np.exp(f_hat)))
+    xTKt = np.dot(np.transpose(X), K_t)
+    prior_term_X = - 0.5 * np.dot(xTKt, X)
+    posterior_likelihood = fy_term + prior_term_X #+ determinant_term + prior_term_f 
+    #print(posterior_likelihood)
+    return posterior_likelihood
+#        e_bernoulli = np.divide(exp(f), (1 + exp(f))**2)
+#        determinant_term = 0
+#        for i in range(N):
+#            W_i = np.diag(e_bernoulli[i])
+#            prod = np.dot(W_i, Kx_fit_at_observations) + np.identity(T)
+#            determinant_term += - 0.5 * np.log(np.linalg.det(prod))
+#        determinant_term = - 0.5 * sum( )
+#    elif likelihood_model == 2: # Poisson
+#        fy_term = sum(np.multiply(f_hat, y_spikes)) - sum(np.exp(f_hat))
+#        determinant_term = 0
+#    prior_term_f = 0
+#    for i in range(N):
+#        fTKx = np.dot(np.transpose(f[i]), Kx_fit_at_observations_inverse)
+#        prior_term_f += - 0.5 * np.dot(fTKx, f[i])
+
+###########################
+# EM Inference of X and f #
+###########################
+K_t = np.zeros((T,T))
+for t1 in range(T):
+    for t2 in range(T):
+        K_t[t1,t2] = exponential_covariance(t1,t2, sigma_t, delta_t)
+X_estimate = np.pi * np.ones(T)
+X_loglikelihood_old = 0
+X_loglikelihood_new = np.inf
+iteration = -1
 while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
+    iteration += 1
+    print("\nEM Iteration:", iteration, "\nX estimate:", X_estimate[0:5],"\n")
     X_loglikelihood_old = X_loglikelihood_new
-    f_hat = find_f_hat(N, T, X_estimate, y_spikes, likelihood=LIKELIHOOD)
+    Kx_fit_at_observations = np.zeros((T,T))
+    for x1 in range(T):
+        for x2 in range(T):
+            Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],X_estimate[x2], sigma_fit, delta_fit)
+    # By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
+    Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_epsilon_fit
+    Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
 
-    
-    
-
-
-
-    X_loglikelihood_new = ...
-
-
+    f_hat = find_f_hat(N, T, X_estimate, y_spikes, LIKELIHOOD_MODEL, Kx_fit_at_observations_inverse)
+    def posterior_function(X): # argmax posterior <=> argmin - posterior
+        return - x_posterior_loglikelihood(f_hat, X, LIKELIHOOD_MODEL, Kx_fit_at_observations, Kx_fit_at_observations_inverse, K_t)
+    optimization_result = optimize.minimize(posterior_function, X_estimate, method = "powell", options = {'disp':True, 'xtol': 1, 'maxiter':10})
+    X_estimate = optimization_result.x
+    X_loglikelihood_new = optimization_result.fun 
 
 #################################################
 # Find posterior prediction of log tuning curve #
@@ -183,7 +210,7 @@ print("Making spatial covariance matrice: Kx crossover")
 Kx_crossover = np.zeros((T,X_dim))
 for x1 in range(T):
     for x2 in range(X_dim):
-        Kx_crossover[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid[x2], sigma_fit, delta_fit)
+        Kx_crossover[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid[x2], sigma_fit, delta_fit)
 fig, ax = plt.subplots()
 kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
 fig.colorbar(kx_cross_mat, ax=ax)
@@ -224,15 +251,16 @@ h_upper_confidence_limit = np.exp(upper_confidence_limit) / (1 + np.exp(upper_co
 h_lower_confidence_limit = np.exp(lower_confidence_limit) / (1 + np.exp(lower_confidence_limit))
 
 ## Find observed firing rate
-observed_spikes = zeros((N, X_dim))
+observed_spikes = np.zeros((N, X_dim))
 for i in range(N):
     for x in range(X_dim):
         timesinbin = (X_estimate>bins[x])*(X_estimate<bins[x+1])
-        if(sum(timesinbin)>0):
-            observed_spikes[i,x] = mean( y_spikes[i, timesinbin] )
-        else:
-            print("No observations of X between",bins[x],"and",bins[x+1],".")
+        if(sum(timesinbin)>0): 
+            observed_spikes[i,x] = np.mean( y_spikes[i, timesinbin] )
+#        else:
+#            print("No observations of X between",bins[x],"and",bins[x+1],".")
 
+colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
 for n4 in range(N//4):
     plt.figure(figsize=(10,8))
     neuron = np.array([[0,1],[2,3]])
@@ -247,11 +275,11 @@ for n4 in range(N//4):
             plt.ylim(0.,1.)
             plt.title(neuron[i,j]+1)
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"hd-fitted-tuning"+str(n4+1)+".png")
-plt.show()
 
 ## plot actual head direction together with estimate
 plt.figure(figsize=(10,2))
 plt.plot(true_path, '.', color='black', markersize=1.)
-plt.plot(true_path, '.', color=plt.cm.viridis(0), markersize=1.)
+plt.plot(X_estimate, '.', color=plt.cm.viridis(0), markersize=1.)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference.png")
+plt.show()
 
