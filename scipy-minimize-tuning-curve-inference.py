@@ -23,7 +23,7 @@ numpy.random.seed(13)
 # Parameters #
 ##############
 offset = 1000 # Starting point in observed X values
-T = 1000
+T = 3000
 sigma_fit = 8 # Variance for the GP that is fitted
 delta_fit = 0.3 # Scale for the GP that is fitted
 sigma_epsilon_fit = 0.2 # Assumed variance of observations for the GP that is fitted
@@ -140,19 +140,22 @@ def f_loglikelihood_bernoulli(f_i):
 def f_jacobian_bernoulli(f_i):
     e_tilde = np.divide(exp(f_i), 1 + exp(f_i))
     f_derivative = y_spikes[i] - e_tilde - np.dot(Kx_fit_at_observations_inverse, f_i)
-    return f_derivative
+    return - f_derivative
 
 def f_hessian_bernoulli(f_i):
     e_plain_fraction = np.divide(exp(f_i), (1 + exp(f_i))**2)
     f_hessian = - np.diag(e_plain_fraction) - Kx_fit_at_observations_inverse 
-    return f_hessian
+    return - f_hessian
 
 ## Optimization of f given X
-print("Optimizing...\n")
+print("Optimizing...\n(This should be parallelized)\n")
+starttime = time.time()
 f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
 for i in range(N):
-    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'Newton-CG', options={'disp':True})#, hess=f_hessian_bernoulli
+    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, hess=f_hessian_bernoulli, method = 'L-BFGS-B', options={'disp':False})
     f_tuning_curve[i] = optimization_result.x
+endtime = time.time()
+print("Time spent:", "{:.2f}".format(endtime - starttime))
 
 #################################################
 # Find posterior prediction of log tuning curve #
