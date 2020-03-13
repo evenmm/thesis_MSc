@@ -2,7 +2,7 @@ from scipy import *
 import scipy.io
 import scipy.ndimage
 import numpy as np
-import scipy.optimize as optimize
+import scipy.optimize as sp
 import numpy.random
 import matplotlib
 #matplotlib.use('Agg') # When running on cluster, plots cannot be shown and this must be used
@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import time
 import sys
 plt.rc('image', cmap='viridis')
+from gplvm import *
 numpy.random.seed(13)
 
 ###############################
@@ -23,11 +24,12 @@ numpy.random.seed(13)
 # Parameters #
 ##############
 offset = 1000 # Starting point in observed X values
-T = 3000
+T = 1000
 sigma_fit = 8 # Variance for the GP that is fitted
 delta_fit = 0.3 # Scale for the GP that is fitted
 sigma_epsilon_fit = 0.2 # Assumed variance of observations for the GP that is fitted
 X_dim = 40 # Number of grid points
+TOLERANCE_f = 1 # for Newton's method
 
 """
 sigma_Kx = 8 # variance of kx
@@ -130,32 +132,49 @@ kx_obs_mat = ax.matshow(Kx_fit_at_observations, cmap=plt.cm.Blues)
 fig.colorbar(kx_obs_mat, ax=ax)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-Kx_fit_at_observations.png")
 
-# NEGATIVE Loglikelihood of f given X (since we minimize it to maximize the loglikelihood)
-def f_loglikelihood_bernoulli(f_i):
-    y_i = y_spikes[i]
+# Function to check if loglikelihood is increasing
+def loglikelihoodfunction(y_i, f_i):
+    if (np.shape(y_i) != np.shape(f_i)):
+        print("Size mismatch between y_i and f_i in loglikelihood function!")
     likelihoodterm = sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
     priorterm = - 0.5*np.dot(f_i, np.dot(Kx_fit_at_observations_inverse, f_i))
-    return - (likelihoodterm + priorterm)
+    return likelihoodterm + priorterm 
 
-def f_jacobian_bernoulli(f_i):
-    e_tilde = np.divide(exp(f_i), 1 + exp(f_i))
-    f_derivative = y_spikes[i] - e_tilde - np.dot(Kx_fit_at_observations_inverse, f_i)
-    return - f_derivative
-
-def f_hessian_bernoulli(f_i):
-    e_plain_fraction = np.divide(exp(f_i), (1 + exp(f_i))**2)
-    f_hessian = - np.diag(e_plain_fraction) - Kx_fit_at_observations_inverse 
-    return - f_hessian
-
-## Optimization of f given X
-print("Optimizing...\n(This should be parallelized)\n")
-starttime = time.time()
-f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
-for i in range(N):
-    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, hess=f_hessian_bernoulli, method = 'L-BFGS-B', options={'disp':False})
-    f_tuning_curve[i] = optimization_result.x
-endtime = time.time()
-print("Time spent:", "{:.2f}".format(endtime - starttime))
+## Finding f hat using Newton's method
+f_tuning_curve = np.zeros(shape(y_spikes)) # Initialize f values
+f_convergence_plot_for_neuron_0 = zeros((100,T)) ## Here we store f values of neuron 0 at every time at each iteration step
+iteration = 0
+while (True):
+    iteration += 1
+    if iteration<4: 
+        learning_rate = 0.1
+    elif iteration<10:
+        learning_rate = 0.1
+    elif iteration<15:
+        learning_rate = 0.1
+    else: 
+        learning_rate = 0.1 
+    old_likelihoods = np.array([loglikelihoodfunction(y_spikes[i],f_tuning_curve[i]) for i in range(N)])
+    for i in range(N): # See equtaion 4.36 in overleaf
+        # if LIKELIHOOD=="bernoulli"
+        e_tilde = np.divide(exp(f_tuning_curve[i]), 1 + exp(f_tuning_curve[i]))
+        e_plain_fraction = np.divide(exp(f_tuning_curve[i]), (1 + exp(f_tuning_curve[i]))**2)
+        f_derivative = y_spikes[i] - e_tilde - np.dot(Kx_fit_at_observations_inverse, f_tuning_curve[i])
+        f_hessian = - np.diag(e_plain_fraction) - Kx_fit_at_observations_inverse 
+        # This formulation of Newton's method is slow: 
+        #new_f_i = f_tuning_curve[i] - learning_rate * np.dot(f_derivative,np.linalg.inv(f_hessian))
+        # Instead we do like this (fast): 
+        delta_f_i = np.linalg.solve(f_hessian, - learning_rate * f_derivative)
+        new_f_i = f_tuning_curve[i] + delta_f_i
+        f_tuning_curve[i] = new_f_i
+        if (i==0):
+            f_convergence_plot_for_neuron_0[iteration-1] = f_tuning_curve[i]
+    new_likelihoods = np.array([loglikelihoodfunction(y_spikes[i],f_tuning_curve[i]) for i in range(N)])
+    print("\nNewton Iteration",iteration)
+    print("Biggest likelihood difference", max(new_likelihoods - old_likelihoods)) #The biggest likelihood improvement across all neurons
+    if (max(abs(new_likelihoods - old_likelihoods)) < TOLERANCE_f):
+        break
+    old_likelihoods = new_likelihoods
 
 #################################################
 # Find posterior prediction of log tuning curve #

@@ -10,9 +10,14 @@ import matplotlib.pyplot as plt
 import time
 import sys
 plt.rc('image', cmap='viridis')
-from gplvm import *
 from scipy import optimize
 numpy.random.seed(13)
+
+###############
+# Conventions #
+###############
+# All likelihood, gradient functions etc return negative versions
+# Minimize the negative likelihood.
 
 ##############
 # Parameters #
@@ -23,12 +28,9 @@ P = 1 # Dimensions of latent variable
 sigma_fit = 8 # Variance for the GP that is fitted. 8
 delta_fit = 0.3 # Scale for the GP that is fitted. 0.3
 sigma_epsilon_fit = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
-X_dim = 50 # Number of grid points
-TOLERANCE_f = 1 # for Newton's method
-TOLERANCE_X = 0.1 # for X posterior
+gridpoints = 50 # Number of grid points
+TOLERANCE_X = 0.001 # for X posterior
 LIKELIHOOD_MODEL = 1 # 1. Bernoulli 2. Poisson
-N_iterations = 100
-Newton_iterations = 10
 sigma_t = 1 # Variance for K_t
 delta_t = 0.1 # Scale for K_t
 
@@ -98,62 +100,65 @@ def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
     distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
 
-# Function to check if loglikelihood is increasing for f_tuning_curve
-def f_loglikelihood(y_i, f_i, Kx_fit_at_observations_inverse):
-    if (np.shape(y_i) != np.shape(f_i)):
-        print("Size mismatch between y_i and f_i in loglikelihood function!")
+###############################
+## Inference of tuning curves #
+###############################
+
+# NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
+def f_loglikelihood_bernoulli(f_i):
     likelihoodterm = sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
     priorterm = - 0.5*np.dot(f_i, np.dot(Kx_fit_at_observations_inverse, f_i))
-    return likelihoodterm + priorterm 
+    return - (likelihoodterm + priorterm)
+def f_jacobian_bernoulli(f_i):
+    e_tilde = np.divide(exp(f_i), 1 + exp(f_i))
+    f_derivative = y_i - e_tilde - np.dot(Kx_fit_at_observations_inverse, f_i)
+    return - f_derivative
+def f_hessian_bernoulli(f_i):
+    e_plain_fraction = np.divide(exp(f_i), (1 + exp(f_i))**2)
+    f_hessian = - np.diag(e_plain_fraction) - Kx_fit_at_observations_inverse 
+    return - f_hessian
 
+# NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
+def f_loglikelihood_poisson(f_i):
+    return 0
+def f_jacobian_poisson(f_i):
+    return 0
+def f_hessian_poisson(f_i):
+    return 0
 
-def find_f_hat(N, T, path, y_spikes, likelihood_model, Kx_fit_at_observations_inverse):
-    ## Finding f hat using Newton's method
-    f_tuning_curve = np.sqrt(y_spikes) #np.zeros(shape(y_spikes)) # Initialize f values
-    f_convergence_plot_for_neuron_0 = zeros((100,T)) ## Here we store f values of neuron 0 at every time at each iteration step
-    iteration = 0
-    while (iteration < Newton_iterations):
-        iteration += 1
-        if iteration<4: 
-            learning_rate = 0.1
-        elif iteration<10:
-            learning_rate = 0.1
-        elif iteration<15:
-            learning_rate = 0.1
-        else: 
-            learning_rate = 0.1 
-        old_likelihoods = np.array([f_loglikelihood(y_spikes[i],f_tuning_curve[i], Kx_fit_at_observations_inverse) for i in range(N)])
-        for i in range(N): # See equtaion 4.36 in overleaf
-            # if LIKELIHOOD=="bernoulli"
-            e_tilde = np.divide(exp(f_tuning_curve[i]), 1 + exp(f_tuning_curve[i]))
-            e_plain_fraction = np.divide(exp(f_tuning_curve[i]), (1 + exp(f_tuning_curve[i]))**2)
-            f_derivative = y_spikes[i] - e_tilde - np.dot(Kx_fit_at_observations_inverse, f_tuning_curve[i])
-            f_hessian = - np.diag(e_plain_fraction) - Kx_fit_at_observations_inverse 
-            # This formulation of Newton's method is slow: 
-            #new_f_i = f_tuning_curve[i] - learning_rate * np.dot(f_derivative,np.linalg.inv(f_hessian))
-            # Instead we do like this (fast): 
-            delta_f_i = np.linalg.solve(f_hessian, - learning_rate * f_derivative)
-            new_f_i = f_tuning_curve[i] + delta_f_i
-            f_tuning_curve[i] = new_f_i
-            if (i==0):
-                f_convergence_plot_for_neuron_0[iteration-1] = f_tuning_curve[i]
-        new_likelihoods = np.array([f_loglikelihood(y_spikes[i],f_tuning_curve[i], Kx_fit_at_observations_inverse) for i in range(N)])
-        print("\nNewton Iteration",iteration)
-        print("Biggest likelihood difference", max(new_likelihoods - old_likelihoods)) #The biggest likelihood improvement across all neurons
-        if (max(abs(new_likelihoods - old_likelihoods)) < TOLERANCE_f):
-            break
-        old_likelihoods = new_likelihoods
-    return f_tuning_curve
+## Optimization of f given X
+#def find_f_hat(N, T, X_estimate, y_spikes, likelihood_model, Kx_fit_at_observations_inverse):
+#    f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
+#    if likelihood_model == 1: # Bernoulli
+#        for i in range(N):
+#            y_i = y_spikes[i]
+#           optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+#            f_tuning_curve[i] = optimization_result.x
+#    elif likelihood_model == 2: # Poisson
+#        for i in range(N):
+#            y_i = y_spikes[i]
+#            optimization_result = optimize.minimize(f_loglikelihood_poisson, f_tuning_curve[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+#            f_tuning_curve[i] = optimization_result.x
+#    return f_tuning_curve
 
-def x_posterior_loglikelihood(f, X, likelihood_model, Kx_fit_at_observations, Kx_fit_at_observations_inverse, K_t):
-    # Equation 4.26
-    if likelihood_model == 1: # Bernoulli
-        fy_term = sum(np.multiply(f_hat, y_spikes)) - sum(np.log(1 + np.exp(f_hat)))
-    xTKt = np.dot(np.transpose(X), K_t)
+# NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
+def x_jacobian():
+
+    return 0
+
+def x_loglikelihood(X):
+    if LIKELIHOOD_MODEL == 1: # Bernoulli, equation 4.26
+        fy_term = sum(np.multiply(f_hat, y_spikes) - np.log(1 + np.exp(f_hat)))
+    elif LIKELIHOOD_MODEL == 2: # Poisson, equation 4.43
+        fy_term = sum(np.multiply(f_hat, y_spikes) - np.exp(f_hat))
+    xTKt = np.dot(np.transpose(X), K_t_inverse)
     prior_term_X = - 0.5 * np.dot(xTKt, X)
-    posterior_likelihood = fy_term + prior_term_X #+ determinant_term + prior_term_f 
-    #print(posterior_likelihood)
-    return posterior_likelihood
+    prior_term_f = 0
+    for ii in range(N):
+        fTKx = np.dot(np.transpose(f_hat[ii]), Kx_fit_at_observations_inverse)
+        prior_term_f += np.dot(fTKx, f_hat[ii])
+    posterior_likelihood = fy_term + prior_term_f + prior_term_X #+ determinant_term + prior_term_f 
+    return - posterior_likelihood
 #        e_bernoulli = np.divide(exp(f), (1 + exp(f))**2)
 #        determinant_term = 0
 #        for i in range(N):
@@ -164,7 +169,6 @@ def x_posterior_loglikelihood(f, X, likelihood_model, Kx_fit_at_observations, Kx
 #    elif likelihood_model == 2: # Poisson
 #        fy_term = sum(np.multiply(f_hat, y_spikes)) - sum(np.exp(f_hat))
 #        determinant_term = 0
-#    prior_term_f = 0
 #    for i in range(N):
 #        fTKx = np.dot(np.transpose(f[i]), Kx_fit_at_observations_inverse)
 #        prior_term_f += - 0.5 * np.dot(fTKx, f[i])
@@ -172,54 +176,74 @@ def x_posterior_loglikelihood(f, X, likelihood_model, Kx_fit_at_observations, Kx
 ###########################
 # EM Inference of X and f #
 ###########################
-K_t = np.zeros((T,T))
-for t1 in range(T):
-    for t2 in range(T):
-        K_t[t1,t2] = exponential_covariance(t1,t2, sigma_t, delta_t)
-X_estimate = np.pi * np.ones(T)
-X_loglikelihood_old = 0
-X_loglikelihood_new = np.inf
-iteration = -1
-while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
-    iteration += 1
-    print("\nEM Iteration:", iteration, "\nX estimate:", X_estimate[0:5],"\n")
-    X_loglikelihood_old = X_loglikelihood_new
+def make_Kx(T, X_estimate):
     Kx_fit_at_observations = np.zeros((T,T))
     for x1 in range(T):
         for x2 in range(T):
             Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],X_estimate[x2], sigma_fit, delta_fit)
     # By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
     Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_epsilon_fit
+    return Kx_fit_at_observations
+
+K_t = np.zeros((T,T))
+for t1 in range(T):
+    for t2 in range(T):
+        K_t[t1,t2] = exponential_covariance(t1,t2, sigma_t, delta_t)
+K_t_inverse = np.linalg.inv(K_t)
+
+X_estimate = np.pi * np.ones(T)
+X_loglikelihood_old = 0
+X_loglikelihood_new = np.inf
+iteration = -1
+while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
+    X_loglikelihood_old = X_loglikelihood_new
+    iteration += 1
+    print("\nEM Iteration:", iteration, "\nX estimate:", X_estimate[0:5],"\n")
+    Kx_fit_at_observations = make_Kx(T, X_estimate)
     Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
 
-    f_hat = find_f_hat(N, T, X_estimate, y_spikes, LIKELIHOOD_MODEL, Kx_fit_at_observations_inverse)
-    def posterior_function(X): # argmax posterior <=> argmin - posterior
-        return - x_posterior_loglikelihood(f_hat, X, LIKELIHOOD_MODEL, Kx_fit_at_observations, Kx_fit_at_observations_inverse, K_t)
-    optimization_result = optimize.minimize(posterior_function, X_estimate, method = "powell", options = {'disp':True, 'xtol': 1, 'maxiter':10})
+    # Find f hat given X
+    print("Finding f hat...")
+    f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
+    if LIKELIHOOD_MODEL == 1: # Bernoulli
+        for i in range(N):
+            y_i = y_spikes[i]
+            optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+            f_tuning_curve[i] = optimization_result.x
+    elif LIKELIHOOD_MODEL == 2: # Poisson
+        for i in range(N):
+            y_i = y_spikes[i]
+            optimization_result = optimize.minimize(f_loglikelihood_poisson, f_tuning_curve[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+            f_tuning_curve[i] = optimization_result.x
+    #f_hat = find_f_hat(N, T, X_estimate, y_spikes, LIKELIHOOD_MODEL, Kx_fit_at_observations_inverse)
+    f_hat = f_tuning_curve
+    print("Finding next X estimate...")
+    optimization_result = optimize.minimize(x_loglikelihood, X_estimate, method = "Newton-CG", options = {'disp':True})
     X_estimate = optimization_result.x
     X_loglikelihood_new = optimization_result.fun 
+
 
 #################################################
 # Find posterior prediction of log tuning curve #
 #################################################
-bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=X_dim + 1)
+bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=gridpoints + 1)
 x_grid = 0.5*(bins[:(-1)]+bins[1:])
 f_values_observed = f_hat
 
 print("Making spatial covariance matrice: Kx crossover")
-Kx_crossover = np.zeros((T,X_dim))
+Kx_crossover = np.zeros((T,gridpoints))
 for x1 in range(T):
-    for x2 in range(X_dim):
+    for x2 in range(gridpoints):
         Kx_crossover[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid[x2], sigma_fit, delta_fit)
-fig, ax = plt.subplots()
-kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
-fig.colorbar(kx_cross_mat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_crossover.png")
+#fig, ax = plt.subplots()
+#kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
+#fig.colorbar(kx_cross_mat, ax=ax)
+#plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_crossover.png")
 Kx_crossover_T = np.transpose(Kx_crossover)
 print("Making spatial covariance matrice: Kx grid")
-Kx_grid = np.zeros((X_dim,X_dim))
-for x1 in range(X_dim):
-    for x2 in range(X_dim):
+Kx_grid = np.zeros((gridpoints,gridpoints))
+for x1 in range(gridpoints):
+    for x2 in range(gridpoints):
         Kx_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_fit, delta_fit)
 fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
@@ -228,7 +252,7 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_grid.png")
 
 # Infer mean on the grid
 pre = np.zeros((N,T))
-mu_posterior = np.zeros((N, X_dim))
+mu_posterior = np.zeros((N, gridpoints))
 for i in range(N):
     pre[i] = np.dot(Kx_fit_at_observations_inverse, f_values_observed[i])
     mu_posterior[i] = np.dot(Kx_crossover_T, pre[i])
@@ -251,9 +275,9 @@ h_upper_confidence_limit = np.exp(upper_confidence_limit) / (1 + np.exp(upper_co
 h_lower_confidence_limit = np.exp(lower_confidence_limit) / (1 + np.exp(lower_confidence_limit))
 
 ## Find observed firing rate
-observed_spikes = np.zeros((N, X_dim))
+observed_spikes = np.zeros((N, gridpoints))
 for i in range(N):
-    for x in range(X_dim):
+    for x in range(gridpoints):
         timesinbin = (X_estimate>bins[x])*(X_estimate<bins[x+1])
         if(sum(timesinbin)>0): 
             observed_spikes[i,x] = np.mean( y_spikes[i, timesinbin] )
@@ -261,7 +285,7 @@ for i in range(N):
 #            print("No observations of X between",bins[x],"and",bins[x+1],".")
 
 colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
-for n4 in range(N//4):
+for n4 in range(1): #range(N//4):
     plt.figure(figsize=(10,8))
     neuron = np.array([[0,1],[2,3]])
     neuron = neuron + 4*n4
@@ -278,8 +302,8 @@ for n4 in range(N//4):
 
 ## plot actual head direction together with estimate
 plt.figure(figsize=(10,2))
-plt.plot(true_path, '.', color='black', markersize=1.)
-plt.plot(X_estimate, '.', color=plt.cm.viridis(0), markersize=1.)
+plt.plot(true_path, '.', color='black', markersize=2.)
+plt.plot(X_estimate, '.', color=plt.cm.viridis(0.5), markersize=2.)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference.png")
 plt.show()
 
