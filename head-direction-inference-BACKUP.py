@@ -12,9 +12,10 @@ import sys
 plt.rc('image', cmap='viridis')
 from scipy import optimize
 numpy.random.seed(13)
-#from hd_dataload import *
 
-
+###############
+# Conventions #
+###############
 # All likelihood, gradient functions etc return negative versions
 # Minimize the negative likelihood.
 
@@ -33,6 +34,60 @@ LIKELIHOOD_MODEL = 1 # 1. Bernoulli 2. Poisson
 sigma_t = 1 # Variance of X for K_t
 delta_t = 0.1 # Scale of X for K_t
 
+##############################
+# Data fetch and definitions #
+##############################
+
+name = sys.argv[1] #'Mouse28-140313_stuff_BS0030_awakedata.mat'
+
+thresholdforneuronstokeep = 1000 # number of spikes to be considered useful
+
+mat = scipy.io.loadmat(name)
+headangle = ravel(array(mat['headangle']))
+cellspikes = array(mat['cellspikes'])
+cellnames = array(mat['cellnames'])
+trackingtimes = ravel(array(mat['trackingtimes']))
+
+## make matrix of spikes y_spikes
+startt = min(trackingtimes)
+binsize = mean(trackingtimes[1:]-trackingtimes[:(-1)])
+nbins = len(trackingtimes)
+binnedspikes = zeros((len(cellnames), nbins))
+sgood = zeros(len(binnedspikes[:,0]))<1
+for i in range(len(cellnames)):
+  spikes = ravel((cellspikes[0])[i])
+  for j in range(len(spikes)):
+    # note 1ms binning means that number of ms from start is the correct index
+    tt = int(floor(  (spikes[j] - startt)/float(binsize)  ))
+    if(tt>nbins-1 or tt<0): # check if outside bounds of the awake time
+      continue
+    binnedspikes[i,tt] += 1 # add a spike to the thing
+
+  ## check if actvitity is ok
+  if(sum(binnedspikes[i,:])<thresholdforneuronstokeep):
+      sgood[i] = False
+      continue
+
+binnedspikes = binnedspikes[sgood,:]
+cellnames = cellnames[sgood]
+
+# Remove nan items
+whiches = np.isnan(headangle)
+headangle = headangle[~whiches]
+binnedspikes = binnedspikes[:,~whiches]
+
+# Select part of data to be able to make X
+true_path = headangle[offset:offset+T]
+binnedspikes = binnedspikes[:,offset:offset+T]
+binnedspikes = (binnedspikes>0)*1 #Reset to ones 
+
+N = len(cellnames) #51 with cutoff at 1000 spikes
+print("T:",T)
+print("N:",N)
+print("How many times are there more than one spike:", sum((binnedspikes>1)*1))
+y_spikes = binnedspikes
+print("mean(y_spikes)",mean(y_spikes))
+
 def exponential_covariance(t1,t2, sigma, delta):
     distance = abs(t1-t2)
     return sigma * exp(-distance/delta)
@@ -44,45 +99,6 @@ def gaussian_periodic_covariance(x1,x2, sigma, delta):
 def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
     distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
-
-######################################
-## Generate data for simple example ##
-######################################
-N = 1
-
-# Generative path for X:
-#sigma_path = 1 # Variance
-#delta_path = 50 # Scale 
-#Kt = np.zeros((T, T)) 
-#for t1 in range(T):
-#    for t2 in range(T):
-#        Kt[t1,t2] = exponential_covariance(t1,t2, sigma_path, delta_path)
-#path = numpy.random.multivariate_normal(np.zeros(T), Kt)
-#path = np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
-path = 2*np.sin([2*np.pi*t/T for t in range(T)])
-# plot path
-plt.figure()#(figsize=(10,2))
-plt.plot(path, '.', color='black', markersize=1.)
-plt.xlabel("Time")
-plt.ylabel("x value")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-path.pdf",format="pdf")
-
-# Define spike rates
-def f(x): 
-    return 2-6*x**2
-# Plot f and h
-plt.figure()
-xplotgrid = np.linspace(-2,2,100)
-#plt.plot(xplotgrid,f(xplotgrid))
-plt.plot(xplotgrid,np.exp(f(xplotgrid))/(1+np.exp(f(xplotgrid))), color="blue")
-plt.title("Spike rate h in dark blue")
-plt.ylim(0,1)
-plt.show()
-
-# Generate y_spikes, Bernoulli
-true_f = f(path)
-rates = np.exp(true_f)/(1+np.exp(true_f)) # h tuning curve values
-y_spikes = np.random.binomial(1, rates)
 
 ###############################
 ## Inference of tuning curves #
@@ -104,7 +120,6 @@ def f_hessian_bernoulli(f_i):
 
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
 def f_loglikelihood_poisson(f_i):
-    
     return 0
 def f_jacobian_poisson(f_i):
     return 0
