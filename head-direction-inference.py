@@ -24,14 +24,15 @@ numpy.random.seed(13)
 offset = 1000 # Starting point in observed X values
 T = 1000
 P = 1 # Dimensions of latent variable 
-sigma_fit = 8 # Variance for the tuning curve GP that is fitted. 8
-delta_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_epsilon_fit = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
+sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
+delta_f_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
+sigma_epsilon_f_fit = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
 gridpoints = 50 # Number of grid points
-TOLERANCE_X = 0.0001 # for X posterior
-LIKELIHOOD_MODEL = 1 # 1. Bernoulli 2. Poisson
-sigma_t = 1 # Variance of X for K_t
-delta_t = 0.1 # Scale of X for K_t
+TOLERANCE_X = 0.1 # for X posterior
+LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
+sigma_x = 2 # Variance of X for K_t
+delta_x = 10 # Scale of X for K_t
+N_iterations = 10
 
 def exponential_covariance(t1,t2, sigma, delta):
     distance = abs(t1-t2)
@@ -77,49 +78,53 @@ xplotgrid = np.linspace(-2,2,100)
 plt.plot(xplotgrid,np.exp(f(xplotgrid))/(1+np.exp(f(xplotgrid))), color="blue")
 plt.title("Spike rate h in dark blue")
 plt.ylim(0,1)
-plt.show()
 
 # Generate y_spikes, Bernoulli
 true_f = f(path)
 rates = np.exp(true_f)/(1+np.exp(true_f)) # h tuning curve values
-y_spikes = np.random.binomial(1, rates)
+y_spikes = np.array([np.random.binomial(1, rates)])
 
 ###############################
 ## Inference of tuning curves #
 ###############################
 
-# NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
-def f_loglikelihood_bernoulli(f_i):
-    likelihoodterm = sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
-    priorterm = - 0.5*np.dot(f_i, np.dot(Kx_fit_at_observations_inverse, f_i))
+# NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize. Equation (4.17)++
+def f_loglikelihood_bernoulli(f_i): # Psi
+    likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
+    priorterm = - 0.5*np.dot(np.transpose(f_i), np.dot(Kx_fit_at_observations_inverse, f_i))
     return - (likelihoodterm + priorterm)
 def f_jacobian_bernoulli(f_i):
-    e_tilde = np.divide(exp(f_i), 1 + exp(f_i))
-    f_derivative = y_i - e_tilde - np.dot(Kx_fit_at_observations_inverse, f_i)
+    e_plain = np.divide(np.exp(f_i), 1 + np.exp(f_i))
+    f_derivative = y_i - e_plain - np.dot(Kx_fit_at_observations_inverse, f_i)
     return - f_derivative
 def f_hessian_bernoulli(f_i):
-    e_plain_fraction = np.divide(exp(f_i), (1 + exp(f_i))**2)
-    f_hessian = - np.diag(e_plain_fraction) - Kx_fit_at_observations_inverse 
+    e_tilde = np.divide(np.exp(f_i), (1 + np.exp(f_i))**2)
+    f_hessian = - np.diag(e_tilde) - Kx_fit_at_observations_inverse 
     return - f_hessian
 
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
 def f_loglikelihood_poisson(f_i):
-    
-    return 0
+    likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i)) 
+    priorterm = - 0.5*np.dot(np.transpose(f_i), np.dot(Kx_fit_at_observations_inverse, f_i))
+    return - (likelihoodterm + priorterm)
 def f_jacobian_poisson(f_i):
-    return 0
+    e_poiss = np.exp(f_i)
+    f_derivative = y_i - e_poiss - np.dot(Kx_fit_at_observations_inverse, f_i)
+    return - f_derivative
 def f_hessian_poisson(f_i):
-    return 0
+    e_poiss = np.exp(f_i)
+    f_hessian = - np.diag(e_poiss) - Kx_fit_at_observations_inverse
+    return - f_hessian
 
 ## Optimization of f given X
 #def find_f_hat(N, T, X_estimate, y_spikes, likelihood_model, Kx_fit_at_observations_inverse):
 #    f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
-#    if likelihood_model == 1: # Bernoulli
+#    if likelihood_model == "bernoulli"
 #        for i in range(N):
 #            y_i = y_spikes[i]
 #           optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
 #            f_tuning_curve[i] = optimization_result.x
-#    elif likelihood_model == 2: # Poisson
+#    elif likelihood_model == "poisson"
 #        for i in range(N):
 #            y_i = y_spikes[i]
 #            optimization_result = optimize.minimize(f_loglikelihood_poisson, f_tuning_curve[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
@@ -132,9 +137,9 @@ def x_jacobian():
     return 0
 
 def x_loglikelihood(X):
-    if LIKELIHOOD_MODEL == 1: # Bernoulli, equation 4.26
+    if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
         fy_term = sum(np.multiply(f_hat, y_spikes) - np.log(1 + np.exp(f_hat)))
-    elif LIKELIHOOD_MODEL == 2: # Poisson, equation 4.43
+    elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
         fy_term = sum(np.multiply(f_hat, y_spikes) - np.exp(f_hat))
     xTKt = np.dot(np.transpose(X), K_t_inverse)
     prior_term_X = - 0.5 * np.dot(xTKt, X)
@@ -165,24 +170,26 @@ def make_Kx(T, X_estimate):
     Kx_fit_at_observations = np.zeros((T,T))
     for x1 in range(T):
         for x2 in range(T):
-            Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],X_estimate[x2], sigma_fit, delta_fit)
+            Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],X_estimate[x2], sigma_f_fit, delta_f_fit)
     # By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
-    Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_epsilon_fit
+    Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_epsilon_f_fit
     return Kx_fit_at_observations
 
 K_t = np.zeros((T,T))
 for t1 in range(T):
     for t2 in range(T):
-        K_t[t1,t2] = exponential_covariance(t1,t2, sigma_t, delta_t)
+        K_t[t1,t2] = exponential_covariance(t1,t2, sigma_x, delta_x)
 K_t_inverse = np.linalg.inv(K_t)
 
 X_estimate = np.pi * np.ones(T)
 X_loglikelihood_old = 0
 X_loglikelihood_new = np.inf
-iteration = -1
-while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
+#iteration = -1
+### INFERENCE OF X
+for iteration in range(N_iterations):
+#while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
+    print("Logikelihood improvement:", - (X_loglikelihood_new - X_loglikelihood_old))
     X_loglikelihood_old = X_loglikelihood_new
-    iteration += 1
     print("\nEM Iteration:", iteration, "\nX estimate:", X_estimate[0:5],"\n")
     Kx_fit_at_observations = make_Kx(T, X_estimate)
     Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
@@ -190,23 +197,34 @@ while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
     # Find f hat given X
     print("Finding f hat...")
     f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
-    if LIKELIHOOD_MODEL == 1: # Bernoulli
+    if LIKELIHOOD_MODEL == "bernoulli":
         for i in range(N):
             y_i = y_spikes[i]
             optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
             f_tuning_curve[i] = optimization_result.x
-    elif LIKELIHOOD_MODEL == 2: # Poisson
+    elif LIKELIHOOD_MODEL == "poisson":
         for i in range(N):
             y_i = y_spikes[i]
             optimization_result = optimize.minimize(f_loglikelihood_poisson, f_tuning_curve[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
             f_tuning_curve[i] = optimization_result.x #f_hat = find_f_hat(N, T, X_estimate, y_spikes, LIKELIHOOD_MODEL, Kx_fit_at_observations_inverse)
     f_hat = f_tuning_curve
+    plt.figure()
+    plt.plot(f_hat[0])
+    plt.plot(true_f, color="blue")
+    plt.show()
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
     optimization_result = optimize.minimize(x_loglikelihood, X_estimate, method = "L-BFGS-B", options = {'disp':True})
     X_estimate = optimization_result.x
+    plt.figure()
+    plt.plot(path, color="blue")
+    plt.plot(X_estimate)
+    plt.show()
     # Reshape X to be in (0,2pi)
     X_loglikelihood_new = optimization_result.fun 
+
+
+
 
 
 #################################################
@@ -220,7 +238,7 @@ print("Making spatial covariance matrice: Kx crossover")
 Kx_crossover = np.zeros((T,gridpoints))
 for x1 in range(T):
     for x2 in range(gridpoints):
-        Kx_crossover[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid[x2], sigma_fit, delta_fit)
+        Kx_crossover[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid[x2], sigma_f_fit, delta_f_fit)
 #fig, ax = plt.subplots()
 #kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
 #fig.colorbar(kx_cross_mat, ax=ax)
@@ -230,7 +248,7 @@ print("Making spatial covariance matrice: Kx grid")
 Kx_grid = np.zeros((gridpoints,gridpoints))
 for x1 in range(gridpoints):
     for x2 in range(gridpoints):
-        Kx_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_fit, delta_fit)
+        Kx_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_f_fit, delta_f_fit)
 fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
@@ -271,24 +289,33 @@ for i in range(N):
 #            print("No observations of X between",bins[x],"and",bins[x+1],".")
 
 colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
-for n4 in range(1): #range(N//4):
-    plt.figure(figsize=(10,8))
-    neuron = np.array([[0,1],[2,3]])
-    neuron = neuron + 4*n4
-    for i in range(2):
-        for j in range(2):
-            plt.subplot(2,2,i*2+j+1)
-            plt.plot(x_grid, observed_spikes[neuron[i,j],:], color="#cfb302")
-            plt.plot(x_grid, h_estimate[neuron[i,j],:], color=colors[0]) 
-            plt.plot(x_grid, h_upper_confidence_limit[neuron[i,j],:], "--", color=colors[0])
-            plt.plot(x_grid, h_lower_confidence_limit[neuron[i,j],:], "--", color=colors[0])
-            plt.ylim(0.,1.)
-            plt.title(neuron[i,j]+1)
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"hd-fitted-tuning"+str(n4+1)+".png")
+
+plt.figure()
+plt.plot(x_grid, observed_spikes[0,:], color="#cfb302")
+plt.plot(x_grid, h_estimate[0,:], color=colors[0]) 
+plt.plot(x_grid, h_upper_confidence_limit[0,:], "--", color=colors[0])
+plt.plot(x_grid, h_lower_confidence_limit[0,:], "--", color=colors[0])
+plt.ylim(0.,1.)
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"hd-fitted-tuning.png")
+
+#for n4 in range(1): #range(N//4):
+#    plt.figure(figsize=(10,8))
+#    neuron = np.array([[0,1],[2,3]])
+#    neuron = neuron + 4*n4
+#    for i in range(2):
+#        for j in range(2):
+#            plt.subplot(2,2,i*2+j+1)
+#            plt.plot(x_grid, observed_spikes[neuron[i,j],:], color="#cfb302")
+#            plt.plot(x_grid, h_estimate[neuron[i,j],:], color=colors[0]) 
+#            plt.plot(x_grid, h_upper_confidence_limit[neuron[i,j],:], "--", color=colors[0])
+#            plt.plot(x_grid, h_lower_confidence_limit[neuron[i,j],:], "--", color=colors[0])
+#            plt.ylim(0.,1.)
+#            plt.title(neuron[i,j]+1)
+#    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"hd-fitted-tuning"+str(n4+1)+".png")
 
 ## plot actual head direction together with estimate
 plt.figure(figsize=(10,2))
-plt.plot(true_path, '.', color='black', markersize=2.)
+plt.plot(path, '.', color='black', markersize=2.)
 plt.plot(X_estimate, '.', color=plt.cm.viridis(0.5), markersize=2.)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference.png")
 plt.show()
