@@ -22,7 +22,7 @@ numpy.random.seed(13)
 # Parameters #
 ##############
 offset = 1000 # Starting point in observed X values
-T = 1000
+T = 100
 P = 1 # Dimensions of latent variable 
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
@@ -30,9 +30,12 @@ sigma_epsilon_f_fit = 0.2 # Assumed variance of observations for the GP that is 
 gridpoints = 50 # Number of grid points
 TOLERANCE_X = 0.1 # for X posterior
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
+print("Likelihood model:",LIKELIHOOD_MODEL)
+INFERENCE_METHOD = 3 # 1. No LA. 2. Standard LA. 3. Decoupled LA
 sigma_x = 2 # Variance of X for K_t
 delta_x = 10 # Scale of X for K_t
 N_iterations = 10
+plottruth = True
 
 def exponential_covariance(t1,t2, sigma, delta):
     distance = abs(t1-t2)
@@ -62,22 +65,24 @@ N = 1
 #path = np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
 path = 2*np.sin([2*np.pi*t/T for t in range(T)])
 # plot path
-plt.figure()#(figsize=(10,2))
-plt.plot(path, '.', color='black', markersize=1.)
-plt.xlabel("Time")
-plt.ylabel("x value")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-path.pdf",format="pdf")
+if plottruth:
+    plt.figure()#(figsize=(10,2))
+    plt.plot(path, '.', color='black', markersize=1.)
+    plt.xlabel("Time")
+    plt.ylabel("x value")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-path.pdf",format="pdf")
 
 # Define spike rates
 def f(x): 
     return 2-6*x**2
 # Plot f and h
-plt.figure()
-xplotgrid = np.linspace(-2,2,100)
-#plt.plot(xplotgrid,f(xplotgrid))
-plt.plot(xplotgrid,np.exp(f(xplotgrid))/(1+np.exp(f(xplotgrid))), color="blue")
-plt.title("Spike rate h in dark blue")
-plt.ylim(0,1)
+if plottruth:
+    plt.figure()
+    xplotgrid = np.linspace(-2,2,100)
+    #plt.plot(xplotgrid,f(xplotgrid))
+    plt.plot(xplotgrid,np.exp(f(xplotgrid))/(1+np.exp(f(xplotgrid))), color="blue")
+    plt.title("Spike rate h in dark blue")
+    plt.ylim(0,1)
 
 # Generate y_spikes, Bernoulli
 true_f = f(path)
@@ -116,52 +121,34 @@ def f_hessian_poisson(f_i):
     f_hessian = - np.diag(e_poiss) - Kx_fit_at_observations_inverse
     return - f_hessian
 
-## Optimization of f given X
-#def find_f_hat(N, T, X_estimate, y_spikes, likelihood_model, Kx_fit_at_observations_inverse):
-#    f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
-#    if likelihood_model == "bernoulli"
-#        for i in range(N):
-#            y_i = y_spikes[i]
-#           optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
-#            f_tuning_curve[i] = optimization_result.x
-#    elif likelihood_model == "poisson"
-#        for i in range(N):
-#            y_i = y_spikes[i]
-#            optimization_result = optimize.minimize(f_loglikelihood_poisson, f_tuning_curve[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
-#            f_tuning_curve[i] = optimization_result.x
-#    return f_tuning_curve
-
-# NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
-def x_jacobian():
-
-    return 0
-
-def x_loglikelihood(X):
+# NEGATIVE Loglikelihood and gradient. minimize to maximize.
+def x_loglikelihood_decoupled_la(X):
+    # yf_term
     if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        fy_term = sum(np.multiply(f_hat, y_spikes) - np.log(1 + np.exp(f_hat)))
+        yf_term = sum(np.multiply(y_spikes, f_hat) - np.log(1 + np.exp(f_hat)))
     elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        fy_term = sum(np.multiply(f_hat, y_spikes) - np.exp(f_hat))
-    xTKt = np.dot(np.transpose(X), K_t_inverse)
-    prior_term_X = - 0.5 * np.dot(xTKt, X)
-    prior_term_f = 0
+        yf_term = sum(np.multiply(y_spikes, f_hat) - np.exp(f_hat))
+    # f prior term
+    f_prior_term = 0
     for ii in range(N):
         fTKx = np.dot(np.transpose(f_hat[ii]), Kx_fit_at_observations_inverse)
-        prior_term_f += np.dot(fTKx, f_hat[ii])
-    posterior_likelihood = fy_term + prior_term_f + prior_term_X #+ determinant_term + prior_term_f 
-    return - posterior_likelihood
-#        e_bernoulli = np.divide(exp(f), (1 + exp(f))**2)
-#        determinant_term = 0
-#        for i in range(N):
-#            W_i = np.diag(e_bernoulli[i])
-#            prod = np.dot(W_i, Kx_fit_at_observations) + np.identity(T)
-#            determinant_term += - 0.5 * np.log(np.linalg.det(prod))
-#        determinant_term = - 0.5 * sum( )
-#    elif likelihood_model == 2: # Poisson
-#        fy_term = sum(np.multiply(f_hat, y_spikes)) - sum(np.exp(f_hat))
-#        determinant_term = 0
-#    for i in range(N):
-#        fTKx = np.dot(np.transpose(f[i]), Kx_fit_at_observations_inverse)
-#        prior_term_f += - 0.5 * np.dot(fTKx, f[i])
+        f_prior_term += np.dot(fTKx, f_hat[ii])
+    # det term
+    det_term = 0
+    for ii in range(N):
+        S_inverse = np.diag(np.exp(f_hat[ii]))
+        tempmatrix = np.matmul(S_inverse, Kx_fit_at_observations) + np.identity(T) 
+        det_term += - 0.5 * np.log(np.linalg.det(tempmatrix))
+    # x prior term
+    xTKt = np.dot(np.transpose(X), K_t_inverse)
+    x_prior_term = - 0.5 * np.dot(xTKt, X)
+
+    posterior_loglikelihood = yf_term + det_term + f_prior_term + x_prior_term
+    return - posterior_loglikelihood
+
+def x_jacobian_decoupled_la(X):
+    
+    return 0
 
 ###########################
 # EM Inference of X and f #
@@ -181,13 +168,19 @@ for t1 in range(T):
         K_t[t1,t2] = exponential_covariance(t1,t2, sigma_x, delta_x)
 K_t_inverse = np.linalg.inv(K_t)
 
-X_estimate = np.pi * np.ones(T)
+# Initialize X
+#X_estimate = np.pi * np.ones(T)
+X_estimate = path
+
 X_loglikelihood_old = 0
 X_loglikelihood_new = np.inf
-#iteration = -1
 ### INFERENCE OF X
 for iteration in range(N_iterations):
 #while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
+    plt.figure()
+    plt.plot(path, color="blue")
+    plt.plot(X_estimate)
+    plt.show()
     print("Logikelihood improvement:", - (X_loglikelihood_new - X_loglikelihood_old))
     X_loglikelihood_old = X_loglikelihood_new
     print("\nEM Iteration:", iteration, "\nX estimate:", X_estimate[0:5],"\n")
@@ -214,14 +207,13 @@ for iteration in range(N_iterations):
     plt.show()
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
-    optimization_result = optimize.minimize(x_loglikelihood, X_estimate, method = "L-BFGS-B", options = {'disp':True})
+    if INFERENCE_METHOD == 3:
+        optimization_result = optimize.minimize(x_loglikelihood_decoupled_la, X_estimate, jac=x_jacobian_decoupled_la, method = "L-BFGS-B", options = {'disp':True})
     X_estimate = optimization_result.x
-    plt.figure()
-    plt.plot(path, color="blue")
-    plt.plot(X_estimate)
-    plt.show()
     # Reshape X to be in (0,2pi)
     X_loglikelihood_new = optimization_result.fun 
+
+
 
 
 
