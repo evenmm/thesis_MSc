@@ -21,8 +21,6 @@ numpy.random.seed(13)
 ##############
 # Parameters #
 ##############
-offset = 1000 # Starting point in observed X values
-T = 100
 P = 1 # Dimensions of latent variable 
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
@@ -52,8 +50,6 @@ def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
 ######################################
 ## Generate data for simple example ##
 ######################################
-N = 1
-
 # Generative path for X:
 #sigma_path = 1 # Variance
 #delta_path = 50 # Scale 
@@ -63,31 +59,57 @@ N = 1
 #        Kt[t1,t2] = exponential_covariance(t1,t2, sigma_path, delta_path)
 #path = numpy.random.multivariate_normal(np.zeros(T), Kt)
 #path = np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
-path = 2*np.sin([2*np.pi*t/T for t in range(T)])
-# plot path
-if plottruth:
-    plt.figure()#(figsize=(10,2))
-    plt.plot(path, '.', color='black', markersize=1.)
-    plt.xlabel("Time")
-    plt.ylabel("x value")
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-path.pdf",format="pdf")
+T = 100
+N = 10
+tuningwidth = 1 # width of tuning (in radians)
+biasterm = -2 # Average H outside tuningwidth -4
+tuningcovariatestrength = 4.*tuningwidth # H value at centre of tuningwidth 6*tuningwidth
+neuronpeak = [(i+0.5)*2.*pi/N for i in range(N)]
+number_of_bins = 50
 
-# Define spike rates
-def f(x): 
-    return 2-6*x**2
-# Plot f and h
-if plottruth:
-    plt.figure()
-    xplotgrid = np.linspace(-2,2,100)
-    #plt.plot(xplotgrid,f(xplotgrid))
-    plt.plot(xplotgrid,np.exp(f(xplotgrid))/(1+np.exp(f(xplotgrid))), color="blue")
-    plt.title("Spike rate h in dark blue")
-    plt.ylim(0,1)
+bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=number_of_bins + 1)
+evaluationpoints = 0.5*(bins[:(-1)]+bins[1:])
 
-# Generate y_spikes, Bernoulli
-true_f = f(path)
-rates = np.exp(true_f)/(1+np.exp(true_f)) # h tuning curve values
-y_spikes = np.array([np.random.binomial(1, rates)])
+path = np.linspace(0,2*np.pi,T)
+#path = np.array(np.pi + 1*np.pi*np.sin([2*np.pi*t/T for t in range(T)]))
+
+## Generate spike data from a Bernoulli GLM (logistic regression) 
+# True tuning curves are defined here
+def samplefromBernoulli(H):
+    p = exp(H)/(1.+exp(H)) ## p for the Logit link function
+    return 1.0*(rand()<p)
+
+print("Generating spikes")
+y_spikes = zeros((N, T))
+for i in range(N):
+    for t in range(T):
+        distancefrompeaktopathpoint = min([ abs(neuronpeak[i]+2.*pi-path[t]),  abs(neuronpeak[i]-path[t]),  abs(neuronpeak[i]-2.*pi-path[t]) ])
+        Ht = biasterm
+        if(distancefrompeaktopathpoint < tuningwidth):
+            Ht = biasterm + tuningcovariatestrength * (1-distancefrompeaktopathpoint/tuningwidth)
+        y_spikes[i,t] = samplefromBernoulli(Ht) ## Spike with probability e^H/1+e^H
+print("done")
+true_spike_probability = zeros((N, number_of_bins))
+for i in range(N):
+    for x in range(number_of_bins):
+        distancefrompeaktopathpoint = min([ abs(neuronpeak[i]+2.*pi-evaluationpoints[x]),  abs(neuronpeak[i]-evaluationpoints[x]),  abs(neuronpeak[i]-2.*pi-evaluationpoints[x]) ])
+        Ht = biasterm
+        if(distancefrompeaktopathpoint < tuningwidth):
+            Ht = biasterm + tuningcovariatestrength * (1-distancefrompeaktopathpoint/tuningwidth)
+        true_spike_probability[i,x] = exp(Ht)/(1.+exp(Ht))
+
+
+## Plot true tuning curves alone
+plt.figure()
+plt.xlabel("Head direction")
+plt.ylabel("Spike probability")
+color_idx = np.linspace(0, 1, N)
+for i in range(N):
+    plt.plot(evaluationpoints, true_spike_probability[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-true-tuning.pdf",format="pdf")
+plt.show()
+
+print(y_spikes)
 
 ###############################
 ## Inference of tuning curves #
@@ -133,22 +155,32 @@ def x_loglikelihood_decoupled_la(X):
     for ii in range(N):
         fTKx = np.dot(np.transpose(f_hat[ii]), Kx_fit_at_observations_inverse)
         f_prior_term += np.dot(fTKx, f_hat[ii])
-    # det term
-    det_term = 0
+    # logdet term
+    logdet_term = 0
     for ii in range(N):
         S_inverse = np.diag(np.exp(f_hat[ii]))
         tempmatrix = np.matmul(S_inverse, Kx_fit_at_observations) + np.identity(T) 
-        det_term += - 0.5 * np.log(np.linalg.det(tempmatrix))
+        logdet_term += - 0.5 * np.log(np.linalg.det(tempmatrix))
     # x prior term
     xTKt = np.dot(np.transpose(X), K_t_inverse)
     x_prior_term = - 0.5 * np.dot(xTKt, X)
 
-    posterior_loglikelihood = yf_term + det_term + f_prior_term + x_prior_term
+    posterior_loglikelihood = yf_term + logdet_term + f_prior_term + x_prior_term
     return - posterior_loglikelihood
 
 def x_jacobian_decoupled_la(X):
-    
-    return 0
+    # f1term
+    f1term = 0
+    # f2term
+    f2term = 0
+    # logdetterm
+    logdetterm = 0
+    # f_prior_term
+    f_prior_term = 0
+    # x_prior_term
+    x_prior_term = 0
+    jacobian = f1term + f2term + logdetterm + f_prior_term + x_prior_term
+    return - jacobian
 
 ###########################
 # EM Inference of X and f #
@@ -202,13 +234,13 @@ for iteration in range(N_iterations):
             f_tuning_curve[i] = optimization_result.x #f_hat = find_f_hat(N, T, X_estimate, y_spikes, LIKELIHOOD_MODEL, Kx_fit_at_observations_inverse)
     f_hat = f_tuning_curve
     plt.figure()
-    plt.plot(f_hat[0])
-    plt.plot(true_f, color="blue")
+    for i in range(N):
+        plt.plot(f_hat[i])
     plt.show()
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
     if INFERENCE_METHOD == 3:
-        optimization_result = optimize.minimize(x_loglikelihood_decoupled_la, X_estimate, jac=x_jacobian_decoupled_la, method = "L-BFGS-B", options = {'disp':True})
+        optimization_result = optimize.minimize(x_loglikelihood_decoupled_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
     # Reshape X to be in (0,2pi)
     X_loglikelihood_new = optimization_result.fun 
