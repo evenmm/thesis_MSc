@@ -2,7 +2,7 @@ from scipy import *
 import scipy.io
 import scipy.ndimage
 import numpy as np
-import scipy.optimize as sp
+import scipy.optimize as spoptim
 import numpy.random
 import matplotlib
 #matplotlib.use('Agg') # When running on cluster, plots cannot be shown and this must be used
@@ -14,18 +14,15 @@ from scipy import optimize
 numpy.random.seed(13)
 #from hd_dataload import *
 
-
-# All likelihood, gradient functions etc return negative versions
-# Minimize the negative likelihood.
-
 ##############
 # Parameters #
 ##############
 P = 1 # Dimensions of latent variable 
+N_inducing_points = 25 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
+N_plotgridpoints = 50 # Number of grid points for plotting f posterior only 
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
 sigma_epsilon_f_fit = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
-gridpoints = 50 # Number of grid points
 TOLERANCE_X = 0.1 # for X posterior
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 print("Likelihood model:",LIKELIHOOD_MODEL)
@@ -111,9 +108,9 @@ plt.show()
 
 print(y_spikes)
 
-###############################
-## Inference of tuning curves #
-###############################
+#########################
+## Likelihood functions #
+#########################
 
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize. Equation (4.17)++
 def f_loglikelihood_bernoulli(f_i): # Psi
@@ -144,7 +141,30 @@ def f_hessian_poisson(f_i):
     return - f_hessian
 
 # NEGATIVE Loglikelihood and gradient. minimize to maximize.
-def x_loglikelihood_decoupled_la(X):
+def x_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_sor_la_decouple.m
+    X_estimate = np.dot(K_t_squareroot, U) # works for 1D
+
+    Kx_xg = np.zeros((T,N_plotgridpoints))
+    for x1 in range(T):
+        for x2 in range(N_plotgridpoints):
+            Kx_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+    Kx_gx = np.transpose(Kx_xg)
+
+    for i in range(N):
+        # Compute f_hat and A (precision matrix)
+        f_i = f_hat[i]
+        W_i = np.exp(f_i)
+        A = W_i + Kx_fit_at_observations_inverse # To be exchanged with the inducing points version or just the grid
+
+        # Derive m and S
+        S = np.linalg.inv(W_i)
+        m = np.dot(np.matmul(S, A), f_i)
+
+        # Derive the new mean f(X) and covariance matrix A(x) for q(f|X) EVALUATED AT OUR CURRENT X
+        A_at_X = W_i + np.linalg.inv(np.matmul(np.matmul(Kx_xg, Kx_gg_inverse), Kx_gx))
+        f_i_at_X = np.dot(np.matmul(A_at_X, A), f_i)
+
+
     # yf_term
     if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
         yf_term = sum(np.multiply(y_spikes, f_hat) - np.log(1 + np.exp(f_hat)))
@@ -182,9 +202,9 @@ def x_jacobian_decoupled_la(X):
     jacobian = f1term + f2term + logdetterm + f_prior_term + x_prior_term
     return - jacobian
 
-###########################
-# EM Inference of X and f #
-###########################
+########################
+# Covariance functions #
+########################
 def make_Kx(T, X_estimate):
     Kx_fit_at_observations = np.zeros((T,T))
     for x1 in range(T):
@@ -194,11 +214,22 @@ def make_Kx(T, X_estimate):
     Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_epsilon_f_fit
     return Kx_fit_at_observations
 
+# Inducing points based on where the X actually are
+x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
+Kx_gg = np.zeros((N_plotgridpoints,N_plotgridpoints))
+for x1 in range(N_plotgridpoints):
+    for x2 in range(N_plotgridpoints):
+        Kx_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+Kx_gg_inverse = np.linalg.inv(Kx_gg)
+
+# Change from X to U
 K_t = np.zeros((T,T))
 for t1 in range(T):
     for t2 in range(T):
         K_t[t1,t2] = exponential_covariance(t1,t2, sigma_x, delta_x)
 K_t_inverse = np.linalg.inv(K_t)
+K_t_squareroot = scipy.linalg.sqrtm(K_t)
+K_t_inverse_squareroot = scipy.linalg.sqrtm(K_t_inverse)
 
 # Initialize X
 #X_estimate = np.pi * np.ones(T)
@@ -206,9 +237,8 @@ X_estimate = path
 
 X_loglikelihood_old = 0
 X_loglikelihood_new = np.inf
-### INFERENCE OF X
+### INFERENCE OF X USING DECOUPLED LAPLACE APPROXIMATION. Input: Obervations y and initial guess X0
 for iteration in range(N_iterations):
-#while abs(X_loglikelihood_new - X_loglikelihood_old) > TOLERANCE_X:
     plt.figure()
     plt.plot(path, color="blue")
     plt.plot(X_estimate)
@@ -219,7 +249,6 @@ for iteration in range(N_iterations):
     Kx_fit_at_observations = make_Kx(T, X_estimate)
     Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
 
-    # Find f hat given X
     print("Finding f hat...")
     f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
     if LIKELIHOOD_MODEL == "bernoulli":
@@ -233,16 +262,16 @@ for iteration in range(N_iterations):
             optimization_result = optimize.minimize(f_loglikelihood_poisson, f_tuning_curve[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
             f_tuning_curve[i] = optimization_result.x #f_hat = find_f_hat(N, T, X_estimate, y_spikes, LIKELIHOOD_MODEL, Kx_fit_at_observations_inverse)
     f_hat = f_tuning_curve
+
     plt.figure()
     for i in range(N):
         plt.plot(f_hat[i])
     plt.show()
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
-    if INFERENCE_METHOD == 3:
-        optimization_result = optimize.minimize(x_loglikelihood_decoupled_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
+    optimization_result = optimize.minimize(x_loglikelihood_decoupled_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
-    # Reshape X to be in (0,2pi)
+    # Reshape X to be in (0,2pi)?
     X_loglikelihood_new = optimization_result.fun 
 
 
@@ -254,14 +283,14 @@ for iteration in range(N_iterations):
 #################################################
 # Find posterior prediction of log tuning curve #
 #################################################
-bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=gridpoints + 1)
-x_grid = 0.5*(bins[:(-1)]+bins[1:])
+bins = np.linspace(min(X) -0.000001, max(X) + 0.0000001, num=N_plotgridpoints + 1) # (-0.000001, 2.*np.pi+0.0000001)
+x_grid = 0.5*(bins[:(-1)]+bins[1:]) # for plotting with uncertainty
 f_values_observed = f_hat
 
 print("Making spatial covariance matrice: Kx crossover")
-Kx_crossover = np.zeros((T,gridpoints))
+Kx_crossover = np.zeros((T,N_plotgridpoints))
 for x1 in range(T):
-    for x2 in range(gridpoints):
+    for x2 in range(N_plotgridpoints):
         Kx_crossover[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid[x2], sigma_f_fit, delta_f_fit)
 #fig, ax = plt.subplots()
 #kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
@@ -269,9 +298,9 @@ for x1 in range(T):
 #plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_crossover.png")
 Kx_crossover_T = np.transpose(Kx_crossover)
 print("Making spatial covariance matrice: Kx grid")
-Kx_grid = np.zeros((gridpoints,gridpoints))
-for x1 in range(gridpoints):
-    for x2 in range(gridpoints):
+Kx_grid = np.zeros((N_plotgridpoints,N_plotgridpoints))
+for x1 in range(N_plotgridpoints):
+    for x2 in range(N_plotgridpoints):
         Kx_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_f_fit, delta_f_fit)
 fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
@@ -280,7 +309,7 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_grid.png")
 
 # Infer mean on the grid
 pre = np.zeros((N,T))
-mu_posterior = np.zeros((N, gridpoints))
+mu_posterior = np.zeros((N, N_plotgridpoints))
 for i in range(N):
     pre[i] = np.dot(Kx_fit_at_observations_inverse, f_values_observed[i])
     mu_posterior[i] = np.dot(Kx_crossover_T, pre[i])
@@ -303,9 +332,9 @@ h_upper_confidence_limit = np.exp(upper_confidence_limit) / (1 + np.exp(upper_co
 h_lower_confidence_limit = np.exp(lower_confidence_limit) / (1 + np.exp(lower_confidence_limit))
 
 ## Find observed firing rate
-observed_spikes = np.zeros((N, gridpoints))
+observed_spikes = np.zeros((N, N_plotgridpoints))
 for i in range(N):
-    for x in range(gridpoints):
+    for x in range(N_plotgridpoints):
         timesinbin = (X_estimate>bins[x])*(X_estimate<bins[x+1])
         if(sum(timesinbin)>0): 
             observed_spikes[i,x] = np.mean( y_spikes[i, timesinbin] )
