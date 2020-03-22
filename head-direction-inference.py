@@ -22,7 +22,7 @@ N_inducing_points = 25 # Number of inducing points. Wu uses 25 in 1D and 10 per 
 N_plotgridpoints = 50 # Number of grid points for plotting f posterior only 
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_epsilon_f_fit = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
+sigma_n = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
 TOLERANCE_X = 0.1 # for X posterior
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 print("Likelihood model:",LIKELIHOOD_MODEL)
@@ -140,10 +140,19 @@ def f_hessian_poisson(f_i):
     f_hessian = - np.diag(e_poiss) - Kx_fit_at_observations_inverse
     return - f_hessian
 
-# NEGATIVE Loglikelihood and gradient. minimize to maximize.
-def x_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_sor_la_decouple.m
-    X_estimate = np.dot(K_t_squareroot, U) # works for 1D
+# Matrix inversion trick
+def smartinverse(Kxg):
+    # Uses Matrix inversion lemma where Z is an identity matrix times sigma^2
+    # The output of this function is the inverse of (Kx + sigma^2I) = (Kxg Kgg^-1 Kgx + sigma^2I)
 
+    return sigma**-2 * np.identity(N) - sigma**-2 
+    # Should these boys be sparse?
+
+# L function: negative Loglikelihood
+def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_sor_la_decouple.m
+    X_estimate = np.dot(K_t_squareroot, U) # works for 1D
+    previous_X
+    
     Kx_xg = np.zeros((T,N_plotgridpoints))
     for x1 in range(T):
         for x2 in range(N_plotgridpoints):
@@ -151,18 +160,38 @@ def x_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_sor_la_decou
     Kx_gx = np.transpose(Kx_xg)
 
     for i in range(N):
-        # Compute f_hat and A (precision matrix)
+        # Check if this can be done faster or skipped: S = inv(W)
         f_i = f_hat[i]
-        W_i = np.exp(f_i)
-        A = W_i + Kx_fit_at_observations_inverse # To be exchanged with the inducing points version or just the grid
+        W_i = np.diag(np.exp(f_i))
+        #S = np.linalg.inv(W_i)
 
-        # Derive m and S
-        S = np.linalg.inv(W_i)
-        m = np.dot(np.matmul(S, A), f_i)
+        # Finding A = W_i + K_x^-1
+        Kx_xg_prev # We have it from before
+        Q = np.matmul(Kx_xg_prev, Kgg_inv_half)
+        lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
+        inverse_K = 1/sigma**2 * np.identity(N) - 1/sigma**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
+        A = W_i + inverse_K 
+
+        # Finding A(X)
+        Kx_xg_prev # We have it from before
+        Q = np.matmul(Kx_xg_prev, Kgg_inv_half)
+        lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
+        inverse_K = 1/sigma**2 * np.identity(N) - 1/sigma**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
+        A = W_i + inverse_K 
+
+        A\_times\_f = np.dot(A, f\_i )
+        f\_i\_at\_X = np.linalg.solve(A\_at\_X, A\_times\_f)
+
 
         # Derive the new mean f(X) and covariance matrix A(x) for q(f|X) EVALUATED AT OUR CURRENT X
-        A_at_X = W_i + np.linalg.inv(np.matmul(np.matmul(Kx_xg, Kx_gg_inverse), Kx_gx))
-        f_i_at_X = np.dot(np.matmul(A_at_X, A), f_i)
+        # f_i_at_X = A_at_X_inv * A * f_i = (S_inv + K(x)_inv)^-1 * (S_inv + Kx_inv) * f_i    (cinvc computes this)
+        A_at_X_inv = smartinverse(W_i + K(X))
+        A_k = "NOT SMARINVERSE THIS BASTARD. W_i + Kx + sigma^2."
+        A_k_f = np.dot(A_k, f_i)
+        f_i_at_X = np.matmul(A_at_X_inv, A_k_f) # Check if swapping associaticity speeds up
+
+
+
 
 
     # yf_term
@@ -211,16 +240,20 @@ def make_Kx(T, X_estimate):
         for x2 in range(T):
             Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],X_estimate[x2], sigma_f_fit, delta_f_fit)
     # By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
-    Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_epsilon_f_fit
+    Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_n
     return Kx_fit_at_observations
 
 # Inducing points based on where the X actually are
 x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
-Kx_gg = np.zeros((N_plotgridpoints,N_plotgridpoints))
-for x1 in range(N_plotgridpoints):
-    for x2 in range(N_plotgridpoints):
+Kx_gg = np.zeros((N_inducing_points,N_inducing_points))
+for x1 in range(N_inducing_points):
+    for x2 in range(N_inducing_points):
         Kx_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+Kx_gg += sigma_n**2 * np.identity(N_inducing_points)
 Kx_gg_inverse = np.linalg.inv(Kx_gg)
+
+Kgg_half = np.linalg.sqrtm(Kx_gg)
+Kgg_inv_half = np.linalg.sqrtm(Kx_gg_inverse)
 
 # Change from X to U
 K_t = np.zeros((T,T))
@@ -239,6 +272,13 @@ X_loglikelihood_old = 0
 X_loglikelihood_new = np.inf
 ### INFERENCE OF X USING DECOUPLED LAPLACE APPROXIMATION. Input: Obervations y and initial guess X0
 for iteration in range(N_iterations):
+    previous_X = X_estimate
+    Kx_xg_prev = np.zeros((T,N_inducing_points))
+    for x1 in range(T):
+        for x2 in range(N_inducing_points):
+            Kx_xg_prev[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+    #Kx_gx_prev = np.transpose(Kx_xg_prev)
+
     plt.figure()
     plt.plot(path, color="blue")
     plt.plot(X_estimate)
@@ -269,10 +309,14 @@ for iteration in range(N_iterations):
     plt.show()
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
-    optimization_result = optimize.minimize(x_loglikelihood_decoupled_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
+    optimization_result = optimize.minimize(x_posterior_loglikelihood_decoupled_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
     # Reshape X to be in (0,2pi)?
     X_loglikelihood_new = optimization_result.fun 
+
+
+
+
 
 
 
