@@ -150,69 +150,58 @@ def smartinverse(Kxg):
 
 # L function: negative Loglikelihood
 def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_sor_la_decouple.m
+    f_prior_term = 0
+    logdet_term = 0
     X_estimate = np.dot(K_t_squareroot, U) # works for 1D
-    previous_X
     
-    Kx_xg = np.zeros((T,N_plotgridpoints))
+    K_xg = np.zeros((T,N_plotgridpoints))
     for x1 in range(T):
         for x2 in range(N_plotgridpoints):
-            Kx_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
-    Kx_gx = np.transpose(Kx_xg)
+            K_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+    K_gx = np.transpose(K_xg)
 
+    K_inducing = np.matmul(np.matmul(K_xg, K_gg_inv), K_gx) + sigma_n**2 * np.identity(T)
+
+    # To find A
+    Q = np.matmul(K_xg_prev, Kgg_inv_half)
+    lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
+    inverse_K_prev = 1/sigma_n**2 * np.identity(N) - 1/sigma_n**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
+
+    # To find A at X
+    Q = np.matmul(K_xg, Kgg_inv_half)
+    lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
+    inverse_K_current = 1/sigma_n**2 * np.identity(N) - 1/sigma_n**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
+
+    f_at_X = np.zeros((N,T))
     for i in range(N):
-        # Check if this can be done faster or skipped: S = inv(W)
         f_i = f_hat[i]
         W_i = np.diag(np.exp(f_i))
-        #S = np.linalg.inv(W_i)
 
         # Finding A = W_i + K_x^-1
-        Kx_xg_prev # We have it from before
-        Q = np.matmul(Kx_xg_prev, Kgg_inv_half)
-        lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
-        inverse_K = 1/sigma**2 * np.identity(N) - 1/sigma**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
-        A = W_i + inverse_K 
-
+        A = W_i + inverse_K_prev
         # Finding A(X)
-        Kx_xg_prev # We have it from before
-        Q = np.matmul(Kx_xg_prev, Kgg_inv_half)
-        lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
-        inverse_K = 1/sigma**2 * np.identity(N) - 1/sigma**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
-        A = W_i + inverse_K 
+        A_at_X = W_i + inverse_K_current
 
-        A\_times\_f = np.dot(A, f\_i )
-        f\_i\_at\_X = np.linalg.solve(A\_at\_X, A\_times\_f)
+        A_times_f = np.dot(A, f_i)
+        f_at_X[i] = np.linalg.solve(A_at_X, A_times_f)
 
+        # f prior term
+        fTKx = np.dot(np.transpose(f_at_X[i]), inverse_K_current)
+        f_prior_term += np.dot(fTKx, f_at_X[i])
 
-        # Derive the new mean f(X) and covariance matrix A(x) for q(f|X) EVALUATED AT OUR CURRENT X
-        # f_i_at_X = A_at_X_inv * A * f_i = (S_inv + K(x)_inv)^-1 * (S_inv + Kx_inv) * f_i    (cinvc computes this)
-        A_at_X_inv = smartinverse(W_i + K(X))
-        A_k = "NOT SMARINVERSE THIS BASTARD. W_i + Kx + sigma^2."
-        A_k_f = np.dot(A_k, f_i)
-        f_i_at_X = np.matmul(A_at_X_inv, A_k_f) # Check if swapping associaticity speeds up
-
-
-
-
+        # logdet term
+        tempmatrix = np.matmul(W_i, K_inducing) + np.identity(T) 
+        logdet_term += - 0.5 * np.log(np.linalg.det(tempmatrix))
 
     # yf_term
     if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, f_hat) - np.log(1 + np.exp(f_hat)))
+        yf_term = sum(np.multiply(y_spikes, f_at_X) - np.log(1 + np.exp(f_at_X)))
     elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, f_hat) - np.exp(f_hat))
-    # f prior term
-    f_prior_term = 0
-    for ii in range(N):
-        fTKx = np.dot(np.transpose(f_hat[ii]), Kx_fit_at_observations_inverse)
-        f_prior_term += np.dot(fTKx, f_hat[ii])
-    # logdet term
-    logdet_term = 0
-    for ii in range(N):
-        S_inverse = np.diag(np.exp(f_hat[ii]))
-        tempmatrix = np.matmul(S_inverse, Kx_fit_at_observations) + np.identity(T) 
-        logdet_term += - 0.5 * np.log(np.linalg.det(tempmatrix))
+        yf_term = sum(np.multiply(y_spikes, f_at_X) - np.exp(f_at_X))
+
     # x prior term
-    xTKt = np.dot(np.transpose(X), K_t_inverse)
-    x_prior_term = - 0.5 * np.dot(xTKt, X)
+    xTKt = np.dot(np.transpose(X_estimate), K_t_inverse) # Inversion trick for this too? No, this is where U is useful
+    x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
 
     posterior_loglikelihood = yf_term + logdet_term + f_prior_term + x_prior_term
     return - posterior_loglikelihood
@@ -234,7 +223,7 @@ def x_jacobian_decoupled_la(X):
 ########################
 # Covariance functions #
 ########################
-def make_Kx(T, X_estimate):
+def make_Kx_with_sigma(T, X_estimate):
     Kx_fit_at_observations = np.zeros((T,T))
     for x1 in range(T):
         for x2 in range(T):
@@ -245,17 +234,16 @@ def make_Kx(T, X_estimate):
 
 # Inducing points based on where the X actually are
 x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
-Kx_gg = np.zeros((N_inducing_points,N_inducing_points))
+K_gg = np.zeros((N_inducing_points,N_inducing_points))
 for x1 in range(N_inducing_points):
     for x2 in range(N_inducing_points):
-        Kx_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
-Kx_gg += sigma_n**2 * np.identity(N_inducing_points)
-Kx_gg_inverse = np.linalg.inv(Kx_gg)
+        K_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+K_gg_inverse = np.linalg.inv(K_gg) # Since we are adding sigma in the algorithm, we should not do it here
 
-Kgg_half = np.linalg.sqrtm(Kx_gg)
-Kgg_inv_half = np.linalg.sqrtm(Kx_gg_inverse)
+Kgg_half = np.linalg.sqrtm(K_gg)
+Kgg_inv_half = np.linalg.sqrtm(K_gg_inverse)
 
-# Change from X to U
+# Change this from X to U
 K_t = np.zeros((T,T))
 for t1 in range(T):
     for t2 in range(T):
@@ -273,11 +261,11 @@ X_loglikelihood_new = np.inf
 ### INFERENCE OF X USING DECOUPLED LAPLACE APPROXIMATION. Input: Obervations y and initial guess X0
 for iteration in range(N_iterations):
     previous_X = X_estimate
-    Kx_xg_prev = np.zeros((T,N_inducing_points))
+    K_xg_prev = np.zeros((T,N_inducing_points))
     for x1 in range(T):
         for x2 in range(N_inducing_points):
-            Kx_xg_prev[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
-    #Kx_gx_prev = np.transpose(Kx_xg_prev)
+            K_xg_prev[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+    K_gx_prev = np.transpose(K_xg_prev)
 
     plt.figure()
     plt.plot(path, color="blue")
@@ -286,7 +274,7 @@ for iteration in range(N_iterations):
     print("Logikelihood improvement:", - (X_loglikelihood_new - X_loglikelihood_old))
     X_loglikelihood_old = X_loglikelihood_new
     print("\nEM Iteration:", iteration, "\nX estimate:", X_estimate[0:5],"\n")
-    Kx_fit_at_observations = make_Kx(T, X_estimate)
+    Kx_fit_at_observations = make_Kx_with_sigma(T, X_estimate)
     Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
 
     print("Finding f hat...")
