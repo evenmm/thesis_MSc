@@ -21,13 +21,13 @@ P = 1 # Dimensions of latent variable
 N_inducing_points = 25 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 50 # Number of grid points for plotting f posterior only 
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
-delta_f_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
+delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
 sigma_n = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
 TOLERANCE_X = 0.1 # for X posterior
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 print("Likelihood model:",LIKELIHOOD_MODEL)
 INFERENCE_METHOD = 3 # 1. No LA. 2. Standard LA. 3. Decoupled LA
-sigma_x = 2 # Variance of X for K_t
+sigma_x = 2*np.pi # Variance of X for K_t
 delta_x = 10 # Scale of X for K_t
 N_iterations = 10
 plottruth = True
@@ -76,37 +76,43 @@ def samplefromBernoulli(H):
     p = exp(H)/(1.+exp(H)) ## p for the Logit link function
     return 1.0*(rand()<p)
 
-print("Generating spikes")
-y_spikes = zeros((N, T))
+print("Setting y_spikes equal to true spike probabilities") # print("Generating spikes")
+y_spikes = np.zeros((N, T))
 for i in range(N):
     for t in range(T):
         distancefrompeaktopathpoint = min([ abs(neuronpeak[i]+2.*pi-path[t]),  abs(neuronpeak[i]-path[t]),  abs(neuronpeak[i]-2.*pi-path[t]) ])
         Ht = biasterm
         if(distancefrompeaktopathpoint < tuningwidth):
             Ht = biasterm + tuningcovariatestrength * (1-distancefrompeaktopathpoint/tuningwidth)
-        y_spikes[i,t] = samplefromBernoulli(Ht) ## Spike with probability e^H/1+e^H
-print("done")
-true_spike_probability = zeros((N, number_of_bins))
+        #y_spikes[i,t] = samplefromBernoulli(Ht) ## Spike with probability e^H/1+e^H
+        if LIKELIHOOD_MODEL == "bernoulli":
+            y_spikes[i,t] = exp(Ht)/(1.+exp(Ht))
+        elif LIKELIHOOD_MODEL == "poisson":
+            y_spikes[i,t] = exp(Ht)/(1.+exp(Ht))
+true_spike_probability = np.zeros((N, number_of_bins))
+true_spike_rate = np.zeros((N,number_of_bins))
 for i in range(N):
     for x in range(number_of_bins):
         distancefrompeaktopathpoint = min([ abs(neuronpeak[i]+2.*pi-evaluationpoints[x]),  abs(neuronpeak[i]-evaluationpoints[x]),  abs(neuronpeak[i]-2.*pi-evaluationpoints[x]) ])
         Ht = biasterm
         if(distancefrompeaktopathpoint < tuningwidth):
             Ht = biasterm + tuningcovariatestrength * (1-distancefrompeaktopathpoint/tuningwidth)
-        true_spike_probability[i,x] = exp(Ht)/(1.+exp(Ht))
-
+        true_spike_probability[i,x] = np.exp(Ht)/(1.+np.exp(Ht))
+        true_spike_rate[i,x] = np.exp(Ht)
 
 ## Plot true tuning curves alone
 plt.figure()
 plt.xlabel("Head direction")
-plt.ylabel("Spike probability")
 color_idx = np.linspace(0, 1, N)
-for i in range(N):
-    plt.plot(evaluationpoints, true_spike_probability[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+if LIKELIHOOD_MODEL == "bernoulli":
+    plt.ylabel("Spike probability")
+    for i in range(N):
+        plt.plot(evaluationpoints, true_spike_probability[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+elif LIKELIHOOD_MODEL == "poisson":
+    plt.ylabel("Spike rate")
+    for i in range(N):
+        plt.plot(evaluationpoints, true_spike_rate[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-true-tuning.pdf",format="pdf")
-plt.show()
-
-print(y_spikes)
 
 #########################
 ## Likelihood functions #
@@ -115,7 +121,7 @@ print(y_spikes)
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize. Equation (4.17)++
 def f_loglikelihood_bernoulli(f_i): # Psi
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
-    priorterm = - 0.5*np.dot(np.transpose(f_i), np.dot(Kx_fit_at_observations_inverse, f_i))
+    priorterm = - 0.5*np.dot(f_i.T, np.dot(Kx_fit_at_observations_inverse, f_i))
     return - (likelihoodterm + priorterm)
 def f_jacobian_bernoulli(f_i):
     e_plain = np.divide(np.exp(f_i), 1 + np.exp(f_i))
@@ -129,8 +135,22 @@ def f_hessian_bernoulli(f_i):
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
 def f_loglikelihood_poisson(f_i):
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i)) 
-    priorterm = - 0.5*np.dot(np.transpose(f_i), np.dot(Kx_fit_at_observations_inverse, f_i))
-    return - (likelihoodterm + priorterm)
+    priorterm_1 = -0.5/sigma_n**2 * np.dot(f_i.T, f_i)
+    fT_k = np.dot(f_i, K_xg_prev)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev, K_xg_prev.T))
+    priorterm_2 = -0.5/sigma_n**2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
+    return - (likelihoodterm + priorterm_1 + priorterm_2)
+    # All together version_
+    #if LIKELIHOOD_MODEL == "bernoulli":
+    #    likelihoodterm = sum(np.multiply(y_spikes, f_tuning_curve) - np.log(1 + np.exp(f_tuning_curve)))
+    #elif LIKELIHOOD_MODEL == "poisson":
+    #    likelihoodterm = sum(np.multiply(y_spikes, f_tuning_curve) - np.exp(f_tuning_curve))
+    #priorterm_1 = -0.5/sigma_n**2 * np.trace(f_tuning_curve.T, f_tuning_curve)
+    #fT_k = np.matmul(f_tuning_curve, K_xg_prev)
+    #smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev, K_xg_prev.T))
+    #priorterm_2 = -0.5/sigma_n**2 * np.trace(np.matmul(np.matmul(fT_k, smallinverse), fT_k.T))
+    #return - (likelihoodterm + priorterm_1 + priorterm_2)
+
 def f_jacobian_poisson(f_i):
     e_poiss = np.exp(f_i)
     f_derivative = y_i - e_poiss - np.dot(Kx_fit_at_observations_inverse, f_i)
@@ -154,23 +174,23 @@ def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_so
     logdet_term = 0
     X_estimate = np.dot(K_t_squareroot, U) # works for 1D
     
-    K_xg = np.zeros((T,N_plotgridpoints))
+    K_xg = np.zeros((T,N_inducing_points))
     for x1 in range(T):
-        for x2 in range(N_plotgridpoints):
+        for x2 in range(N_inducing_points):
             K_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
-    K_gx = np.transpose(K_xg)
+    K_gx = K_xg.T
 
-    K_inducing = np.matmul(np.matmul(K_xg, K_gg_inv), K_gx) + sigma_n**2 * np.identity(T)
+    K_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2 * np.identity(T)
 
     # To find A
     Q = np.matmul(K_xg_prev, Kgg_inv_half)
-    lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
-    inverse_K_prev = 1/sigma_n**2 * np.identity(N) - 1/sigma_n**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
+    lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q.T, Q) )
+    inverse_K_prev = 1/sigma_n**2 * np.identity(T) - 1/sigma_n**2 * np.matmul( np.matmul(Q, lowdim_inverse) , Q.T )
 
     # To find A at X
     Q = np.matmul(K_xg, Kgg_inv_half)
-    lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q, np.transpose(Q)) )
-    inverse_K_current = 1/sigma_n**2 * np.identity(N) - 1/sigma_n**2 * np.matmul( np.matmul(Q, lowdim_inverse) , np.transpose(Q) ) #(test this: (X.T.dot(A)*X.T).sum(axis=1) )
+    lowdim_inverse = np.linalg.inv( 1/sigma_n**2 * np.identity(N_inducing_points) + np.matmul(Q.T, Q) )
+    inverse_K_current = 1/sigma_n**2 * np.identity(T) - 1/sigma_n**2 * np.matmul( np.matmul(Q, lowdim_inverse) , Q.T )
 
     f_at_X = np.zeros((N,T))
     for i in range(N):
@@ -186,7 +206,7 @@ def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_so
         f_at_X[i] = np.linalg.solve(A_at_X, A_times_f)
 
         # f prior term
-        fTKx = np.dot(np.transpose(f_at_X[i]), inverse_K_current)
+        fTKx = np.dot(f_at_X[i].T), inverse_K_current)
         f_prior_term += np.dot(fTKx, f_at_X[i])
 
         # logdet term
@@ -200,7 +220,7 @@ def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_so
         yf_term = sum(np.multiply(y_spikes, f_at_X) - np.exp(f_at_X))
 
     # x prior term
-    xTKt = np.dot(np.transpose(X_estimate), K_t_inverse) # Inversion trick for this too? No, this is where U is useful
+    xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
     x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
 
     posterior_loglikelihood = yf_term + logdet_term + f_prior_term + x_prior_term
@@ -238,10 +258,15 @@ K_gg = np.zeros((N_inducing_points,N_inducing_points))
 for x1 in range(N_inducing_points):
     for x2 in range(N_inducing_points):
         K_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+K_gg += sigma_n*np.identity(N_inducing_points) # This is unexpected but Wu does the same thing
+fig, ax = plt.subplots()
+kgg_cross_mat = ax.matshow(K_gg, cmap=plt.cm.Blues)
+fig.colorbar(kgg_cross_mat, ax=ax)
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-kgg.png")
 K_gg_inverse = np.linalg.inv(K_gg) # Since we are adding sigma in the algorithm, we should not do it here
 
-Kgg_half = np.linalg.sqrtm(K_gg)
-Kgg_inv_half = np.linalg.sqrtm(K_gg_inverse)
+Kgg_half = scipy.linalg.sqrtm(K_gg)
+Kgg_inv_half = scipy.linalg.sqrtm(K_gg_inverse)
 
 # Change this from X to U
 K_t = np.zeros((T,T))
@@ -254,10 +279,12 @@ K_t_inverse_squareroot = scipy.linalg.sqrtm(K_t_inverse)
 
 # Initialize X
 #X_estimate = np.pi * np.ones(T)
-X_estimate = path
+X_estimate = path + 0.3*np.sin(np.linspace(0,2*np.pi,T))
+F_estimate = np.sqrt(y_spikes)
 
 X_loglikelihood_old = 0
 X_loglikelihood_new = np.inf
+plt.show()
 ### INFERENCE OF X USING DECOUPLED LAPLACE APPROXIMATION. Input: Obervations y and initial guess X0
 for iteration in range(N_iterations):
     previous_X = X_estimate
@@ -265,9 +292,9 @@ for iteration in range(N_iterations):
     for x1 in range(T):
         for x2 in range(N_inducing_points):
             K_xg_prev[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
-    K_gx_prev = np.transpose(K_xg_prev)
 
     plt.figure()
+    plt.title("X estimate")
     plt.plot(path, color="blue")
     plt.plot(X_estimate)
     plt.show()
@@ -278,7 +305,8 @@ for iteration in range(N_iterations):
     Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
 
     print("Finding f hat...")
-    f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
+    f_tuning_curve = np.sqrt(y_spikes) # Initialize f values
+
     if LIKELIHOOD_MODEL == "bernoulli":
         for i in range(N):
             y_i = y_spikes[i]
@@ -292,6 +320,7 @@ for iteration in range(N_iterations):
     f_hat = f_tuning_curve
 
     plt.figure()
+    plt.title("f estimate")
     for i in range(N):
         plt.plot(f_hat[i])
     plt.show()
@@ -299,6 +328,7 @@ for iteration in range(N_iterations):
     print("Finding next X estimate...")
     optimization_result = optimize.minimize(x_posterior_loglikelihood_decoupled_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
+    F_estimate = f_hat
     # Reshape X to be in (0,2pi)?
     X_loglikelihood_new = optimization_result.fun 
 
@@ -328,7 +358,7 @@ for x1 in range(T):
 #kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
 #fig.colorbar(kx_cross_mat, ax=ax)
 #plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_crossover.png")
-Kx_crossover_T = np.transpose(Kx_crossover)
+Kx_crossover_T = Kx_crossover.T
 print("Making spatial covariance matrice: Kx grid")
 Kx_grid = np.zeros((N_plotgridpoints,N_plotgridpoints))
 for x1 in range(N_plotgridpoints):
