@@ -26,7 +26,7 @@ offset = 1000 # Starting point in observed X values
 T = 1000
 sigma_fit = 8 # Variance for the GP that is fitted
 delta_fit = 0.3 # Scale for the GP that is fitted
-sigma_epsilon_fit = 0.2 # Assumed variance of observations for the GP that is fitted
+sigma_n = 0.2 # Assumed variance of observations for the GP that is fitted
 X_dim = 40 # Number of grid points
 
 """
@@ -111,9 +111,9 @@ def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
     distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
 
-###############################
-## Inference of tuning curves #
-###############################
+#######################
+# Covariance matrices #
+#######################
 
 N_observations = T
 x_values_observed = path
@@ -123,36 +123,59 @@ for x1 in range(N_observations):
     for x2 in range(N_observations):
         Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_values_observed[x2], sigma_fit, delta_fit)
 # By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
-Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(N_observations)*sigma_epsilon_fit
+Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(N_observations)*sigma_n
 Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
 fig, ax = plt.subplots()
 kx_obs_mat = ax.matshow(Kx_fit_at_observations, cmap=plt.cm.Blues)
 fig.colorbar(kx_obs_mat, ax=ax)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-Kx_fit_at_observations.png")
 
+# Inducing points based on where the X actually are
+N_inducing_points = 100
+x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
+K_gg = np.zeros((N_inducing_points,N_inducing_points))
+for x1 in range(N_inducing_points):
+    for x2 in range(N_inducing_points):
+        K_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+K_gg += sigma_n*np.identity(N_inducing_points) # This is unexpected but Wu does the same thing
+
+K_xg_prev = np.zeros((T,N_inducing_points))
+for x1 in range(T):
+    for x2 in range(N_inducing_points):
+        K_xg_prev[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+
 # NEGATIVE Loglikelihood of f given X (since we minimize it to maximize the loglikelihood)
-def f_loglikelihood_bernoulli(f_i):
-    likelihoodterm = sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
-    priorterm = - 0.5*np.dot(f_i, np.dot(Kx_fit_at_observations_inverse, f_i))
-    return - (likelihoodterm + priorterm)
-
+def f_loglikelihood_bernoulli(f_i): # Psi
+    likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
+    priorterm_1 = -0.5*sigma_n**-2 * np.dot(f_i.T, f_i)
+    fT_k = np.dot(f_i, K_xg_prev)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    priorterm_2 = 0.5*sigma_n**-2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
+    return - (likelihoodterm + priorterm_1 + priorterm_2)
 def f_jacobian_bernoulli(f_i):
-    e_tilde = np.divide(exp(f_i), 1 + exp(f_i))
-    f_derivative = y_i - e_tilde - np.dot(Kx_fit_at_observations_inverse, f_i)
+    yf_term = y_i - np.divide(np.exp(f_i), 1 + np.exp(f_i))
+    priorterm_1 = -sigma_n**-2 * f_i
+    kTf = np.dot(K_xg_prev.T, f_i)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    priorterm_2 = sigma_n**-2 * np.dot(K_xg_prev, np.dot(smallinverse, kTf))
+    f_derivative = yf_term + priorterm_1 + priorterm_2
     return - f_derivative
-
 def f_hessian_bernoulli(f_i):
-    e_plain_fraction = np.divide(exp(f_i), (1 + exp(f_i))**2)
-    f_hessian = - np.diag(e_plain_fraction) - Kx_fit_at_observations_inverse 
+    e_tilde = np.divide(np.exp(f_i), (1 + np.exp(f_i))**2)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    f_hessian = - np.diag(e_tilde) - sigma_n**-2 + np.dot(K_xg_prev, np.dot(smallinverse, K_xg_prev.T))
     return - f_hessian
 
-## Optimization of f given X
+##################################
+## Optimization of tuning curves #
+##################################
+
 print("Optimizing...\n(This should be parallelized)\n")
 starttime = time.time()
-f_tuning_curve = np.zeros(shape(y_spikes)) #np.sqrt(y_spikes) # Initialize f values
+f_tuning_curve = np.zeros((N,T)) #np.sqrt(y_spikes) # Initialize f values
 for i in range(N):
     y_i = y_spikes[i]
-    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, hess=f_hessian_bernoulli, method = 'L-BFGS-B', options={'disp':False})
+    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, hess=f_hessian_bernoulli, method = 'L-BFGS-B', options={'disp':True})
     f_tuning_curve[i] = optimization_result.x
 endtime = time.time()
 print("Time spent:", "{:.2f}".format(endtime - starttime))
