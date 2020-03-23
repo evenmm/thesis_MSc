@@ -19,7 +19,7 @@ numpy.random.seed(13)
 ##############
 P = 1 # Dimensions of latent variable 
 N_inducing_points = 25 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
-N_plotgridpoints = 50 # Number of grid points for plotting f posterior only 
+N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
 sigma_n = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -77,6 +77,7 @@ def samplefromBernoulli(H):
     return 1.0*(rand()<p)
 
 print("Setting y_spikes equal to true spike probabilities") # print("Generating spikes")
+true_f = np.zeros((N, T))
 y_spikes = np.zeros((N, T))
 for i in range(N):
     for t in range(T):
@@ -85,10 +86,11 @@ for i in range(N):
         if(distancefrompeaktopathpoint < tuningwidth):
             Ht = biasterm + tuningcovariatestrength * (1-distancefrompeaktopathpoint/tuningwidth)
         #y_spikes[i,t] = samplefromBernoulli(Ht) ## Spike with probability e^H/1+e^H
+        true_f[i,t] = Ht
         if LIKELIHOOD_MODEL == "bernoulli":
             y_spikes[i,t] = exp(Ht)/(1.+exp(Ht))
         elif LIKELIHOOD_MODEL == "poisson":
-            y_spikes[i,t] = exp(Ht)/(1.+exp(Ht))
+            y_spikes[i,t] = exp(Ht)
 true_spike_probability = np.zeros((N, number_of_bins))
 true_spike_rate = np.zeros((N,number_of_bins))
 for i in range(N):
@@ -104,14 +106,17 @@ for i in range(N):
 plt.figure()
 plt.xlabel("Head direction")
 color_idx = np.linspace(0, 1, N)
-if LIKELIHOOD_MODEL == "bernoulli":
-    plt.ylabel("Spike probability")
-    for i in range(N):
-        plt.plot(evaluationpoints, true_spike_probability[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
-elif LIKELIHOOD_MODEL == "poisson":
-    plt.ylabel("Spike rate")
-    for i in range(N):
-        plt.plot(evaluationpoints, true_spike_rate[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+plt.ylabel("True f")
+for i in range(N):
+    plt.plot(true_f[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+#if LIKELIHOOD_MODEL == "bernoulli":
+#    plt.ylabel("Spike probability")
+#    for i in range(N):
+#        plt.plot(evaluationpoints, true_spike_probability[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+#elif LIKELIHOOD_MODEL == "poisson":
+#    plt.ylabel("Spike rate")
+#    for i in range(N):
+#        plt.plot(evaluationpoints, true_spike_rate[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-true-tuning.pdf",format="pdf")
 
 #########################
@@ -121,15 +126,23 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-true-tuning.pdf",format="pdf"
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize. Equation (4.17)++
 def f_loglikelihood_bernoulli(f_i): # Psi
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
-    priorterm = - 0.5*np.dot(f_i.T, np.dot(Kx_fit_at_observations_inverse, f_i))
-    return - (likelihoodterm + priorterm)
+    priorterm_1 = -0.5/sigma_n**2 * np.dot(f_i.T, f_i)
+    fT_k = np.dot(f_i, K_xg_prev)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    priorterm_2 = -0.5/sigma_n**2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
+    return - (likelihoodterm + priorterm_1 + priorterm_2)
 def f_jacobian_bernoulli(f_i):
-    e_plain = np.divide(np.exp(f_i), 1 + np.exp(f_i))
-    f_derivative = y_i - e_plain - np.dot(Kx_fit_at_observations_inverse, f_i)
+    yf_term = y_i - np.divide(np.exp(f_i), 1 + np.exp(f_i))
+    priorterm_1 = -sigma_n**-2 * f_i
+    kTf = np.dot(K_xg_prev.T, f_i)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    priorterm_2 = - np.dot(K_xg_prev, np.dot(smallinverse, kTf))
+    f_derivative = yf_term + priorterm_1 + priorterm_2
     return - f_derivative
 def f_hessian_bernoulli(f_i):
     e_tilde = np.divide(np.exp(f_i), (1 + np.exp(f_i))**2)
-    f_hessian = - np.diag(e_tilde) - Kx_fit_at_observations_inverse 
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    f_hessian = - np.dot(K_xg_prev, np.dot(smallinverse, K_xg_prev.T)) - sigma_n**-2 - np.diag(e_tilde)
     return - f_hessian
 
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
@@ -137,7 +150,7 @@ def f_loglikelihood_poisson(f_i):
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i)) 
     priorterm_1 = -0.5/sigma_n**2 * np.dot(f_i.T, f_i)
     fT_k = np.dot(f_i, K_xg_prev)
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev, K_xg_prev.T))
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
     priorterm_2 = -0.5/sigma_n**2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
     return - (likelihoodterm + priorterm_1 + priorterm_2)
     # All together version_
@@ -152,21 +165,18 @@ def f_loglikelihood_poisson(f_i):
     #return - (likelihoodterm + priorterm_1 + priorterm_2)
 
 def f_jacobian_poisson(f_i):
-    e_poiss = np.exp(f_i)
-    f_derivative = y_i - e_poiss - np.dot(Kx_fit_at_observations_inverse, f_i)
+    yf_term = y_i - np.exp(f_i)
+    priorterm_1 = -sigma_n**-2 * f_i
+    kTf = np.dot(K_xg_prev.T, f_i)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    priorterm_2 = - np.dot(K_xg_prev, np.dot(smallinverse, kTf))
+    f_derivative = yf_term + priorterm_1 + priorterm_2
     return - f_derivative
 def f_hessian_poisson(f_i):
     e_poiss = np.exp(f_i)
-    f_hessian = - np.diag(e_poiss) - Kx_fit_at_observations_inverse
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    f_hessian = - np.dot(K_xg_prev, np.dot(smallinverse, K_xg_prev.T)) - sigma_n**-2 - np.diag(e_poiss)
     return - f_hessian
-
-# Matrix inversion trick
-def smartinverse(Kxg):
-    # Uses Matrix inversion lemma where Z is an identity matrix times sigma^2
-    # The output of this function is the inverse of (Kx + sigma^2I) = (Kxg Kgg^-1 Kgx + sigma^2I)
-
-    return sigma**-2 * np.identity(N) - sigma**-2 
-    # Should these boys be sparse?
 
 # L function: negative Loglikelihood
 def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_sor_la_decouple.m
@@ -180,7 +190,10 @@ def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_so
             K_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
     K_gx = K_xg.T
 
-    K_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2 * np.identity(T)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    print("This is wrong!!")
+    break
+    K_inducing = np.matmul(np.matmul(K_xg, smallinverse), K_gx) + sigma_n**2 * np.identity(T)
 
     # To find A
     Q = np.matmul(K_xg_prev, Kgg_inv_half)
@@ -206,7 +219,7 @@ def x_posterior_loglikelihood_decoupled_la(U): # Analog to logmargli_gplvm_se_so
         f_at_X[i] = np.linalg.solve(A_at_X, A_times_f)
 
         # f prior term
-        fTKx = np.dot(f_at_X[i].T), inverse_K_current)
+        fTKx = np.dot(f_at_X[i].T, inverse_K_current)
         f_prior_term += np.dot(fTKx, f_at_X[i])
 
         # logdet term
@@ -259,14 +272,10 @@ for x1 in range(N_inducing_points):
     for x2 in range(N_inducing_points):
         K_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
 K_gg += sigma_n*np.identity(N_inducing_points) # This is unexpected but Wu does the same thing
-fig, ax = plt.subplots()
-kgg_cross_mat = ax.matshow(K_gg, cmap=plt.cm.Blues)
-fig.colorbar(kgg_cross_mat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-kgg.png")
-K_gg_inverse = np.linalg.inv(K_gg) # Since we are adding sigma in the algorithm, we should not do it here
-
-Kgg_half = scipy.linalg.sqrtm(K_gg)
-Kgg_inv_half = scipy.linalg.sqrtm(K_gg_inverse)
+#fig, ax = plt.subplots()
+#kgg_cross_mat = ax.matshow(K_gg, cmap=plt.cm.Blues)
+#fig.colorbar(kgg_cross_mat, ax=ax)
+#plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-kgg.png")
 
 # Change this from X to U
 K_t = np.zeros((T,T))
@@ -323,6 +332,7 @@ for iteration in range(N_iterations):
     plt.title("f estimate")
     for i in range(N):
         plt.plot(f_hat[i])
+        plt.plot(np.sqrt(y_spikes[i]), "k")
     plt.show()
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
