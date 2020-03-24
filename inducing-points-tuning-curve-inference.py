@@ -23,17 +23,12 @@ numpy.random.seed(13)
 # Parameters #
 ##############
 offset = 1000 # Starting point in observed X values
-T = 1000
+T = 3000
 sigma_fit = 8 # Variance for the GP that is fitted
 delta_fit = 0.3 # Scale for the GP that is fitted
-sigma_n = 0.2 # Assumed variance of observations for the GP that is fitted
-X_dim = 40 # Number of grid points
-
-"""
-sigma_Kx = 8 # variance of kx
-delta_Kx = 0.3 # length scale of kx
-Kx = Kx + np.identity(T)*10e-5 # To be able to invert Kx we add a small amount on the diagonal
-"""
+sigma_n = 0.1 # Assumed variance of observations for the GP that is fitted
+X_dim = 50 # Number of grid points
+N_inducing_points = 60
 
 ##############################
 # Data fetch and definitions #
@@ -117,21 +112,8 @@ def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
 
 N_observations = T
 x_values_observed = path
-print("Making spatial covariance matrice: Kx_fit at observations")
-Kx_fit_at_observations = np.zeros((N_observations,N_observations))
-for x1 in range(N_observations):
-    for x2 in range(N_observations):
-        Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_values_observed[x2], sigma_fit, delta_fit)
-# By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
-Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(N_observations)*sigma_n
-Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
-fig, ax = plt.subplots()
-kx_obs_mat = ax.matshow(Kx_fit_at_observations, cmap=plt.cm.Blues)
-fig.colorbar(kx_obs_mat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-Kx_fit_at_observations.png")
 
 # Inducing points based on where the X actually are
-N_inducing_points = 100
 x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
 K_gg = np.zeros((N_inducing_points,N_inducing_points))
 for x1 in range(N_inducing_points):
@@ -139,31 +121,31 @@ for x1 in range(N_inducing_points):
         K_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_fit, delta_fit)
 K_gg += sigma_n*np.identity(N_inducing_points) # This is unexpected but Wu does the same thing
 
-K_xg_prev = np.zeros((T,N_inducing_points))
+K_xg = np.zeros((T,N_inducing_points))
 for x1 in range(T):
     for x2 in range(N_inducing_points):
-        K_xg_prev[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+        K_xg[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid_induce[x2], sigma_fit, delta_fit)
 
 # NEGATIVE Loglikelihood of f given X (since we minimize it to maximize the loglikelihood)
 def f_loglikelihood_bernoulli(f_i): # Psi
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
     priorterm_1 = -0.5*sigma_n**-2 * np.dot(f_i.T, f_i)
-    fT_k = np.dot(f_i, K_xg_prev)
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
+    fT_k = np.dot(f_i, K_xg)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
     priorterm_2 = 0.5*sigma_n**-2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
     return - (likelihoodterm + priorterm_1 + priorterm_2)
 def f_jacobian_bernoulli(f_i):
     yf_term = y_i - np.divide(np.exp(f_i), 1 + np.exp(f_i))
     priorterm_1 = -sigma_n**-2 * f_i
-    kTf = np.dot(K_xg_prev.T, f_i)
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
-    priorterm_2 = sigma_n**-2 * np.dot(K_xg_prev, np.dot(smallinverse, kTf))
+    kTf = np.dot(K_xg.T, f_i)
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
+    priorterm_2 = sigma_n**-2 * np.dot(K_xg, np.dot(smallinverse, kTf))
     f_derivative = yf_term + priorterm_1 + priorterm_2
     return - f_derivative
 def f_hessian_bernoulli(f_i):
     e_tilde = np.divide(np.exp(f_i), (1 + np.exp(f_i))**2)
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
-    f_hessian = - np.diag(e_tilde) - sigma_n**-2 + np.dot(K_xg_prev, np.dot(smallinverse, K_xg_prev.T))
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
+    f_hessian = - np.diag(e_tilde) - sigma_n**-2*np.identity(T) + sigma_n**-2 * np.dot(K_xg, np.dot(smallinverse, K_xg.T))
     return - f_hessian
 
 ##################################
@@ -175,11 +157,11 @@ starttime = time.time()
 f_tuning_curve = np.zeros((N,T)) #np.sqrt(y_spikes) # Initialize f values
 for i in range(N):
     y_i = y_spikes[i]
-    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, hess=f_hessian_bernoulli, method = 'L-BFGS-B', options={'disp':True})
+    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #, hess=f_hessian_bernoulli
     f_tuning_curve[i] = optimization_result.x
 endtime = time.time()
 print("Time spent:", "{:.2f}".format(endtime - starttime))
-
+print("f tuning curve max and min:", np.amax(f_tuning_curve), np.amin(f_tuning_curve))
 #################################################
 # Find posterior prediction of log tuning curve #
 #################################################
@@ -202,34 +184,46 @@ Kx_grid = np.zeros((X_dim,X_dim))
 for x1 in range(X_dim):
     for x2 in range(X_dim):
         Kx_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_fit, delta_fit)
+Kx_grid += sigma_n*np.identity(X_dim)
 fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
+plt.title("Kx grid")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_grid.png")
 
 # Infer mean on the grid
-pre = np.zeros((N,T))
-mu_posterior = np.zeros((N, X_dim))
-for i in range(N):
-    pre[i] = np.dot(Kx_fit_at_observations_inverse, f_values_observed[i])
-    mu_posterior[i] = np.dot(Kx_crossover_T, pre[i])
+smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
+Kx_inducing_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_xg.T)
+pre = np.matmul(Kx_inducing_inverse, f_values_observed.T)
+mu_posterior = np.matmul(Kx_crossover_T, pre)
+#pre = np.zeros((N,T))
+#mu_posterior = np.zeros((N, X_dim))
+#for i in range(N):
+#    pre[i] = np.dot(Kx_inducing_inverse, f_values_observed[i])
+#    mu_posterior[i] = np.dot(Kx_crossover_T, pre[i])
 # Calculate standard deviations
-sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_fit_at_observations_inverse, Kx_crossover))
+sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_inducing_inverse, Kx_crossover))
 fig, ax = plt.subplots()
 sigma_posteriormat = ax.matshow(sigma_posterior, cmap=plt.cm.Blues)
 fig.colorbar(sigma_posteriormat, ax=ax)
+plt.title("sigma posterior")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-sigma_posterior.png")
 
 ###############################################
 # Plot tuning curve with confidence intervals #
 ###############################################
-standard_deviation = np.sqrt(np.diag(sigma_posterior))
-upper_confidence_limit = mu_posterior + 1.96*standard_deviation
-lower_confidence_limit = mu_posterior - 1.96*standard_deviation
+standard_deviation = [np.sqrt(np.diag(sigma_posterior))]
+standard_deviation = np.repeat(standard_deviation, N, axis=0)
+upper_confidence_limit = mu_posterior + 1.96*standard_deviation.T
+lower_confidence_limit = mu_posterior - 1.96*standard_deviation.T
 
-h_estimate = np.exp(mu_posterior)/ (1 + np.exp(mu_posterior))
+h_estimate = np.divide( np.exp(mu_posterior), (1 + np.exp(mu_posterior)))
+
+h_estimate = h_estimate.T
 h_upper_confidence_limit = np.exp(upper_confidence_limit) / (1 + np.exp(upper_confidence_limit))
 h_lower_confidence_limit = np.exp(lower_confidence_limit) / (1 + np.exp(lower_confidence_limit))
+h_upper_confidence_limit = h_upper_confidence_limit.T
+h_lower_confidence_limit = h_lower_confidence_limit.T
 
 ## Find observed firing rate
 observed_spikes = zeros((N, X_dim))
