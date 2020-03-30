@@ -23,12 +23,13 @@ numpy.random.seed(13)
 # Parameters #
 ##############
 offset = 1000 # Starting point in observed X values
-T = 3000
+T = 20000
 sigma_fit = 8 # Variance for the GP that is fitted
-delta_fit = 0.3 # Scale for the GP that is fitted
-sigma_n = 0.1 # Assumed variance of observations for the GP that is fitted
-X_dim = 50 # Number of grid points
-N_inducing_points = 60
+delta_fit = 0.5 # Scale for the GP that is fitted
+sigma_n = 0.4 # Assumed variance of observations for the GP that is fitted
+N_plotgridpoints = 50 # Number of grid points
+N_inducing_points = 20
+print("Inducing points:",N_inducing_points)
 
 ##############################
 # Data fetch and definitions #
@@ -109,43 +110,48 @@ def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
 #######################
 # Covariance matrices #
 #######################
-
 N_observations = T
 x_values_observed = path
 
-# Inducing points based on where the X actually are
+# Inducing points 
 x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
-K_gg = np.zeros((N_inducing_points,N_inducing_points))
+K_uu = np.zeros((N_inducing_points,N_inducing_points))
 for x1 in range(N_inducing_points):
     for x2 in range(N_inducing_points):
-        K_gg[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_fit, delta_fit)
-K_gg += sigma_n*np.identity(N_inducing_points) # This is unexpected but Wu does the same thing
+        K_uu[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+# Okay so here we're adding sigmas to the diagonal. This is just a computational trick for the optimization to work. 
+# We don't have observations, so to find them we need help in the optimization (derivative also uses K_uu)
+# But then we remove this from the diagonal when we want to find the posterior distribution in the end
 
-K_xg = np.zeros((T,N_inducing_points))
+K_uu = K_uu + sigma_n/np.sqrt(T) *np.identity(N_inducing_points)
+K_uu_inverse = np.linalg.inv(K_uu)
+
+K_fu = np.zeros((T,N_inducing_points))
 for x1 in range(T):
     for x2 in range(N_inducing_points):
-        K_xg[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+        K_fu[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+K_uf = K_fu.T
 
 # NEGATIVE Loglikelihood of f given X (since we minimize it to maximize the loglikelihood)
 def f_loglikelihood_bernoulli(f_i): # Psi
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
     priorterm_1 = -0.5*sigma_n**-2 * np.dot(f_i.T, f_i)
-    fT_k = np.dot(f_i, K_xg)
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
+    fT_k = np.dot(f_i, K_fu)
+    smallinverse = np.linalg.inv(K_uu*sigma_n**2 + np.matmul(K_uf, K_fu))
     priorterm_2 = 0.5*sigma_n**-2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
     return - (likelihoodterm + priorterm_1 + priorterm_2)
 def f_jacobian_bernoulli(f_i):
     yf_term = y_i - np.divide(np.exp(f_i), 1 + np.exp(f_i))
     priorterm_1 = -sigma_n**-2 * f_i
-    kTf = np.dot(K_xg.T, f_i)
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
-    priorterm_2 = sigma_n**-2 * np.dot(K_xg, np.dot(smallinverse, kTf))
+    kTf = np.dot(K_uf, f_i)
+    smallinverse = np.linalg.inv(K_uu*sigma_n**2 + np.matmul(K_uf, K_fu))
+    priorterm_2 = sigma_n**-2 * np.dot(K_fu, np.dot(smallinverse, kTf))
     f_derivative = yf_term + priorterm_1 + priorterm_2
     return - f_derivative
 def f_hessian_bernoulli(f_i):
     e_tilde = np.divide(np.exp(f_i), (1 + np.exp(f_i))**2)
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
-    f_hessian = - np.diag(e_tilde) - sigma_n**-2*np.identity(T) + sigma_n**-2 * np.dot(K_xg, np.dot(smallinverse, K_xg.T))
+    smallinverse = np.linalg.inv(K_uu*sigma_n**2 + np.matmul(K_uf, K_fu))
+    f_hessian = - np.diag(e_tilde) - sigma_n**-2*np.identity(T) + sigma_n**-2 * np.dot(K_fu, np.dot(smallinverse, K_uf))
     return - f_hessian
 
 ##################################
@@ -162,47 +168,59 @@ for i in range(N):
 endtime = time.time()
 print("Time spent:", "{:.2f}".format(endtime - starttime))
 print("f tuning curve max and min:", np.amax(f_tuning_curve), np.amin(f_tuning_curve))
+
 #################################################
 # Find posterior prediction of log tuning curve #
 #################################################
-bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=X_dim + 1)
+bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=N_plotgridpoints + 1)
 x_grid = 0.5*(bins[:(-1)]+bins[1:])
 f_values_observed = f_tuning_curve
 
-print("Making spatial covariance matrice: Kx crossover")
-Kx_crossover = np.zeros((N_observations,X_dim))
-for x1 in range(N_observations):
-    for x2 in range(X_dim):
-        Kx_crossover[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid[x2], sigma_fit, delta_fit)
+# To be absolutely certain, we make Kx inducing again: 
+K_uu = np.zeros((N_inducing_points,N_inducing_points))
+for x1 in range(N_inducing_points):
+    for x2 in range(N_inducing_points):
+        K_uu[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+# Without the diagonal entries, as promised
+K_uu += 0.05*np.identity(N_inducing_points)
+K_uu_inverse = np.linalg.inv(K_uu)
+
+print("Making spatial covariance matrice: Kx crossover beween observations and grid")
+# Goes through inducing points
+K_u_grid = np.zeros((N_inducing_points,N_plotgridpoints))
+for x1 in range(N_inducing_points):
+    for x2 in range(N_plotgridpoints):
+        K_u_grid[x1,x2] = gaussian_periodic_covariance(x_grid_induce[x1],x_grid[x2], sigma_fit, delta_fit)
+K_grid_u = K_u_grid.T
+
 fig, ax = plt.subplots()
-kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
+kx_cross_mat = ax.matshow(K_u_grid, cmap=plt.cm.Blues)
 fig.colorbar(kx_cross_mat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_crossover.png")
-Kx_crossover_T = np.transpose(Kx_crossover)
+plt.title("Kx crossover")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-K_u_grid.png")
 print("Making spatial covariance matrice: Kx grid")
-Kx_grid = np.zeros((X_dim,X_dim))
-for x1 in range(X_dim):
-    for x2 in range(X_dim):
-        Kx_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_fit, delta_fit)
-Kx_grid += sigma_n*np.identity(X_dim)
+K_grid_grid = np.zeros((N_plotgridpoints,N_plotgridpoints))
+for x1 in range(N_plotgridpoints):
+    for x2 in range(N_plotgridpoints):
+        K_grid_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_fit, delta_fit)
+# 27.03 removing sigma from Kx grid since it will hopefully be taken care of by subtracting less (or fewer inducing points?)
+#K_grid_grid += sigma_n*np.identity(N_plotgridpoints) # Here I am adding sigma to the diagonal because it became negative otherwise. 24.03.20
 fig, ax = plt.subplots()
-kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
+kxmat = ax.matshow(K_grid_grid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
 plt.title("Kx grid")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-kx_grid.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-K_grid_grid.png")
+
+Q_grid_f = np.matmul(np.matmul(K_grid_u, K_uu_inverse), K_uf)
+Q_f_grid = Q_grid_f.T
 
 # Infer mean on the grid
-smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
-Kx_inducing_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_xg.T)
-pre = np.matmul(Kx_inducing_inverse, f_values_observed.T)
-mu_posterior = np.matmul(Kx_crossover_T, pre)
-#pre = np.zeros((N,T))
-#mu_posterior = np.zeros((N, X_dim))
-#for i in range(N):
-#    pre[i] = np.dot(Kx_inducing_inverse, f_values_observed[i])
-#    mu_posterior[i] = np.dot(Kx_crossover_T, pre[i])
+smallinverse = np.linalg.inv(K_uu*sigma_n**2 + np.matmul(K_uf, K_fu))
+Q_ff_plus_sigma_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_fu, smallinverse), K_uf)
+pre = np.matmul(Q_ff_plus_sigma_inverse, f_values_observed.T)
+mu_posterior = np.matmul(Q_grid_f, pre) # Here we have Kx crossover. Check what happens if swapped with Q = KKK
 # Calculate standard deviations
-sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_inducing_inverse, Kx_crossover))
+sigma_posterior = K_grid_grid - np.matmul(Q_grid_f, np.matmul(Q_ff_plus_sigma_inverse, Q_f_grid))
 fig, ax = plt.subplots()
 sigma_posteriormat = ax.matshow(sigma_posterior, cmap=plt.cm.Blues)
 fig.colorbar(sigma_posteriormat, ax=ax)
@@ -213,22 +231,24 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-sigma_posterior.png
 # Plot tuning curve with confidence intervals #
 ###############################################
 standard_deviation = [np.sqrt(np.diag(sigma_posterior))]
+print("posterior marginal standard deviation:\n",standard_deviation[0])
 standard_deviation = np.repeat(standard_deviation, N, axis=0)
 upper_confidence_limit = mu_posterior + 1.96*standard_deviation.T
 lower_confidence_limit = mu_posterior - 1.96*standard_deviation.T
 
+# if likelihood model == bernoulli
 h_estimate = np.divide( np.exp(mu_posterior), (1 + np.exp(mu_posterior)))
-
-h_estimate = h_estimate.T
 h_upper_confidence_limit = np.exp(upper_confidence_limit) / (1 + np.exp(upper_confidence_limit))
 h_lower_confidence_limit = np.exp(lower_confidence_limit) / (1 + np.exp(lower_confidence_limit))
+
+h_estimate = h_estimate.T
 h_upper_confidence_limit = h_upper_confidence_limit.T
 h_lower_confidence_limit = h_lower_confidence_limit.T
 
 ## Find observed firing rate
-observed_spikes = zeros((N, X_dim))
+observed_spikes = zeros((N, N_plotgridpoints))
 for i in range(N):
-    for x in range(X_dim):
+    for x in range(N_plotgridpoints):
         timesinbin = (path>bins[x])*(path<bins[x+1])
         if(sum(timesinbin)>0):
             observed_spikes[i,x] = mean( y_spikes[i, timesinbin] )
