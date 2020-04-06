@@ -18,23 +18,17 @@ numpy.random.seed(13)
 # Parameters #
 ##############
 P = 1 # Dimensions of latent variable 
-N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
-sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
-delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_n = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
-TOLERANCE_X = 0.1 # for X posterior
-LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
-print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Using PERIODIC covariance kernel")
 INFERENCE_METHOD = 3 # 1. No LA. 2. Standard LA. 3. Decoupled LA
-sigma_x = 2*np.pi # Variance of X for K_t
+sigma_x = 2*np.pi # Variance of X for K_t # 2*np.pi
 delta_x = 10 # Scale of X for K_t
+sigma_n_x = 0.0
 N_iterations = 10
 plottruth = True
 
 T = 100
-N = 8
+N = 100
 tuningwidth = 1 # width of tuning (in radians)
 biasterm = -2 # Average H outside tuningwidth -4
 tuningcovariatestrength = 4.*tuningwidth # H value at centre of tuningwidth 6*tuningwidth
@@ -169,11 +163,63 @@ def f_hessian_poisson(f_i):
     f_hessian = - np.diag(e_poiss) - sigma_n**-2*np.identity(T) + sigma_n**-2 * np.dot(K_xg_prev, np.dot(smallinverse, K_xg_prev.T))
     return - f_hessian
 
+# Faster version? 01.04
+def simplified_x_posterior(X_estimate):
+    # f prior term #####
+    ####################
+    f_prior_term = 0
+
+    K_xg = np.zeros((T,N_inducing_points))
+    for x1 in range(T):
+        for x2 in range(N_inducing_points):
+            K_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+
+    # Make Kx inverse with Inducing points
+    K_xg = np.zeros((T,N_inducing_points))
+    for x1 in range(T):
+        for x2 in range(N_inducing_points):
+            K_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+    # Taken from posterior inference matrix creation and altered to make speed
+    # For the trace trick to work, we need np.matmul(F_estimate, F_estimate.T), an N by N matrix
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
+    tempmatrix = np.matmul(np.matmul(K_xg, smallinverse), K_xg.T)
+    f_prior_term_1 = sigma_n**-2 * np.trace(np.matmul(F_estimate, F_estimate.T))
+    fK = np.matmul(F_estimate, tempmatrix)
+    fKf = np.matmul(fK, F_estimate.T)
+    f_prior_term_2 = - sigma_n**-2 * np.trace(fKf)
+
+    f_prior_term = - 0.5 * (f_prior_term_1 + f_prior_term_2)
+
+    # logdet term ######
+    ####################
+    Kx_inducing_without_errorterm = np.matmul(np.matmul(K_xg, K_gg_inverse), K_xg.T)
+
+    logdet_term = 0
+    for i in range(N):
+        W_i = np.diag(np.exp(F_estimate[i]))
+        wkck = np.matmul(W_i, Kx_inducing_without_errorterm)
+        wsigmaI = sigma_n**2 * (W_i + np.identity(T))
+        logdet_term += -0.5 * np.log(np.linalg.det(wkck + wsigmaI))
+
+    # x prior term ######
+    ####################
+    x_prior_term = 0
+    if P==1: 
+        x_prior_term += -0.5 * np.dot(np.dot(X_estimate.T, K_t_inverse), X_estimate)
+    else: 
+        x_prior_term += -0.5 * np.trace(np.matmul(np.matmul(X_estimate.T, K_t_inverse), X_estimate))
+        print("We're in the multidim loop and we have no right to be here")
+
+    posterior_loglikelihood = logdet_term + f_prior_term + x_prior_term
+    return - posterior_loglikelihood
+
+"""
 # L function: negative Loglikelihood
 def x_posterior_loglikelihood_decoupled_la(X_estimate): # Analog to logmargli_gplvm_se_sor_la_decouple.m
     # Currently in X space, not U space
     f_prior_term = 0
     logdet_term = 0
+    x_prior_term = 0
     
     K_xg = np.zeros((T,N_inducing_points))
     for x1 in range(T):
@@ -181,53 +227,29 @@ def x_posterior_loglikelihood_decoupled_la(X_estimate): # Analog to logmargli_gp
             K_xg[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
     K_gx = K_xg.T
 
-    # for A
-    smallinverse_fixed_X = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx_prev, K_xg_prev))
-    Kx_inducing_inverse_fixed_X = sigma_n**-2*np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg_prev, smallinverse_fixed_X), K_gx_prev)
-    # for A(X)
     smallinverse_current_X = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
     Kx_inducing_inverse_current_X = sigma_n**-2*np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse_current_X), K_gx)
 
-    f_at_X = np.zeros((N,T))
     for i in range(N):
-        f_i = f_hat[i]
+        f_i = F_estimate[i]
         W_i = np.diag(np.exp(f_i))
 
-        # Finding A = W_i + K_x^-1
-        A = W_i + Kx_inducing_inverse_fixed_X
-        # Finding A(X)
-        A_at_X = W_i + Kx_inducing_inverse_current_X
-
-        A_times_f = np.dot(A, f_i)
-        f_at_X[i] = np.linalg.solve(A_at_X, A_times_f)
-
         # f prior term (Kx_inducing_inverse_current_X takes care of both priorterm 1 and 2. Maybe we should write out instead?)
-        fTKx_complete = np.dot(f_at_X[i].T, Kx_inducing_inverse_current_X)
-        f_prior_term += - 0.5 * np.dot(fTKx_complete, f_at_X[i])
+        fTKx_complete = np.dot(f_i.T, Kx_inducing_inverse_current_X)
+        f_prior_term += - 0.5 * np.dot(fTKx_complete, f_i)
 
         # logdet term
-        K_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2
-        tempmatrix = np.matmul(W_i, K_inducing) + np.identity(T) 
-        logdet_term += - 0.5 * np.log(np.linalg.det(tempmatrix))
-
-    # yf_term
-    if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, f_at_X) - np.log(1 + np.exp(f_at_X)))
-    elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, f_at_X) - np.exp(f_at_X))
+        #K_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2
+        #tempmatrix = np.matmul(W_i, K_inducing) + np.identity(T) 
+        #logdet_term += - 0.5 * np.log(np.linalg.det(tempmatrix))
 
     # x prior term
     xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
     x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
 
-    posterior_loglikelihood = yf_term + logdet_term + f_prior_term + x_prior_term
+    posterior_loglikelihood = logdet_term + f_prior_term + x_prior_term
     return - posterior_loglikelihood
-
-
-
-
-
-
+"""
 def x_jacobian_decoupled_la(X):
     # f1term
     f1term = 0
@@ -272,63 +294,108 @@ K_t = np.zeros((T,T))
 for t1 in range(T):
     for t2 in range(T):
         K_t[t1,t2] = exponential_covariance(t1,t2, sigma_x, delta_x)
+K_t += sigma_n_x * np.identity(T)
 K_t_inverse = np.linalg.inv(K_t)
 K_t_squareroot = scipy.linalg.sqrtm(K_t)
 K_t_inverse_squareroot = scipy.linalg.sqrtm(K_t_inverse)
 
-# Initialize X
-#X_estimate = np.pi * np.ones(T)
-X_estimate = path + 0.3*np.sin(np.linspace(0,2*np.pi,T))
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Fixing value of F
+"""
+X_estimate = path
+K_xg_prev = np.zeros((T,N_inducing_points))
+for x1 in range(T):
+    for x2 in range(N_inducing_points):
+        K_xg_prev[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
+K_gx_prev = K_xg_prev.T
+
 F_estimate = np.sqrt(y_spikes)
-
-X_loglikelihood_old = 0
-X_loglikelihood_new = np.inf
-plt.show()
-### INFERENCE OF X USING DECOUPLED LAPLACE APPROXIMATION. Input: Obervations y and initial guess X0
-for iteration in range(N_iterations):
-    previous_X = X_estimate
-    K_xg_prev = np.zeros((T,N_inducing_points))
-    for x1 in range(T):
-        for x2 in range(N_inducing_points):
-            K_xg_prev[x1,x2] = gaussian_periodic_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
-    K_gx_prev = K_xg_prev.T
-    plt.figure()
-    plt.title("X estimate")
-    plt.plot(path, color="blue")
-    plt.plot(X_estimate)
-    plt.show()
-    print("Logikelihood improvement:", - (X_loglikelihood_new - X_loglikelihood_old))
-    X_loglikelihood_old = X_loglikelihood_new
-    print("\nEM Iteration:", iteration, "\nX estimate:", X_estimate[0:5],"\n")
-
-    print("Finding f hat...")
-    f_tuning_curve = np.sqrt(y_spikes) # Initialize f values
-
-    if LIKELIHOOD_MODEL == "bernoulli":
-        for i in range(N):
-            y_i = y_spikes[i]
-            optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
-            f_tuning_curve[i] = optimization_result.x
-    elif LIKELIHOOD_MODEL == "poisson":
-        for i in range(N):
-            y_i = y_spikes[i]
-            optimization_result = optimize.minimize(f_loglikelihood_poisson, f_tuning_curve[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
-            f_tuning_curve[i] = optimization_result.x 
-    f_hat = f_tuning_curve
-
-    plt.figure()
-    plt.title("f estimate")
+if LIKELIHOOD_MODEL == "bernoulli":
     for i in range(N):
-        plt.plot(f_hat[i])
-        #plt.plot(np.sqrt(y_spikes[i]), "grey") # Actual starting points
-        plt.plot(true_f[i], "grey")
-    plt.show()
-    # Find next X estimate, that can be outside (0,2pi)
+        y_i = y_spikes[i]
+        optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+        F_estimate[i] = optimization_result.x
+elif LIKELIHOOD_MODEL == "poisson":
+    for i in range(N):
+        y_i = y_spikes[i]
+        optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+        F_estimate[i] = optimization_result.x 
+"""
+F_estimate = true_f
+plt.figure()
+plt.title("f value")
+for i in range(N):
+    plt.plot(F_estimate[i])
+    #plt.plot(np.sqrt(y_spikes[i]), "grey") # Actual starting points
+    plt.plot(true_f[i], "grey")
+
+print("Test L value for different values of X")
+print("path\n",simplified_x_posterior(path))
+print("path + 0.1sinus\n",simplified_x_posterior(path + 0.1*np.sin(np.linspace(0,2*np.pi,T))))
+print("path + 0.2sinus\n",simplified_x_posterior(path + 0.2*np.sin(np.linspace(0,2*np.pi,T))))
+print("path + 0.3sinus\n",simplified_x_posterior(path + 0.3*np.sin(np.linspace(0,2*np.pi,T))))
+print("path + 0.4sinus\n",simplified_x_posterior(path + 0.4*np.sin(np.linspace(0,2*np.pi,T))))
+print("path + 0.5sinus\n",simplified_x_posterior(path + 0.5*np.sin(np.linspace(0,2*np.pi,T))))
+print("path + 0.6sinus\n",simplified_x_posterior(path + 0.6*np.sin(np.linspace(0,2*np.pi,T))))
+print("path + 0.7sinus\n",simplified_x_posterior(path + 0.7*np.sin(np.linspace(0,2*np.pi,T))))
+print("path + 1.0sinus\n",simplified_x_posterior(path + 1.0*np.sin(np.linspace(0,2*np.pi,T))))
+print("Random start\n",simplified_x_posterior(2*np.pi*np.random.random(T)))
+
+# Initial X
+X_initial = 2*np.pi*np.random.random(T)
+#np.linspace(np.pi/4,3/2*np.pi,T) 
+#np.repeat(np.pi,T) 
+#path + 0.6*np.sin(np.linspace(0,2*np.pi,T)) 
+#2*np.pi*np.random.random(T)
+print("initial\n",simplified_x_posterior(X_initial))
+X_estimate = X_initial # path + 0.6*np.sin(np.linspace(0,2*np.pi,T)) #np.random.random((N,T)) #path + 0.3*np.sin(np.linspace(0,2*np.pi,T))
+
+plt.figure()
+plt.title("Initial X")
+plt.plot(X_initial)
+plt.show()
+
+# Iterate. Find next X estimate, that can be outside (0,2pi)
+for iteration in range(N_iterations):
     print("Finding next X estimate...")
-    optimization_result = optimize.minimize(x_simplified_posterior, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
+    optimization_result = optimize.minimize(simplified_x_posterior, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
-    F_estimate = f_hat
-    X_loglikelihood_new = optimization_result.fun 
+
+    plt.figure()
+    plt.title("Inferred X estimate")
+    plt.plot(path, color="blue", label='True X')
+    plt.plot(X_initial, label='Initial')
+    plt.plot(X_estimate, label='Estimated')
+#    X_two_pi_adjusted = [x%(2*np.pi) for x in X_estimate]
+#    plt.plot(X_two_pi_adjusted, label='Inside 2 Pi')
+    plt.legend()
+    plt.show()
+
+X_two_pi_adjusted = [x%(2*np.pi) for x in X_estimate]
+
+plt.figure()
+plt.title("Inferred X estimate")
+plt.plot(path, color="blue", label='True X')
+plt.plot(X_initial, label='Initial')
+plt.plot(X_estimate, label='Estimated')
+#plt.plot(X_two_pi_adjusted, label='Inside 2 Pi')
+plt.legend()
+plt.show()
+
+
+
 
 
 
@@ -343,9 +410,8 @@ for iteration in range(N_iterations):
 #################################################
 # Find posterior prediction of log tuning curve #
 #################################################
-bins = np.linspace(min(X_estimate) -0.000001, max(X_estimate) + 0.0000001, num=N_plotgridpoints + 1) # (-0.000001, 2.*np.pi+0.0000001)
+bins = np.linspace(-0.000001, 2.*np.pi+0.0000001) # (min(X_estimate) -0.000001, max(X_estimate) + 0.0000001, num=N_plotgridpoints + 1) 
 x_grid = 0.5*(bins[:(-1)]+bins[1:]) # for plotting with uncertainty
-f_values_observed = f_hat
 
 print("Making covariance matrix: Kx grid")
 K_plotgrid = np.zeros((N_plotgridpoints,N_plotgridpoints))
@@ -356,6 +422,7 @@ K_plotgrid += sigma_n*np.identity(N_plotgridpoints) # Here I am adding sigma to 
 fig, ax = plt.subplots()
 kxmat = ax.matshow(K_plotgrid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
+plt.title("Kx grid")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-inference-K_plotgrid.png")
 
 print("Making covariance matrix: Kx crossover")
@@ -378,7 +445,7 @@ for x1 in range(T):
 # Infer mean on the grid
 smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg.T, K_xg))
 Kx_inducing_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_xg.T)
-pre = np.matmul(Kx_inducing_inverse, f_values_observed.T)
+pre = np.matmul(Kx_inducing_inverse, F_estimate.T)
 mu_posterior = np.matmul(Kx_crossover_T, pre)
 # Calculate standard deviations
 sigma_posterior = (K_plotgrid) - np.matmul(Kx_crossover_T, np.matmul(Kx_inducing_inverse, Kx_crossover))
