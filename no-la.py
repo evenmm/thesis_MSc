@@ -16,7 +16,7 @@ numpy.random.seed(13)
 ##############
 # Parameters #
 ##############
-T = 100
+T = 40
 N = 100
 
 P = 1 # Dimensions of latent variable 
@@ -24,7 +24,9 @@ N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per 
 N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
 sigma_f_fit = 2 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.15 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_n = 0.001 # Assumed variance of observations for the GP that is fitted. 10e-5
+sigma_n = 2 # Initial noise variance to be decreased with simulated annealing
+lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
+TOLERANCE_X = 0.1 # for X posterior
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 print("Likelihood model:",LIKELIHOOD_MODEL)
 COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
@@ -92,14 +94,14 @@ plt.ylabel("True f")
 for i in range(N):
     plt.plot(true_f[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-true-tuning.pdf",format="pdf")
-
+plt.show()
 #########################
 ## Likelihood functions #
 #########################   
 
 # Posterior of X
 def simplified_x_posterior(X_estimate):
-    Kx = make_Kx_with_sigma(T,X_estimate)
+    Kx = make_Kx_without_sigma(T,X_estimate) + sigma_n*np.identity(T)
     Kx_inverse = np.linalg.inv(Kx)
 
     # f prior term #####
@@ -138,9 +140,19 @@ def differentiated_SE_covariance(X_estimate, t1):
     Kx_differentiated_wrt_xt[t1, t1] = 0
     return Kx_differentiated_wrt_xt
 
+def wu_posterior(X_estimate):
+    f_prior_term = 0.5 * np.trace()
+
+    logdet_term = 0
+
+    x_prior_term = 0
+
+    L = f_prior_term + logdet_term + x_prior_term
+    return L
+
 # Jacobian
 def x_jacobian(X_estimate):
-    Kx = make_Kx_with_sigma(T,X_estimate)
+    Kx = make_Kx_without_sigma(T,X_estimate) + sigma_n*np.identity(T)
     Kx_inverse = np.linalg.inv(Kx)
 
     # f prior term #####
@@ -174,12 +186,11 @@ def x_jacobian(X_estimate):
 ########################
 # Covariance functions #
 ########################
-def make_Kx_with_sigma(T, X_estimate):
+def make_Kx_without_sigma(T, X_estimate):
     Kx_fit_at_observations = np.zeros((T,T))
     for x1 in range(T):
         for x2 in range(T):
             Kx_fit_at_observations[x1,x2] = squared_exponential_covariance(X_estimate[x1],X_estimate[x2], sigma_f_fit, delta_f_fit)
-    Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(T)*sigma_n
     return Kx_fit_at_observations
 
 K_t = np.zeros((T,T))
@@ -191,7 +202,8 @@ K_t_squareroot = scipy.linalg.sqrtm(K_t)
 K_t_inverse_squareroot = scipy.linalg.sqrtm(K_t_inverse)
 
 # Set initial X
-X_initial = np.linspace(np.pi/4,3/2*np.pi,T)
+X_initial = np.copy(path)
+X_initial[10] = path[10] + 0.5
 #np.linspace(np.pi/4,3/2*np.pi,T) 
 #np.repeat(np.pi,T) 
 #path + 0.6*np.sin(np.linspace(0,2*np.pi,T)) 
@@ -225,7 +237,10 @@ plt.legend()
 plt.show()
 
 # Iterate. Find next X estimate, that can be outside (0,2pi)
-for iteration in range(N_iterations):
+for iteration in range(N_iterations):    
+    if sigma_n > 1e-8:
+        sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
+
     print("Finding next X estimate...")
     if GRADIENT==True:
         optimization_result = optimize.minimize(simplified_x_posterior, X_estimate, jac=x_jacobian, method = "L-BFGS-B", options = {'disp':True}) # jac=x_jacobian,

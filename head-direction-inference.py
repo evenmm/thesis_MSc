@@ -12,17 +12,20 @@ import sys
 plt.rc('image', cmap='viridis')
 from scipy import optimize
 numpy.random.seed(13)
-#from hd_dataload import *
 
 ##############
 # Parameters #
 ##############
+T = 100
+N = 100
+
 P = 1 # Dimensions of latent variable 
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
-N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
+N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_n = 0.2 # Assumed variance of observations for the GP that is fitted. 10e-5
+sigma_n = 2 # Assumed variance of observations for the GP that is fitted. 10e-5
+lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
 TOLERANCE_X = 0.1 # for X posterior
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 print("Likelihood model:",LIKELIHOOD_MODEL)
@@ -33,8 +36,6 @@ delta_x = 10 # Scale of X for K_t
 N_iterations = 10
 plottruth = True
 
-T = 100
-N = 8
 tuningwidth = 1 # width of tuning (in radians)
 biasterm = -2 # Average H outside tuningwidth -4
 tuningcovariatestrength = 4.*tuningwidth # H value at centre of tuningwidth 6*tuningwidth
