@@ -25,19 +25,8 @@ numpy.random.seed(16)
 
 ## 3 Use f values at path to sample spikes
 
-def exponential_covariance(t1,t2, sigma, delta):
-    distance = abs(t1-t2)
-    return sigma * exp(-distance/delta)
-
-def gaussian_periodic_covariance(x1,x2, sigma, delta):
-    distancesquared = min([(x1-x2)**2, (x1+2*pi-x2)**2, (x1-2*pi-x2)**2])
-    return sigma * exp(-distancesquared/(2*delta))
-
-def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
-    distancesquared = (x1-x2)**2
-    return sigma * exp(-distancesquared/(2*delta))
-
 # Model parameters: 
+COVARIANCE_KERNEL_KX = "periodic" # "periodic" "nonperiodic"
 N = 4 # number of neurons 
 T = 500 # time bins
 sigma_path = 10 # variance for kt 
@@ -52,6 +41,19 @@ X_dim = 40 # Number of grid points
 sigma_fit = 1.2 # Variance for Kx
 delta_fit = 0.5 # Scale for Kx
 sigma_epsilon_fit = 0.1 # Variance of observations
+
+print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
+
+def exponential_covariance(t1,t2, sigma, delta):
+    distance = abs(t1-t2)
+    return sigma * exp(-distance/delta)
+
+def squared_exponential_covariance(x1,x2, sigma, delta):
+    if COVARIANCE_KERNEL_KX == "periodic":
+        distancesquared = min([(x1-x2)**2, (x1+2*pi-x2)**2, (x1-2*pi-x2)**2])
+    elif COVARIANCE_KERNEL_KX == "nonperiodic":
+        distancesquared = (x1-x2)**2
+    return sigma * exp(-distancesquared/(2*delta))
 
 ## 1. Generate random latent variable GP path
 print("Making Kt and path")
@@ -84,7 +86,7 @@ print("Making spatial covariance matrice: Kx observed")
 Kx_observed = np.zeros((N_observations,N_observations))
 for x1 in range(N_observations):
     for x2 in range(N_observations):
-        Kx_observed[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_values_observed[x2], sigma_observed, delta_observed)
+        Kx_observed[x1,x2] = squared_exponential_covariance(x_values_observed[x1],x_values_observed[x2], sigma_observed, delta_observed)
 # Sample exact f values
 f_values_exact = np.zeros((N,T))
 numpy.random.seed(4)
@@ -110,7 +112,7 @@ print("Making spatial covariance matrice: Kx_fit at observations")
 Kx_fit_at_observations = np.zeros((N_observations,N_observations))
 for x1 in range(N_observations):
     for x2 in range(N_observations):
-        Kx_fit_at_observations[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_values_observed[x2], sigma_fit, delta_fit)
+        Kx_fit_at_observations[x1,x2] = squared_exponential_covariance(x_values_observed[x1],x_values_observed[x2], sigma_fit, delta_fit)
 # By adding sigma_epsilon on the diagonal, we assume noise and make the covariance matrix positive semidefinite
 Kx_fit_at_observations = Kx_fit_at_observations  + np.identity(N_observations)*sigma_epsilon_fit
 Kx_fit_at_observations_inverse = np.linalg.inv(Kx_fit_at_observations)
@@ -122,7 +124,7 @@ print("Making spatial covariance matrice: Kx crossover")
 Kx_crossover = np.zeros((N_observations,X_dim))
 for x1 in range(N_observations):
     for x2 in range(X_dim):
-        Kx_crossover[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid[x2], sigma_fit, delta_fit)
+        Kx_crossover[x1,x2] = squared_exponential_covariance(x_values_observed[x1],x_grid[x2], sigma_fit, delta_fit)
 fig, ax = plt.subplots()
 kx_cross_mat = ax.matshow(Kx_crossover, cmap=plt.cm.Blues)
 fig.colorbar(kx_cross_mat, ax=ax)
@@ -132,7 +134,7 @@ print("Making spatial covariance matrice: Kx grid")
 Kx_grid = np.zeros((X_dim,X_dim))
 for x1 in range(X_dim):
     for x2 in range(X_dim):
-        Kx_grid[x1,x2] = gaussian_periodic_covariance(x_grid[x1],x_grid[x2], sigma_fit, delta_fit)
+        Kx_grid[x1,x2] = squared_exponential_covariance(x_grid[x1],x_grid[x2], sigma_fit, delta_fit)
 fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
