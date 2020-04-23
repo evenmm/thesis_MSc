@@ -76,6 +76,17 @@ plt.xlabel("x")
 #plt.ylabel("Spike rate")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-tuning-f.png")
 
+# Plot prior
+mu_prior = np.zeros(X_dim)
+sigma_prior = sigma * np.identity(X_dim)
+plt.figure()
+plt.xlim(0,2*np.pi)
+plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
+plt.plot(x_grid, mu_prior, "-", color="grey")
+plt.plot(x_grid, mu_prior + 1.96*np.sqrt(np.diag(sigma_prior)), "--", color="grey")
+plt.plot(x_grid, mu_prior - 1.96*np.sqrt(np.diag(sigma_prior)), "--", color="grey")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-prior.png")
+
 ## Observations
 x_array_positions = np.random.randint(0, X_dim, size=N_observations_total)
 for N_observations in range(1,N_observations_total+1):
@@ -127,7 +138,7 @@ for N_observations in range(1,N_observations_total+1):
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-noisy-posterior-%s.png" % int(N_observations))
 
 ## Latent variable GP
-T = 20
+T = 200
 sigma = 1 # Variance
 delta = 50 # Scale 
 sigma_epsilon = 0.0

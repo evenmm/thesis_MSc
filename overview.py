@@ -204,7 +204,7 @@ plt.figure()
 timepoints = np.linspace(0, T, T, endpoint=False)
 for i in range(N):
     for j in range(T):
-        plt.plot(timepoints[j], (i+1) , '|', color=colors[i], markersize=5.*y_spikes[i][j])
+        plt.plot(timepoints[j], (i+1) , '|', color=colors[i], markersize=10.*(y_spikes[i][j] > 2) ) #*y_spikes[i][j])
 plt.ylabel("Neuron")
 plt.xlabel("Time")
 plt.yticks(range(1,N+1))

@@ -1,0 +1,25 @@
+##############
+# Parameters #
+##############
+T = 100
+N = 100
+N_iterations = 10
+sigma_n = 2.3 # Assumed variance of observations for the GP that is fitted. 10e-5
+
+P = 1 # Dimensions of latent variable 
+N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
+N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
+sigma_f_fit = 2 # Variance for the tuning curve GP that is fitted. 8
+delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
+lr = 0.99 # Learning rate by which we multiply sigma_n at every iteration
+LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
+print("Likelihood model:",LIKELIHOOD_MODEL)
+COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
+print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
+GRADIENT_FLAG = False # Choose to use gradient or not
+print("\nUsing gradient?", GRADIENT_FLAG, "\n\n")
+sigma_x = 6 # Variance of X for K_t
+delta_x = 10 # Scale of X for K_t
+TUNINGCURVE_DEFINITION = "triangles" # "triangles" "bumps"
+print("True tuning curve shape:", TUNINGCURVE_DEFINITION)
+
