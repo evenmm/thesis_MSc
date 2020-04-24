@@ -78,7 +78,7 @@ def samplefromBernoulli(H):
     p = exp(H)/(1.+exp(H)) ## p for the Logit link function
     return 1.0*(rand()<p)
 
-print("Setting y_spikes equal to true spike probabilities") # print("Generating spikes")
+print("NB!!!! Setting y_spikes equal to true spike probabilities") # print("Generating spikes")
 true_f = np.zeros((N, T))
 y_spikes = np.zeros((N, T))
 for i in range(N):
