@@ -20,22 +20,23 @@ T = 100
 N = 100
 N_iterations = 1
 sigma_n = 0.7 # Assumed variance of observations for the GP that is fitted. 10e-5
+lr = 0.9 # Learning rate by which we multiply sigma_n at every iteration
 
-P = 1 # Dimensions of latent variable 
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
+LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
+COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
+TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 sigma_f_fit = 2 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
-lr = 0.9 # Learning rate by which we multiply sigma_n at every iteration
-LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
-print("Likelihood model:",LIKELIHOOD_MODEL)
-COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
-print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
-GRADIENT_FLAG = False # Choose to use gradient or not
-print("\nUsing gradient?", GRADIENT_FLAG, "\n\n")
 sigma_x = 6 # Variance of X for K_t
 delta_x = 10 # Scale of X for K_t
-TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
+P = 1 # Dimensions of latent variable 
+GRADIENT_FLAG = False # Choose to use gradient or not
+
+print("Likelihood model:",LIKELIHOOD_MODEL)
+print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
+print("\nUsing gradient?", GRADIENT_FLAG, "\n\n")
 print("True tuning curve shape:", TUNINGCURVE_DEFINITION)
 
 if TUNINGCURVE_DEFINITION == "triangles":
@@ -294,8 +295,8 @@ for x1 in range(N_inducing_points):
     for x2 in range(N_inducing_points):
         K_gg_plain[x1,x2] = squared_exponential_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
 #fig, ax = plt.subplots()
-#kgg_cross_mat = ax.matshow(K_gg_plain, cmap=plt.cm.Blues)
-#fig.colorbar(kgg_cross_mat, ax=ax)
+#foo_mat = ax.matshow(K_gg_plain, cmap=plt.cm.Blues)
+#fig.colorbar(foo_mat, ax=ax)
 #plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-hd-kgg.png")
 
 K_t = np.zeros((T,T))
