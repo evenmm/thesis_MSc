@@ -71,11 +71,10 @@ for i in range(N):
     plt.plot(x_grid, sigma * 1.96 * np.ones_like(x_grid), "--", color="grey")
     plt.plot(x_grid, -sigma * 1.96 * np.ones_like(x_grid), "--", color="grey")
     plt.plot(x_grid, f_tuning_curve[i,:], "-", color=colors[i])
-    plt.plot(x_grid, f_tuning_curve[i,:], ".", color=colors[i])
+#    plt.plot(x_grid, f_tuning_curve[i,:], ".", color=colors[i])
 plt.xlabel("x")
 #plt.ylabel("Spike rate")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-tuning-f.png")
-
 # Plot prior
 mu_prior = np.zeros(X_dim)
 sigma_prior = sigma * np.identity(X_dim)
@@ -85,6 +84,9 @@ plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_grid, mu_prior, "-", color="grey")
 plt.plot(x_grid, mu_prior + 1.96*np.sqrt(np.diag(sigma_prior)), "--", color="grey")
 plt.plot(x_grid, mu_prior - 1.96*np.sqrt(np.diag(sigma_prior)), "--", color="grey")
+plt.ylim(-3,3)
+plt.xlabel("X")
+plt.ylabel("f(X)")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-prior.png")
 
 ## Observations
@@ -120,6 +122,9 @@ for N_observations in range(1,N_observations_total+1):
     plt.plot(x_grid, mu_posterior - 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
     plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
     plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10) # Plot observed data points
+    plt.ylim(-3,3)
+    plt.xlabel("X")
+    plt.ylabel("f(X)")
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-posterior-%s.png" % int(N_observations))
 
     ## Noisy observations
@@ -135,6 +140,9 @@ for N_observations in range(1,N_observations_total+1):
     plt.plot(x_grid, noisy_mu_posterior - 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
     plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
     plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10)
+    plt.xlabel("X")
+    plt.ylabel("f(X)")
+    plt.ylim(-3,3)
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-noisy-posterior-%s.png" % int(N_observations))
 
 ## Latent variable GP

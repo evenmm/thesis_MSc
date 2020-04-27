@@ -13,14 +13,14 @@ plt.rc('image', cmap='viridis')
 from scipy import optimize
 numpy.random.seed(13)
 
-##############
-# Parameters #
-##############x
+################################################
+# Parameters for inference, not for generating #
+################################################
 T = 80
 N = 100
-N_iterations = 10
-sigma_n = 1.0 # Assumed variance of observations for the GP that is fitted. 10e-5
-lr = 0.9 # Learning rate by which we multiply sigma_n at every iteration
+N_iterations = 5
+sigma_n = 1.2 # Assumed variance of observations for the GP that is fitted. 10e-5
+lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
 
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
@@ -56,7 +56,7 @@ def squared_exponential_covariance(x1,x2, sigma, delta):
     return sigma * exp(-distancesquared/(2*delta))
 
 ######################################
-## Generate data for simple example ##
+## Loading data                     ##
 ######################################
 bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=N_plotgridpoints + 1)
 evaluationpoints = 0.5*(bins[:(-1)]+bins[1:])
@@ -131,6 +131,7 @@ foo_mat = ax.matshow(true_f) #cmap=plt.cm.Blues
 fig.colorbar(foo_mat, ax=ax)
 plt.title("True f")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-true-f.png")
+plt.clf()
 plt.close()
 
 #########################
@@ -334,6 +335,7 @@ foo_mat = ax.matshow(F_estimate) #cmap=plt.cm.Blues
 fig.colorbar(foo_mat, ax=ax)
 plt.title("Initial f")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-initial-f.png")
+plt.clf()
 plt.close()
 
 collected_estimates = np.zeros((N_iterations, T))
@@ -341,7 +343,7 @@ collected_estimates = np.zeros((N_iterations, T))
 ### EM algorithm: Find f given X, then X given f.
 for iteration in range(N_iterations):
     print("\nIteration", iteration)
-    if sigma_n > 1e-8:
+    if sigma_n > 0.85: #1e-8:
         sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
     print("Sigma2:", sigma_n)
     print("L value at path for this sigma:",x_posterior_no_la(path))
@@ -380,11 +382,18 @@ for iteration in range(N_iterations):
     foo_mat = ax.matshow(F_estimate-true_f) #cmap=plt.cm.Blues
     fig.colorbar(foo_mat, ax=ax)
     plt.title("Difference between F estimate and truth")
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-estimate.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-difference.png")
     #plt.show()
+    plt.clf()
+    plt.close()
 
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
+
+    # Attempt to regularize by adding noise to estimate to shake it up
+    if iteration < 5:
+        X_estimate += sigma_n/5 * np.random.random(T)
+
     optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
 
@@ -394,7 +403,7 @@ for iteration in range(N_iterations):
     scaling_optimization_result = optimize.minimize(scaling, initial_offset, method = "L-BFGS-B", options = {'disp':True})
     best_offset = scaling_optimization_result.x
     if iteration<(N_iterations-1):
-        X_estimate = X_estimate + 0.5*best_offset
+        X_estimate = X_estimate + best_offset #0.5*
     else:
         X_estimate = X_estimate + best_offset
     print("Best offset:", best_offset)
@@ -413,6 +422,20 @@ for iteration in range(N_iterations):
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
     #plt.show()
     np.save("X_estimate", X_estimate)
+    plt.clf()
+    plt.clf()
+    plt.close()
+
+# Final estimate
+plt.figure()
+plt.title("Final estimate")
+plt.plot(path, color="black", label='True X')
+plt.plot(X_initial, label='Initial')
+plt.plot(X_estimate, label='Estimate')
+plt.legend()
+plt.ylim((0,2*np.pi))
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
+plt.show()
 
 ###########################
 # Flipped 

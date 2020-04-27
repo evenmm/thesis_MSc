@@ -132,8 +132,8 @@ for x1 in range(T):
         K_fu[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid_induce[x2], sigma_fit, delta_fit)
 K_uf = K_fu.T
 
-# NEGATIVE Loglikelihood of f given X (since we minimize it to maximize the loglikelihood)
-def f_loglikelihood_bernoulli(f_i): # Psi
+# NEGATIVE log posterior of f given X and Y (since we minimize it to maximize the loglikelihood)
+def f_logposterior_bernoulli(f_i): # Psi
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
     priorterm_1 = -0.5*sigma_n**-2 * np.dot(f_i.T, f_i)
     fT_k = np.dot(f_i, K_fu)
@@ -163,7 +163,7 @@ starttime = time.time()
 f_tuning_curve = np.zeros((N,T)) #np.sqrt(y_spikes) # Initialize f values
 for i in range(N):
     y_i = y_spikes[i]
-    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #, hess=f_hessian_bernoulli
+    optimization_result = optimize.minimize(f_logposterior_bernoulli, f_tuning_curve[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #, hess=f_hessian_bernoulli
     f_tuning_curve[i] = optimization_result.x
 endtime = time.time()
 print("Time spent:", "{:.2f}".format(endtime - starttime))
