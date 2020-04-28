@@ -18,7 +18,7 @@ numpy.random.seed(13)
 ##############x
 T = 80
 N = 100
-N_iterations = 5
+N_iterations = 10
 sigma_n = 1.2 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
 
@@ -126,11 +126,21 @@ elif TUNINGCURVE_DEFINITION == "bumps":
                 y_spikes[i,t] = np.random.poisson(spike_rate)
 
 ## Plot true f
+plt.figure()
+plt.xlabel("Head direction")
+color_idx = np.linspace(0, 1, N)
+plt.ylabel("True f")
+for i in range(N):
+    plt.plot(true_f[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-true-f-curves.png")
+plt.show()
+
+## Plot true f
 fig, ax = plt.subplots()
 foo_mat = ax.matshow(true_f) #cmap=plt.cm.Blues
 fig.colorbar(foo_mat, ax=ax)
 plt.title("True f")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-true-f.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-true-f-mnatrix.png")
 plt.clf()
 plt.close()
 
@@ -199,9 +209,9 @@ def x_posterior_no_la(X_estimate):
     # yf_term ##########
     ####################
     if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.log(1 + np.exp(true_f)))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.log(1 + np.exp(F_estimate)))
     elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.exp(true_f))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.exp(F_estimate))
 
     # f prior term #####
     ####################
@@ -249,9 +259,9 @@ def just_fprior_term(X_estimate):
     # yf_term ##########
     ####################
     if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.log(1 + np.exp(true_f)))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.log(1 + np.exp(F_estimate)))
     elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.exp(true_f))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.exp(F_estimate))
 
     # f prior term #####
     ####################
@@ -334,7 +344,7 @@ fig, ax = plt.subplots()
 foo_mat = ax.matshow(F_estimate) #cmap=plt.cm.Blues
 fig.colorbar(foo_mat, ax=ax)
 plt.title("Initial f")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-initial-f.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-initial-f.png")
 plt.clf()
 plt.close()
 
@@ -377,12 +387,12 @@ for iteration in range(N_iterations):
     foo_mat = ax.matshow(F_estimate) #cmap=plt.cm.Blues
     fig.colorbar(foo_mat, ax=ax)
     plt.title("F estimate")
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-estimate.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-F-estimate.png")
     fig, ax = plt.subplots()
     foo_mat = ax.matshow(F_estimate-true_f) #cmap=plt.cm.Blues
     fig.colorbar(foo_mat, ax=ax)
     plt.title("Difference between F estimate and truth")
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-difference.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-F-difference.png")
     #plt.show()
     plt.clf()
     plt.close()
@@ -419,7 +429,7 @@ for iteration in range(N_iterations):
         plt.plot(collected_estimates[i], label="Estimate") #"%s" % i
     #plt.legend()
     plt.ylim((0,2*np.pi))
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-collected-estimates.png")
     #plt.show()
     np.save("X_estimate", X_estimate)
     plt.clf()
@@ -434,7 +444,7 @@ plt.plot(X_initial, label='Initial')
 plt.plot(X_estimate, label='Estimate')
 plt.legend()
 plt.ylim((0,2*np.pi))
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-final.png")
 plt.show()
 
 ###########################
@@ -449,4 +459,4 @@ plt.plot(path, color="black", label='True X')
 plt.plot(X_flipped, label='Flipped')
 plt.legend()
 plt.ylim((0,2*np.pi))
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-flipped.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-flipped.png")

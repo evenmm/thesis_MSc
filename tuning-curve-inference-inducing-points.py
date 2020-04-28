@@ -269,4 +269,24 @@ for n4 in range(N//4):
             plt.ylim(0.,1.)
             plt.title(neuron[i,j]+1)
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"hd-fitted-tuning"+str(n4+1)+".png")
+
+for i in [47,48,49,50]:
+    plt.figure()
+    plt.plot(x_grid, observed_spikes[i,:], color="#cfb302")
+    plt.plot(x_grid, h_estimate[i,:], color=colors[0]) 
+    #plt.plot(x_grid, h_upper_confidence_limit[i,:], "--", color=colors[0])
+    #plt.plot(x_grid, h_lower_confidence_limit[i,:], "--", color=colors[0])
+    plt.ylim(0.,1.)
+    plt.title(i+1)
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"hd-fitted-tuning-"+str(i)+".png")
+
+plt.figure()
+for i in [16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,38,47]:
+    plt.plot(x_grid, observed_spikes[i,:], color="#cfb302")
+    plt.plot(x_grid, h_estimate[i,:], color=colors[0]) 
+    #plt.plot(x_grid, h_upper_confidence_limit[i,:], "--", color=colors[0])
+    #plt.plot(x_grid, h_lower_confidence_limit[i,:], "--", color=colors[0])
+    plt.ylim(0.,1.)
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"hd-fitted-tuning-"+str(i)+".png")
+
 plt.show()

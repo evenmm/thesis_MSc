@@ -16,20 +16,19 @@ numpy.random.seed(13)
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 80
+T = 200
 N = 100
 N_iterations = 5
-sigma_n = 1.2 # Assumed variance of observations for the GP that is fitted. 10e-5
-lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
+sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
+lr = 0.9 # Learning rate by which we multiply sigma_n at every iteration
 
-N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
+N_inducing_points = 25 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
-COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
-TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
-sigma_f_fit = 2 # Variance for the tuning curve GP that is fitted. 8
-delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_x = 6 # Variance of X for K_t
+COVARIANCE_KERNEL_KX = "periodic" # "periodic" "nonperiodic"
+sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
+delta_f_fit = 1 # Scale for the tuning curve GP that is fitted. 0.3
+sigma_x = 5 # Variance of X for K_t
 delta_x = 10 # Scale of X for K_t
 P = 1 # Dimensions of latent variable 
 GRADIENT_FLAG = False # Choose to use gradient or not
@@ -37,13 +36,121 @@ GRADIENT_FLAG = False # Choose to use gradient or not
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
 print("Using gradient?", GRADIENT_FLAG)
-print("True tuning curve shape:", TUNINGCURVE_DEFINITION)
 
-if TUNINGCURVE_DEFINITION == "triangles":
-    tuningwidth = 1 # width of tuning (in radians)
-    biasterm = -2 # Average H outside tuningwidth -4
-    tuningcovariatestrength = np.linspace(0.5*tuningwidth,10.*tuningwidth, N) # H value at centre of tuningwidth 6*tuningwidth
-    neuronpeak = [(i+0.5)*2.*pi/N for i in range(N)]
+##################################
+# Parameters for data generation #
+##################################
+downsampling_factor = 1
+offset = 1650 #1750
+thresholdforneuronstokeep = 1000 # number of spikes to be considered useful
+
+######################################
+## Loading data                     ##
+######################################
+name = sys.argv[1] #'Mouse28-140313_stuff_BS0030_awakedata.mat'
+
+mat = scipy.io.loadmat(name)
+headangle = ravel(array(mat['headangle'])) # Observed head direction
+cellspikes = array(mat['cellspikes']) # Observed spike time points
+cellnames = array(mat['cellnames']) # Alphanumeric identifiers for cells
+trackingtimes = ravel(array(mat['trackingtimes'])) # Time stamps of path observations
+
+## define bin size and make matrix of spikes
+startt = min(trackingtimes)
+tracking_interval = mean(trackingtimes[1:]-trackingtimes[:(-1)])
+print("Interval between head direction observations:", tracking_interval)
+binsize = downsampling_factor * tracking_interval
+print("Bin size for spike counts:", binsize)
+print("Make sure that path and spikes are still aligned!!!")
+# We need to downsample the observed head direction as well when we tamper with the binsize
+#downsampled = np.zeros(len(headangle) // downsampling_factor)
+#for i in range(len(headangle) // downsampling_factor):
+#    downsampled[i] = mean(headangle[downsampling_factor*i:downsampling_factor*(i+1)])
+#headangle = downsampled
+print("Binning spikes...")
+nbins = len(trackingtimes) // downsampling_factor
+binnedspikes = zeros((len(cellnames), nbins))
+sgood = zeros(len(binnedspikes[:,0]))<1
+for i in range(len(cellnames)):
+  spikes = ravel((cellspikes[0])[i])
+  for j in range(len(spikes)):
+    # note 1ms binning means that number of ms from start is the correct index
+    tt = int(floor(  (spikes[j] - startt)/float(binsize)  ))
+    if(tt>nbins-1 or tt<0): # check if outside bounds of the awake time
+      continue
+    binnedspikes[i,tt] += 1 # add a spike to the thing
+
+  ## check if neuron has enough spikes
+  if(sum(binnedspikes[i,:])<thresholdforneuronstokeep):
+      sgood[i] = False
+      continue
+  ## remove neurons that are not tuned to head direction
+  if i not in [16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,38,47]:
+      sgood[i] = False
+      continue
+
+# Remove neurons that have less total spikes than a threshold 
+# Also remove those that are not tuned to head direction
+binnedspikes = binnedspikes[sgood,:]
+cellnames = cellnames[sgood]
+
+# Remove nan items
+whiches = np.isnan(headangle)
+headangle = headangle[~whiches]
+binnedspikes = binnedspikes[:,~whiches]
+
+# Choose an interval of the total observed time 
+path = headangle[offset:offset+T]
+binnedspikes = binnedspikes[:,offset:offset+T]
+print("How many times are there more than one spike:", sum((binnedspikes>1)*1))
+if LIKELIHOOD_MODEL == "bernoulli":
+    # Set spike counts to 0 or 1
+    binnedspikes = (binnedspikes>0)*1
+if (sum(isnan(path)) > 0):
+    print("\nXXXXXXXXX\nXXXXXXXXX\nXXXXXXXXX\nThere are NAN values in path\nXXXXXXXXX\nXXXXXXXXX\nXXXXXXXXX")
+
+N = len(cellnames) #51 with cutoff at 1000 spikes
+print("N:",N)
+y_spikes = binnedspikes
+print("mean(y_spikes)",mean(y_spikes))
+print("mean(y_spikes>0)",mean(y_spikes[y_spikes>0]))
+# Spike distribution evaluation
+spike_count = np.ndarray.flatten(binnedspikes)
+print("How many times are there more than one spike:", sum(spike_count>1))
+print("Percentage of those bins with 1 that actually have more than 1 spike:", sum(spike_count>1) / sum(spike_count>0)) #len(spike_count[spike_count>0]))
+# Remove zero entries:
+#spike_count = spike_count[spike_count>0]
+plt.figure()
+plt.hist(spike_count, bins=np.arange(0,int(max(spike_count))+1)-0.5, log=True, color=plt.cm.viridis(0.3))
+plt.ylabel("Number of bins")
+plt.xlabel("Spike count")
+plt.title("Spike histogram")
+plt.xticks(range(0,int(max(spike_count)),1))
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-spike-histogram-log.png")
+
+# Find average observed spike count
+number_of_X_bins = 50
+bins = np.linspace(min(path)-0.000001, max(path) + 0.0000001, num=number_of_X_bins + 1)
+evaluationpoints = 0.5*(bins[:(-1)]+bins[1:])
+observed_spikes = zeros((N, number_of_X_bins))
+# Observed spike average and estimated tuning curves
+for i in range(N):
+    for x in range(number_of_X_bins):
+        timesinbin = (path>bins[x])*(path<bins[x+1])
+        if(sum(timesinbin)>0):
+            observed_spikes[i,x] = mean( y_spikes[i, timesinbin] )
+
+## Plot average observed spike count
+fig, ax = plt.subplots()
+foo_mat = ax.matshow(y_spikes) #cmap=plt.cm.Blues
+fig.colorbar(foo_mat, ax=ax)
+plt.title("y spikes")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-y-spikes.png")
+
+######################
+# Covariance kernels #
+######################
+
 def exponential_covariance(t1,t2, sigma, delta):
     distance = abs(t1-t2)
     return sigma * exp(-distance/delta)
@@ -54,85 +161,6 @@ def squared_exponential_covariance(x1,x2, sigma, delta):
     elif COVARIANCE_KERNEL_KX == "nonperiodic":
         distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
-
-######################################
-## Loading data                     ##
-######################################
-bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=N_plotgridpoints + 1)
-evaluationpoints = 0.5*(bins[:(-1)]+bins[1:])
-
-# Generative path for X:
-sigma_path = 1 # Variance
-delta_path = 50 # Scale 
-Kt = np.zeros((T, T)) 
-for t1 in range(T):
-    for t2 in range(T):
-        Kt[t1,t2] = exponential_covariance(t1,t2, sigma_path, delta_path)
-
-#path = np.pi + numpy.random.multivariate_normal(np.zeros(T), Kt)
-#path[40:70] = path[40] + np.sin(np.linspace(0,4*np.pi,30))
-#path[70:100] = np.linspace(path[70],np.pi,30)
-path = np.pi + numpy.random.multivariate_normal(np.zeros(T), Kt)
-#path = np.linspace(0,2*np.pi,T)
-# np.pi + np.pi*np.sin(np.linspace(0,10*np.pi,T))
-# np.linspace(0,2*np.pi,T)
-#np.array(np.pi + 1*np.pi*np.sin([2*np.pi*t/T for t in range(T)]))
-#numpy.random.multivariate_normal(np.zeros(T), Kt)
-#np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
-
-## Generate spike data from a Bernoulli GLM (logistic regression) 
-# True tuning curves are defined here
-bumplocations = 2*np.pi*np.random.random(N)
-bumpwidths = 0.01 + 0.5*np.random.random(N)
-def bumptuningfunction(x, i): 
-    return squared_exponential_covariance(x, bumplocations[i], 2, bumpwidths[i])
-
-if TUNINGCURVE_DEFINITION == "triangles":
-    print("Generating spikes.")
-    true_f = np.zeros((N, T))
-    y_spikes = np.zeros((N, T))
-    for i in range(N):
-        for t in range(T):
-            if COVARIANCE_KERNEL_KX == "periodic":
-                distancefrompeaktopathpoint = min([ abs(neuronpeak[i]+2.*pi-path[t]),  abs(neuronpeak[i]-path[t]),  abs(neuronpeak[i]-2.*pi-path[t]) ])
-            elif COVARIANCE_KERNEL_KX == "nonperiodic":
-                distancefrompeaktopathpoint = abs(neuronpeak[i]-path[t])
-            Ht = biasterm
-            if(distancefrompeaktopathpoint < tuningwidth):
-                Ht = biasterm + tuningcovariatestrength[i] * (1-distancefrompeaktopathpoint/tuningwidth)
-            true_f[i,t] = Ht
-            # Spiking
-            if LIKELIHOOD_MODEL == "bernoulli":
-                spike_probability = exp(Ht)/(1.+exp(Ht))
-                y_spikes[i,t] = 1.0*(rand()<spike_probability)
-                # If you want to remove randomness: y_spikes[i,t] = spike_probability
-            elif LIKELIHOOD_MODEL == "poisson":
-                spike_rate = exp(Ht)
-                y_spikes[i,t] = np.random.poisson(spike_rate)
-                # If you want to remove randomness: y_spikes[i,t] = spike_rate
-
-elif TUNINGCURVE_DEFINITION == "bumps":
-    print("Generating spikes")
-    true_f = np.zeros((N, T))
-    y_spikes = np.zeros((N, T))
-    for i in range(N):
-        for t in range(T):
-            true_f[i,t] = bumptuningfunction(path[t], i)
-            if LIKELIHOOD_MODEL == "bernoulli":
-                spike_probability = exp(true_f[i,t])/(1.+exp(true_f[i,t]))
-                y_spikes[i,t] = 1.0*(rand()<spike_probability)
-            elif LIKELIHOOD_MODEL == "poisson":
-                spike_rate = exp(true_f[i,t])
-                y_spikes[i,t] = np.random.poisson(spike_rate)
-
-## Plot true f
-fig, ax = plt.subplots()
-foo_mat = ax.matshow(true_f) #cmap=plt.cm.Blues
-fig.colorbar(foo_mat, ax=ax)
-plt.title("True f")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-true-f.png")
-plt.clf()
-plt.close()
 
 #########################
 ## Likelihood functions #
@@ -185,44 +213,63 @@ def f_hessian_poisson(f_i):
 
 # L function
 def x_posterior_no_la(X_estimate): 
+    #start = time.time()
     K_xg = np.zeros((T,N_inducing_points))
     for x1 in range(T):
         for x2 in range(N_inducing_points):
             K_xg[x1,x2] = squared_exponential_covariance(X_estimate[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
     K_gx = K_xg.T
+    #stop = time.time()
+    #print("Making Kxg            :", stop-start)
 
+    #start = time.time()
     #Kx_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2
     smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
     # Kx_inducing_inverse = sigma_n**-2*np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_gx)
     tempmatrix = np.matmul(np.matmul(K_xg, smallinverse), K_gx)
+    #stop = time.time()
+    #print("Making small/tempmatrx:", stop-start)
 
     # yf_term ##########
     ####################
+    #start = time.time()
     if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.log(1 + np.exp(true_f)))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.log(1 + np.exp(F_estimate)))
     elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.exp(true_f))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.exp(F_estimate))
+    #stop = time.time()
+    #print("yf term               :", stop-start)
 
     # f prior term #####
     ####################
+    #start = time.time()
     f_prior_term_1 = sigma_n**-2 * np.trace(np.matmul(F_estimate, F_estimate.T))
     fK = np.matmul(F_estimate, tempmatrix)
     fKf = np.matmul(fK, F_estimate.T)
     f_prior_term_2 = - sigma_n**-2 * np.trace(fKf)
 
     f_prior_term = - 0.5 * (f_prior_term_1 + f_prior_term_2)
+    #stop = time.time()
+    #print("f prior term          :", stop-start)
+
     # logdet term ######
     ####################
     # My variant: 
     #logdet_term = - 0.5 * N * np.log(np.linalg.det(Kx_inducing))
     # Wu variant:
+    #start = time.time()
     logDetS1 = -np.log(np.linalg.det(smallinverse))-np.log(np.linalg.det(K_gg))+np.log(sigma_n)*(T-N_inducing_points)
     logdet_term = - 0.5 * N * logDetS1
+    #stop = time.time()
+    #print("logdet term            :", stop-start)
 
     # x prior term #####
     ####################
+    #start = time.time()
     xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
     x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
+    #stop = time.time()
+    #print("X prior term          :", stop-start)
 
     #print("f_prior_term",f_prior_term)
     #print("logdet_term",logdet_term)
@@ -249,9 +296,9 @@ def just_fprior_term(X_estimate):
     # yf_term ##########
     ####################
     if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.log(1 + np.exp(true_f)))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.log(1 + np.exp(F_estimate)))
     elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, true_f) - np.exp(true_f))
+        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.exp(F_estimate))
 
     # f prior term #####
     ####################
@@ -315,6 +362,7 @@ K_t_inverse = np.linalg.inv(K_t)
 offset = 0
 r = 0.3
 X_initial = 2 * np.ones(T)
+X_initial = path
 #X_initial = np.load("X_estimate.npy")
 #np.pi* 
 # offset + r * path + (1-r)*np.pi + 0.2*np.sin(np.linspace(0,10*np.pi,T))
@@ -323,11 +371,11 @@ X_initial = 2 * np.ones(T)
 #np.pi*np.ones(T)
 #r * path + (1-r)*np.pi
 #2*np.pi*np.random.random(T)
-X_estimate = X_initial
+X_estimate = np.copy(X_initial)
 
 # finitialize
-F_initial = np.sqrt(y_spikes) # np.sqrt(y_spikes) true_f
-F_estimate = F_initial
+F_initial = np.sqrt(y_spikes)
+F_estimate = np.copy(F_initial)
 
 ## Plot initial f
 fig, ax = plt.subplots()
@@ -335,11 +383,27 @@ foo_mat = ax.matshow(F_estimate) #cmap=plt.cm.Blues
 fig.colorbar(foo_mat, ax=ax)
 plt.title("Initial f")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-initial-f.png")
-plt.clf()
-plt.close()
 
 collected_estimates = np.zeros((N_iterations, T))
 
+x_posterior_no_la(X_estimate)
+
+plt.figure()
+plt.title("X estimates across iterations")
+plt.plot(path, color="black", label='True X')
+plt.plot(X_initial, label='Initial')
+plt.ylim((0,2*np.pi))
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
+# Find best offset
+#print("\n\nFind best offset X for sigma =",sigma_n)
+#initial_offset = 0
+#scaling_optimization_result = optimize.minimize(scaling, initial_offset, method = "L-BFGS-B", options = {'disp':True})
+#best_offset = scaling_optimization_result.x
+#X_estimate = X_estimate + best_offset
+#plt.plot(X_estimate, label = "Scaled")
+#plt.legend()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
+plt.show()
 ### EM algorithm: Find f given X, then X given f.
 for iteration in range(N_iterations):
     print("\nIteration", iteration)
@@ -358,8 +422,6 @@ for iteration in range(N_iterations):
 
     # Find F estimate
     print("Finding f hat...")
-    # Initialize f guess at every iteration
-    #F_estimate = true_f #np.sqrt(y_spikes) 
 
     if LIKELIHOOD_MODEL == "bernoulli":
         for i in range(N):
@@ -378,12 +440,6 @@ for iteration in range(N_iterations):
     fig.colorbar(foo_mat, ax=ax)
     plt.title("F estimate")
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-estimate.png")
-    fig, ax = plt.subplots()
-    foo_mat = ax.matshow(F_estimate-true_f) #cmap=plt.cm.Blues
-    fig.colorbar(foo_mat, ax=ax)
-    plt.title("Difference between F estimate and truth")
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-difference.png")
-    #plt.show()
     plt.clf()
     plt.close()
 
@@ -391,8 +447,8 @@ for iteration in range(N_iterations):
     print("Finding next X estimate...")
 
     # Attempt to regularize by adding noise to estimate to shake it up
-    if iteration < 5:
-        X_estimate += sigma_n/5 * np.random.random(T)
+    #if iteration < 5:
+    #    X_estimate += sigma_n/5 * np.random.random(T)
 
     optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
@@ -402,10 +458,7 @@ for iteration in range(N_iterations):
     initial_offset = 0
     scaling_optimization_result = optimize.minimize(scaling, initial_offset, method = "L-BFGS-B", options = {'disp':True})
     best_offset = scaling_optimization_result.x
-    if iteration<(N_iterations-1):
-        X_estimate = X_estimate + best_offset #0.5*
-    else:
-        X_estimate = X_estimate + best_offset
+    X_estimate = X_estimate + best_offset
     print("Best offset:", best_offset)
 
     #plt.plot(X_estimate, label='Best offset')
@@ -420,11 +473,9 @@ for iteration in range(N_iterations):
     #plt.legend()
     plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
-    #plt.show()
-    np.save("X_estimate", X_estimate)
-    plt.clf()
     plt.clf()
     plt.close()
+    np.save("X_estimate", X_estimate)
 
 # Final estimate
 plt.figure()

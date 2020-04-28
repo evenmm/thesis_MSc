@@ -22,7 +22,7 @@ N_iterations = 1
 sigma_n = 0.4 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.9 # Learning rate by which we multiply sigma_n at every iteration
 
-N_inducing_points = 70 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
+N_inducing_points = 70 # Number of inducing points. 20 gives the same result visually!! 70 due to presentation
 N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
@@ -36,7 +36,7 @@ GRADIENT_FLAG = False # Choose to use gradient or not
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
-print("\nUsing gradient?", GRADIENT_FLAG, "\n\n")
+print("Using gradient?", GRADIENT_FLAG)
 print("True tuning curve shape:", TUNINGCURVE_DEFINITION)
 
 if TUNINGCURVE_DEFINITION == "triangles":
@@ -81,14 +81,19 @@ path = np.pi + numpy.random.multivariate_normal(np.zeros(T), Kt)
 #np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
 #path = np.linspace(0,2*np.pi,T) + 0.5*np.pi*np.sin(np.linspace(0,10*np.pi,T)) #!!!
 
+fig, ax = plt.subplots(figsize=(8,2))
+plt.title("Latent path")
+ax.plot(path, color="black", label='True X')
+plt.tight_layout()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-path.png")
+
 fig, ax = plt.subplots(figsize=(2,8))
 plt.title("Latent path")
 ax.plot(path, np.linspace(0,T,T), color="black", label='True X')
 plt.gca().invert_yaxis()
 ax.xaxis.tick_top()
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-path.png")
 plt.tight_layout()
-plt.show()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-path-rotated.png")
 
 ########################
 # Covariance functions #
@@ -102,7 +107,7 @@ for x1 in range(N_inducing_points):
         K_gg[x1,x2] = squared_exponential_covariance(x_grid_induce[x1],x_grid_induce[x2], sigma_f_fit, delta_f_fit)
 fig, ax = plt.subplots()
 foo_mat = ax.matshow(K_gg, cmap=plt.cm.Blues)
-fig.colorbar(foo_mat, ax=ax)
+#fig.colorbar(foo_mat, ax=ax)
 plt.title("Kggplain")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-kgg.png")
 
@@ -111,9 +116,9 @@ K_gg_inverse = np.linalg.inv(K_gg)
 
 fig, ax = plt.subplots()
 foo_mat = ax.matshow(K_gg_inverse, cmap=plt.cm.Blues)
-fig.colorbar(foo_mat, ax=ax)
+#fig.colorbar(foo_mat, ax=ax)
 plt.title("Kgg inverse")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-kgg.png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-kgg-inverse.png")
 
 K_t = np.zeros((T,T))
 for t1 in range(T):
@@ -121,6 +126,11 @@ for t1 in range(T):
         K_t[t1,t2] = exponential_covariance(t1,t2, sigma_x, delta_x)
 K_t_inverse = np.linalg.inv(K_t)
 
+fig, ax = plt.subplots()
+foo_mat = ax.matshow(K_t, cmap=plt.cm.Blues)
+#fig.colorbar(foo_mat, ax=ax)
+plt.title("Kt")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-Kt.png")
 
 K_xg = np.zeros((T,N_inducing_points))
 for x1 in range(T):
@@ -146,20 +156,20 @@ for x1 in range(T):
 fig, ax = plt.subplots()
 foo_mat = ax.matshow(K_x_plain, cmap=plt.cm.Blues)
 plt.title("Kx plain")
-fig.colorbar(foo_mat, ax=ax)
+#fig.colorbar(foo_mat, ax=ax)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-kx-plain.png")
 
 K_x_tilde = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx)
 fig, ax = plt.subplots()
 foo_mat = ax.matshow(K_x_tilde, cmap=plt.cm.Blues)
 plt.title("Inducing product")
-fig.colorbar(foo_mat, ax=ax)
+#fig.colorbar(foo_mat, ax=ax)
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-kx-tilde.png")
 
 K_x_difference = K_x_plain - K_x_tilde
 fig, ax = plt.subplots()
 foo_mat = ax.matshow(K_x_difference, cmap=plt.cm.Blues)
 plt.title("difference")
-fig.colorbar(foo_mat, ax=ax)
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-kx-tilde.png")
+#fig.colorbar(foo_mat, ax=ax)
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-Kx-matrices-kx-difference.png")
 plt.show()

@@ -1,0 +1,17 @@
+
+For T = 
+
+Time use of the different parts of the L function: 
+Making Kxg            : 0.06737923622131348 (Time quadratic in T)
+Making small/tempmatrx: 0.0005161762237548828
+yf term               : 0.00035309791564941406
+f prior term          : 0.00012135505676269531
+logdet term            : 0.0001976490020751953
+X prior term          : 8.845329284667969e-05
+
+Vectorized kernel evaluation for Kx:
+we must take in a vector of every other 
+given all those distances (done by some function?), we can totally take the exp vectorially without using the double for loop.
+This can be FIXED FAST by scipy.spatial.distance.cdist everywhere we need to create a matrix
+
+If we need to evaluate this properly: Make log plots of the time complexity of all these observations for different T. 
