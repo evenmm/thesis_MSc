@@ -15,3 +15,37 @@ given all those distances (done by some function?), we can totally take the exp 
 This can be FIXED FAST by scipy.spatial.distance.cdist everywhere we need to create a matrix
 
 If we need to evaluate this properly: Make log plots of the time complexity of all these observations for different T. 
+
+
+
+
+
+After fixing: We check how well it scales
+NOTE: We must replace every covariance matrix creation, and also make it work for periodic
+
+T = 200
+Making Kxg            : 0.00036263465881347656
+Making small/tempmatrx: 0.0005431175231933594
+yf term               : 0.00015878677368164062
+f prior term          : 0.00018596649169921875
+logdet term            : 0.00023674964904785156
+X prior term          : 0.00015616416931152344
+
+
+T = 3000
+Making Kxg            : 0.0011577606201171875
+Making small/tempmatrx: 0.009917497634887695
+yf term               : 0.0005154609680175781
+f prior term          : 0.006674051284790039
+logdet term            : 0.0001289844512939453
+X prior term          : 0.004412651062011719
+
+Making Kxg            : 0.0022466182708740234
+Making small/tempmatrx: 0.009105682373046875
+yf term               : 0.0005736351013183594
+f prior term          : 0.0070536136627197266
+logdet term            : 0.00015163421630859375
+X prior term          : 0.008981704711914062
+
+T = 10.000
+
