@@ -14,14 +14,13 @@ from scipy import optimize
 numpy.random.seed(13)
 
 LIKELIHOOD_MODEL = "poisson"
-#T = 2000 #1500 #1000
 
 ##################################
 # Parameters for data generation #
 ##################################
-downsampling_factor = 1
-#offset = 68170 #1000 #1750
-#thresholdforneuronstokeep = 10 #1000 # number of spikes to be considered useful
+downsampling_factor = 4
+T = 2000 #T_maximum
+offset = 68170 #68170 #1000 #1751
 
 ######################################
 ## Loading data                     ##
@@ -36,6 +35,9 @@ trackingtimes = ravel(array(mat['trackingtimes'])) # Time stamps of head directi
 path = headangle
 T_maximum = len(path)
 print("T_maximum", T_maximum)
+if offset + T*downsampling_factor > T_maximum:
+    sys.exit("Combination of offset, downsampling and T places the end of path outside T_maximum. Choose lower T, offset or downsampling factor.")
+#print(cellspikes)
 #print("Comparing length of data:")
 #print("shape(path)", shape(path))
 #print("shape(cellspikes)", shape(cellspikes))
@@ -49,20 +51,24 @@ print("T_maximum", T_maximum)
 #print(max(trackingtimes[1:]-trackingtimes[:(-1)]))
 #print(min(trackingtimes[1:]-trackingtimes[:(-1)]))
 
+## 1) Remove headangles where the headangle value is NaN
+# Spikes for Nan values are removed in step 2)
+print("How many NaN elements in path:", sum(np.isnan(path)))
+whiches = np.isnan(path)
+#plt.figure()
+#plt.plot(whiches*1)
+#plt.show()
+path = path[~whiches]
+
 ## 2) Since spikes are recorded as time points, we must make a matrix with counts 0,1,2,3,4
+# Here we also remove spikes that happen at NaN headangles, and then we downsample the spike matrix by summing over bins
 starttime = min(trackingtimes)
 tracking_interval = mean(trackingtimes[1:]-trackingtimes[:(-1)])
-print("Observation frequency for path:", tracking_interval)
-binsize = downsampling_factor * tracking_interval
-print("Bin size for spike counts:", binsize)
-# We need to downsample the observed head direction as well when we tamper with the binsize
-## Here we chop off the end of the observations:
-downsampled_path = np.zeros(len(path) // downsampling_factor)
-for i in range(len(path) // downsampling_factor):
-    downsampled_path[i] = mean(path[downsampling_factor*i:downsampling_factor*(i+1)])
-path = downsampled_path
+print("Observation frequency for path, and binsize for initial sampling:", tracking_interval)
+binsize = tracking_interval
+nbins = len(trackingtimes)
+print("Number of bins:", nbins)
 print("Putting spikes in bins and making a matrix of it...")
-nbins = len(trackingtimes) // downsampling_factor
 binnedspikes = zeros((len(cellnames), nbins))
 for i in range(len(cellnames)):
     spikes = ravel((cellspikes[0])[i])
@@ -72,33 +78,36 @@ for i in range(len(cellnames)):
         if(timebin>nbins-1 or timebin<0): # check if outside bounds of the awake time
             continue
         binnedspikes[i,timebin] += 1 # add a spike to the thing
+
+# Now remove spikes for NaN path values
+binnedspikes = binnedspikes[:,~whiches]
+# And downsample
+binsize = downsampling_factor * tracking_interval
+nbins = len(trackingtimes) // downsampling_factor
+print("New bin size after downsampling:", binsize)
+print("Number of bins:", nbins)
+downsampled_binnedspikes = np.zeros((len(cellnames), nbins))
+for i in range(len(cellnames)):
+    for j in range(nbins):
+        downsampled_binnedspikes[i,j] = sum(binnedspikes[i,downsampling_factor*j:downsampling_factor*(j+1)])
+binnedspikes = downsampled_binnedspikes
+
 if LIKELIHOOD_MODEL == "bernoulli":
     binnedspikes = (binnedspikes>0)*1
-## 3) Select an interval of time
+
+## 3) Select an interval of time and deal with downsampling
+# We need to downsample the observed head direction when we tamper with the binsize (Here we chop off the end of the observations)
+downsampled_path = np.zeros(len(path) // downsampling_factor)
+for i in range(len(path) // downsampling_factor):
+    downsampled_path[i] = mean(path[downsampling_factor*i:downsampling_factor*(i+1)])
+path = downsampled_path
+# Then do downsampled offset
+downsampled_offset = offset // downsampling_factor
+path = path[downsampled_offset:downsampled_offset+T]
+binnedspikes = binnedspikes[:,downsampled_offset:downsampled_offset+T]
 # From here we really only need path (1 by T) and binnedspikes (N by T)
-print("Aha! When we downsample, the maximum T also changes.")
-T_maximum = len(path) // downsampling_factor
-print("T_maximum after downsampling", T_maximum)
-T = T_maximum #T_maximum
-offset = 3 #68170 #68170 #1000 #1751
-path = path[offset:offset+T]
-binnedspikes = binnedspikes[:,offset:offset+T]
-
-## 3.5 Remove timebins where the headangle value is NaN
-print("How many NaN elements in path:", sum(np.isnan(path)))
-whiches = np.isnan(path)
-path = path[~whiches]
-binnedspikes = binnedspikes[:,~whiches]
-
-## 4) Remove those neurons that have too few spikes (in our selected interval)
-thresholdforneuronstokeep = 0 #1000 # number of spikes to be considered useful
-sgood = np.zeros(len(cellnames))<1 
-for i in range(len(cellnames)):
-    if(sum(binnedspikes[i,:])<thresholdforneuronstokeep):
-        sgood[i] = False
-binnedspikes = binnedspikes[sgood,:]
-cellnames = cellnames[sgood]
-print("How many neurons left after thresholding on number of spikes:",len(cellnames))
+#T_maximum = len(path) // downsampling_factor
+#print("T_maximum after downsampling", T_maximum)
 
 ## plot head direction for the selected interval
 plt.figure(figsize=(10,2))
@@ -141,24 +150,25 @@ for n4 in range(len(cellnames)//4):
         for j in range(2):
             plt.subplot(2,2,i*2+j+1)
             plt.plot(x_grid, observed_spike_rate[neuron[i,j],:], color=plt.cm.viridis(0.1))
-            plt.ylim(ymin=0.)
+            plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_spike_rate[neuron[i,j],:])))
             plt.xlabel("X")
-            if LIKELIHOOD_MODEL == "bernoulli":
-                plt.ylabel("Firing probability")
-            if LIKELIHOOD_MODEL == "poisson":
-                plt.ylabel("Firing rate")
-            plt.title("Neuron"+str(neuron[i,j])+"with"+str(sum(binnedspikes[i,:]))+"spikes")
+            plt.ylabel("Average number of spikes")
+            plt.title("Neuron "+str(neuron[i,j])+" with "+str(sum(binnedspikes[neuron[i,j],:]))+" spikes")
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-tuning"+str(n4+1)+".png")
 for i in range(4*(len(cellnames)//4), len(cellnames)):
     plt.figure()
     plt.plot(x_grid, observed_spike_rate[i,:], color=plt.cm.viridis(0.1))
-    plt.ylim(0.,1.)
-    plt.title(i+1)
+    plt.title("Neuron "+str(i)+" with "+str(sum(binnedspikes[i,:]))+" spikes")
+    plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_spike_rate[i,:])))
+    plt.xlabel("X")
+    plt.ylabel("Average number of spikes")
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-tuning-"+str(i)+".png")
 plt.show()
 
-## 5) Based on the plots above, remove neurons that are not actually tuned to head direction
-neuronsthataretunedtoheaddirection = [16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,38,47]
+## 5) Remove neurons that are not actually tuned to head direction
+# On the entire range of time, these neurons are tuned to head direction
+neuronsthataretunedtoheaddirection = [17,18,20,21,22,23,24,25,26,27,28,29,31,32,34,35,36,37,38,39,68]
+# But for our current selected T and offset, we want these only: 
 sgood = np.zeros(len(cellnames))<1 
 for i in range(len(cellnames)):
     if i not in neuronsthataretunedtoheaddirection:
