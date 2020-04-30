@@ -18,15 +18,15 @@ numpy.random.seed(13)
 ################################################
 T = 2000 #1500 #1000
 N_iterations = 50
-sigma_n = 3.0 # Assumed variance of observations for the GP that is fitted. 10e-5
+sigma_n = 2.0 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
 
 SPEEDCHECK = False
-USE_OFFSET = False
+USE_OFFSET_FOR_ESTIMATE = False
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
-COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
+COVARIANCE_KERNEL_KX = "periodic" # "periodic" "nonperiodic"
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.3 # Scale for the tuning curve GP that is fitted. 0.3
 sigma_x = 5 # Variance of X for K_t
@@ -43,7 +43,7 @@ print("T:", T, "\n")
 ##################################
 # Parameters for data generation #
 ##################################
-downsampling_factor = 1
+downsampling_factor = 2
 offset = 68170 #1000 #1750
 thresholdforneuronstokeep = 1000 # number of spikes to be considered useful
 
@@ -158,7 +158,11 @@ def squared_exponential_covariance(xvector1, xvector2, sigma, delta):
     if COVARIANCE_KERNEL_KX == "nonperiodic":
         distancesquared = scipy.spatial.distance.cdist(xvector1, xvector2, 'sqeuclidean')
     if COVARIANCE_KERNEL_KX == "periodic":
-        distancesquared = scipy.spatial.distance.cdist(xvector1, xvector2, lambda x1, x2: min([(x1-x2)**2, (x1+2*np.pi-x2)**2, (x1-2*np.pi-x2)**2]))
+        distancesquared_1 = scipy.spatial.distance.cdist(xvector1, xvector2, 'sqeuclidean')
+        distancesquared_2 = scipy.spatial.distance.cdist(xvector1+2*np.pi, xvector2, 'sqeuclidean')
+        distancesquared_3 = scipy.spatial.distance.cdist(xvector1-2*np.pi, xvector2, 'sqeuclidean')
+        min_1 = np.minimum(distancesquared_1, distancesquared_2)
+        distancesquared = np.minimum(min_1, distancesquared_3)
     return sigma * exp(-distancesquared/(2*delta))
 
 def exponential_covariance(tvector1, tvector2, sigma, delta):
@@ -330,8 +334,8 @@ def just_fprior_term(X_estimate):
     posterior_loglikelihood = yf_term + f_prior_term #+ logdet_term #+ x_prior_term
     return - posterior_loglikelihood
 
-def scaling(offset):
-    scaled_estimate = X_estimate + offset
+def scaling(offset_for_estimate):
+    scaled_estimate = X_estimate + offset_for_estimate
     return just_fprior_term(scaled_estimate)
 
 ########################
@@ -358,8 +362,6 @@ K_t_inverse = np.linalg.inv(K_t)
 # Initialize X and F #
 ######################
 # xinitialize
-offset = 0
-r = 0.3
 X_initial = 2 * np.ones(T)
 #X_initial = 5 * np.ones(T) - 4*np.linspace(0,T,T)/T
 X_initial[0:100] = 5 - 3*np.linspace(0,100,100)/100
@@ -406,21 +408,43 @@ for sigma in [3.0, 2.5, 2.0, 1.5, 2.0, 1.5, 1.0, 0.5, 0.1]:
     print("Random start\n",x_posterior_no_la(2*np.pi*np.random.random(T)), "\n")
 sigma_n = tempsigma
 
+########
+# Initialize F at the values given path:
+print("Setting f hat to the estimates given the true path")
+temp_estimate = X_estimate
+X_estimate = path
+
+K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+K_gx_prev = K_xg_prev.T
+
+if LIKELIHOOD_MODEL == "bernoulli":
+    for i in range(N):
+        y_i = y_spikes[i]
+        optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+        F_estimate[i] = optimization_result.x
+elif LIKELIHOOD_MODEL == "poisson":
+    for i in range(N):
+        y_i = y_spikes[i]
+        optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+        F_estimate[i] = optimization_result.x 
+true_f = F_estimate
+## Plot F estimate
+fig, ax = plt.subplots(figsize=(10,1))
+foo_mat = ax.matshow(F_estimate) #cmap=plt.cm.Blues
+#fig.colorbar(foo_mat, ax=ax)
+plt.title("F given path")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-optimal.png")
+plt.clf()
+plt.close()
+
+X_estimate = temp_estimate
+#########
 
 plt.figure()
 plt.title("X estimates across iterations")
 plt.plot(path, color="black", label='True X')
 plt.plot(X_initial, label='Initial')
 plt.ylim((0,2*np.pi))
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
-# Find best offset
-#print("\n\nFind best offset X for sigma =",sigma_n)
-#initial_offset = 0
-#scaling_optimization_result = optimize.minimize(scaling, initial_offset, method = "L-BFGS-B", options = {'disp':True})
-#best_offset = scaling_optimization_result.x
-#X_estimate = X_estimate + best_offset
-#plt.plot(X_estimate, label = "Scaled")
-#plt.legend()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
 prev_X_estimate = np.Inf
 ### EM algorithm: Find f given X, then X given f.
@@ -463,14 +487,16 @@ for iteration in range(N_iterations):
 
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
+    print("NB! NB! We're setting the f value to the optimal F given the path.")
+    F_estimate = true_f
 
-    # Attempt to regularize by adding noise to estimate to shake it up
-    X_estimate += -0.1 + 0.2*np.random.multivariate_normal(np.zeros(T), K_t) #np.random.random(T)
+    # Attempt to explore more of the surrounding by adding noise
+    X_estimate += -0.1 + 0.2*np.random.multivariate_normal(np.zeros(T), K_t) #np.random.multivariate_normal(np.zeros(T), K_t)     #np.random.random(T)
     optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
 
-    # Find best offset
-    if USE_OFFSET:
+    # Find best offset_for_estimate
+    if USE_OFFSET_FOR_ESTIMATE:
         print("\n\nFind best offset X for sigma =",sigma_n)
         initial_offset = 0
         scaling_optimization_result = optimize.minimize(scaling, initial_offset, method = "L-BFGS-B", options = {'disp':True})
@@ -487,13 +513,23 @@ for iteration in range(N_iterations):
     collected_estimates[iteration] = np.transpose(X_estimate)
     for i in range(int(iteration+1)):
         plt.plot(collected_estimates[i], label="Estimate") #"%s" % i
-    #plt.legend()
+    plt.legend()
     plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
     plt.clf()
     plt.close()
     np.save("X_estimate", X_estimate)
     print("Difference in X norm from last iteration:", np.linalg.norm(X_estimate - prev_X_estimate))
+
+    plt.figure()
+    plt.title("Final estimate")
+    plt.plot(path, color="black", label='True X')
+    plt.plot(X_initial, label='Initial')
+    plt.plot(X_estimate, label='Estimate')
+    plt.legend()
+    plt.ylim((0,2*np.pi))
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
+
     if np.linalg.norm(X_estimate - prev_X_estimate) < 10**-3:
         break
     prev_X_estimate = X_estimate
