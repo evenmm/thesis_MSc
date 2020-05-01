@@ -22,13 +22,13 @@ sigma_n = 3.0 # Assumed variance of observations for the GP that is fitted. 10e-
 lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
 
 SPEEDCHECK = False
-USE_OFFSET_FOR_ESTIMATE = False
+USE_OFFSET_FOR_ESTIMATE = True
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 100 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 COVARIANCE_KERNEL_KX = "periodic" # "periodic" "nonperiodic"
 sigma_f_fit = 8 # Variance for the tuning curve GP that is fitted. 8
-delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
+delta_f_fit = 0.5 # Scale for the tuning curve GP that is fitted. 0.3
 sigma_x = 5 # Variance of X for K_t
 delta_x = 50 # Scale of X for K_t
 P = 1 # Dimensions of latent variable 
@@ -43,7 +43,7 @@ print("T:", T, "\n")
 ##################################
 # Parameters for data generation #
 ##################################
-downsampling_factor = 4
+downsampling_factor = 2
 offset = 68170 #68170 #1000 #1751
 
 ######################################
@@ -144,6 +144,42 @@ for i in range(len(cellnames)):
 binnedspikes = binnedspikes[sgood,:]
 cellnames = cellnames[sgood]
 print("How many neurons are tuned to head direction:",len(cellnames))
+
+### Plot neuron tuning strength in our region
+#number_of_X_bins = 50
+#bins = np.linspace(min(path)-0.000001, max(path) + 0.0000001, num=number_of_X_bins + 1)
+#x_grid = 0.5*(bins[:(-1)]+bins[1:])
+## Poisson: Find average observed spike count
+#print("Find average observed spike count")
+#observed_spike_rate = zeros((len(cellnames), number_of_X_bins))
+#for i in range(len(cellnames)):
+#    for x in range(number_of_X_bins):
+#        timesinbin = (path>bins[x])*(path<bins[x+1])
+#        if(sum(timesinbin)>0):
+#            observed_spike_rate[i,x] = mean(binnedspikes[i, timesinbin] )
+## Plot observed spike rates
+#for n4 in range(len(cellnames)//4):
+#    plt.figure(figsize=(10,8))
+#    neuron = np.array([[0,1],[2,3]])
+#    neuron = neuron + 4*n4
+#    for i in range(2):
+#        for j in range(2):
+#            plt.subplot(2,2,i*2+j+1)
+#            plt.plot(x_grid, observed_spike_rate[neuron[i,j],:], color=plt.cm.viridis(0.1))
+#            plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_spike_rate[neuron[i,j],:])))
+#            plt.xlabel("X")
+#            plt.ylabel("Average number of spikes")
+#            plt.title("Neuron "+str(neuron[i,j])+" with "+str(sum(binnedspikes[neuron[i,j],:]))+" spikes")
+#    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-tuning"+str(n4+1)+".png")
+#for i in range(4*(len(cellnames)//4), len(cellnames)):
+#    plt.figure()
+#    plt.plot(x_grid, observed_spike_rate[i,:], color=plt.cm.viridis(0.1))
+#    plt.title("Neuron "+str(i)+" with "+str(sum(binnedspikes[i,:]))+" spikes")
+#    plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_spike_rate[i,:])))
+#    plt.xlabel("X")
+#    plt.ylabel("Average number of spikes")
+#    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-tuning-"+str(i)+".png")
+#plt.show()
 
 ## 6) Change names to fit the rest of the code
 N = len(cellnames) #51 with cutoff at 1000 spikes
@@ -391,7 +427,7 @@ X_initial[1200:1500] = 2 + 3*np.linspace(0,300,300)/300
 X_initial[1500:2000] = 5
 X_initial += 0.2*np.random.random(T)
 #X_initial = np.load("X_estimate.npy")
-X_initial = np.ones(T)
+X_initial = 3 * np.ones(T)
 
 X_estimate = np.copy(X_initial)
 
@@ -538,7 +574,7 @@ for iteration in range(N_iterations):
     for i in range(int(iteration+1)):
         plt.plot(collected_estimates[i], label="Estimate") #"%s" % i
     plt.legend()
-    plt.ylim((0,2*np.pi))
+    #plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
     plt.clf()
     plt.close()
@@ -551,7 +587,7 @@ for iteration in range(N_iterations):
     plt.plot(X_initial, label='Initial')
     plt.plot(X_estimate, label='Estimate')
     plt.legend()
-    plt.ylim((0,2*np.pi))
+    #plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
 
     if np.linalg.norm(X_estimate - prev_X_estimate) < 10**-3:
