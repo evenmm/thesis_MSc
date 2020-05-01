@@ -78,6 +78,7 @@ for i in range(len(cellnames)):
         if(timebin>nbins-1 or timebin<0): # check if outside bounds of the awake time
             continue
         binnedspikes[i,timebin] += 1 # add a spike to the thing
+originalbinnedspikes = np.copy(binnedspikes)
 
 # Now remove spikes for NaN path values
 binnedspikes = binnedspikes[:,~whiches]
@@ -177,13 +178,15 @@ binnedspikes = binnedspikes[sgood,:]
 cellnames = cellnames[sgood]
 print("How many neurons are tuned to head direction:",len(cellnames))
 
-"""
-print("How many times are there more than one spike:", sum((binnedspikes>1)*1))
-if LIKELIHOOD_MODEL == "bernoulli":
-    # Set spike counts to 0 or 1
-    binnedspikes = (binnedspikes>0)*1
+## 6) Choose best offset based on where these neurons spike the most:
+spike_count_in_time = np.sum(originalbinnedspikes, axis=0)
+plt.figure()
+plt.plot(spike_count_in_time)
+plt.xlabel("Time")
+plt.title("Average number of spikes for chosen neurons")
+plt.show()
 
-## 8) Change names to fit the rest of the code
+## 7) Change names to fit the rest of the code
 N = len(cellnames) #51 with cutoff at 1000 spikes
 print("N:",N)
 y_spikes = binnedspikes
@@ -203,10 +206,9 @@ plt.title("Spike histogram")
 plt.xticks(range(0,int(max(spike_count)),1))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-spike-histogram-log.png")
 
-## Plot average observed spike count
+# Plot y spikes
 fig, ax = plt.subplots()
 foo_mat = ax.matshow(y_spikes) #cmap=plt.cm.Blues
 fig.colorbar(foo_mat, ax=ax)
 plt.title("y spikes")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-spikes-spike-count.png")
-"""
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-y-spikes.png")

@@ -47,5 +47,30 @@ f prior term          : 0.0070536136627197266
 logdet term            : 0.00015163421630859375
 X prior term          : 0.008981704711914062
 
-T = 10.000
+T = 2000:
+We seem to be getting the same results analytically with periodic and nonperiodic
+## NONPERIODIC
+Making Kxg            : 0.0006499290466308594
+Making small/tempmatrx: 0.004570960998535156
+yf term               : 0.00026535987854003906
+f prior term          : 0.0031778812408447266
+logdet term            : 0.0001461505889892578
+X prior term          : 0.0021686553955078125
+
+## PERIODIC
+Periodic first attempt: 
+Making Kxg            : 0.3972177505493164
+Making small/tempmatrx: 0.004828691482543945
+yf term               : 0.0003445148468017578
+f prior term          : 0.003642559051513672
+logdet term            : 0.00013589859008789062
+X prior term          : 0.002190828323364258
+
+After splitting into three arrays:
+Making Kxg            : 0.0015492439270019531
+Making small/tempmatrx: 0.004420280456542969
+yf term               : 0.00025343894958496094
+f prior term          : 0.00348663330078125
+logdet term            : 0.00015544891357421875
+X prior term          : 0.0025467872619628906
 
