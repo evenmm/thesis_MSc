@@ -60,6 +60,13 @@ whiches = np.isnan(path)
 #plt.show()
 path = path[~whiches]
 
+## 1.5) Make path continuous where it moves from 0 to 2pi
+for t in range(1,len(path)):
+    if (path[t] - path[t-1]) < - np.pi:
+        path[t:] += 2*np.pi
+    if (path[t] - path[t-1]) > np.pi:
+        path[t:] -= 2*np.pi
+
 ## 2) Since spikes are recorded as time points, we must make a matrix with counts 0,1,2,3,4
 # Here we also remove spikes that happen at NaN headangles, and then we downsample the spike matrix by summing over bins
 starttime = min(trackingtimes)

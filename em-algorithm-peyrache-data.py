@@ -16,10 +16,10 @@ numpy.random.seed(13)
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 2000 #1500 #1000
+T = 85504 #2000 # Max time 85504
 N_iterations = 50
-sigma_n = 3.0 # Assumed variance of observations for the GP that is fitted. 10e-5
-lr = 0.95 # Learning rate by which we multiply sigma_n at every iteration
+sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
+lr = 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 SPEEDCHECK = False
 USE_OFFSET_FOR_ESTIMATE = True
@@ -34,6 +34,7 @@ delta_x = 50 # Scale of X for K_t
 P = 1 # Dimensions of latent variable 
 GRADIENT_FLAG = False # Choose to use gradient or not
 
+print("NBBBB!!! We're flipping the estimate after the second iteration in line 600.")
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
 print("Using gradient?", GRADIENT_FLAG)
@@ -43,9 +44,10 @@ print("T:", T, "\n")
 ##################################
 # Parameters for data generation #
 ##################################
-downsampling_factor = 2
-offset = 68170 #68170 #1000 #1751
-
+downsampling_factor = 1
+offset = 0 #68170 #1000 #1751
+print("Offset:", offset)
+print("Downsampling factor:", downsampling_factor)
 ######################################
 ## Loading data                     ##
 ######################################
@@ -58,24 +60,31 @@ cellnames = array(mat['cellnames']) # Alphanumeric identifiers for cells
 trackingtimes = ravel(array(mat['trackingtimes'])) # Time stamps of head direction observations
 path = headangle
 T_maximum = len(path)
-print("T_maximum", T_maximum)
+#print("T_maximum", T_maximum)
 if offset + T*downsampling_factor > T_maximum:
     sys.exit("Combination of offset, downsampling and T places the end of path outside T_maximum. Choose lower T, offset or downsampling factor.")
 
 ## 1) Remove headangles where the headangle value is NaN
 # Spikes for Nan values are removed in step 2)
-print("How many NaN elements in path:", sum(np.isnan(path)))
+#print("How many NaN elements in path:", sum(np.isnan(path)))
 whiches = np.isnan(path)
 path = path[~whiches]
+
+## 1.5) Make path continuous where it moves from 0 to 2pi
+for t in range(1,len(path)):
+    if (path[t] - path[t-1]) < - np.pi:
+        path[t:] += 2*np.pi
+    if (path[t] - path[t-1]) > np.pi:
+        path[t:] -= 2*np.pi
 
 ## 2) Since spikes are recorded as time points, we must make a matrix with counts 0,1,2,3,4
 # Here we also remove spikes that happen at NaN headangles, and then we downsample the spike matrix by summing over bins
 starttime = min(trackingtimes)
 tracking_interval = mean(trackingtimes[1:]-trackingtimes[:(-1)])
-print("Observation frequency for path, and binsize for initial sampling:", tracking_interval)
+#print("Observation frequency for path, and binsize for initial sampling:", tracking_interval)
 binsize = tracking_interval
 nbins = len(trackingtimes)
-print("Number of bins:", nbins)
+#print("Number of bins for entire interval:", nbins)
 print("Putting spikes in bins and making a matrix of it...")
 binnedspikes = zeros((len(cellnames), nbins))
 for i in range(len(cellnames)):
@@ -92,8 +101,9 @@ binnedspikes = binnedspikes[:,~whiches]
 # And downsample
 binsize = downsampling_factor * tracking_interval
 nbins = len(trackingtimes) // downsampling_factor
-print("New bin size after downsampling:", binsize)
-print("Number of bins:", nbins)
+print("Bin size after downsampling: {:.2f}".format(binsize))
+print("Number of bins for entire interval:", nbins)
+print("Downsampling binned spikes...")
 downsampled_binnedspikes = np.zeros((len(cellnames), nbins))
 for i in range(len(cellnames)):
     for j in range(nbins):
@@ -122,8 +132,8 @@ plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
 plt.xlabel("Time")
 plt.ylabel("x")
 plt.tight_layout()
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-headdirection.pdf",format="pdf")
-
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-headdirection.png")
+plt.show()
 # Plot binned spikes for the selected interval (Bernoulli style since they are binned)
 bernoullispikes = (binnedspikes>0)*1
 plt.figure(figsize=(10,5))
@@ -132,7 +142,7 @@ for i in range(len(cellnames)):
     plt.ylabel("neuron")
     plt.xlabel("time")
 plt.tight_layout()
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-binnedspikes.png",format="png")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-binnedspikes.png",format="png")
 
 ## 5) Remove neurons that are not actually tuned to head direction
 # On the entire range of time, these neurons are tuned to head direction
@@ -143,7 +153,6 @@ for i in range(len(cellnames)):
         sgood[i] = False
 binnedspikes = binnedspikes[sgood,:]
 cellnames = cellnames[sgood]
-print("How many neurons are tuned to head direction:",len(cellnames))
 
 ### Plot neuron tuning strength in our region
 #number_of_X_bins = 50
@@ -170,7 +179,7 @@ print("How many neurons are tuned to head direction:",len(cellnames))
 #            plt.xlabel("X")
 #            plt.ylabel("Average number of spikes")
 #            plt.title("Neuron "+str(neuron[i,j])+" with "+str(sum(binnedspikes[neuron[i,j],:]))+" spikes")
-#    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-tuning"+str(n4+1)+".png")
+#    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-tuning"+str(n4+1)+".png")
 #for i in range(4*(len(cellnames)//4), len(cellnames)):
 #    plt.figure()
 #    plt.plot(x_grid, observed_spike_rate[i,:], color=plt.cm.viridis(0.1))
@@ -178,7 +187,7 @@ print("How many neurons are tuned to head direction:",len(cellnames))
 #    plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_spike_rate[i,:])))
 #    plt.xlabel("X")
 #    plt.ylabel("Average number of spikes")
-#    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-new-data-treatment-tuning-"+str(i)+".png")
+#    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-tuning-"+str(i)+".png")
 #plt.show()
 
 ## 6) Change names to fit the rest of the code
@@ -189,8 +198,8 @@ print("mean(y_spikes)",mean(y_spikes))
 print("mean(y_spikes>0)",mean(y_spikes[y_spikes>0]))
 # Spike distribution evaluation
 spike_count = np.ndarray.flatten(binnedspikes)
-print("How many times are there more than one spike:", sum(spike_count>1))
-print("Percentage of those bins with 1 that actually have more than 1 spike:", sum(spike_count>1) / sum(spike_count>0)) #len(spike_count[spike_count>0]))
+#print("This is wrong: Portion of bins with more than one spike:", sum(spike_count>1)/T)
+#print("This is wrong: Portion of nonzero bins with more than one:", sum(spike_count>1) / sum(spike_count>0)) 
 # Remove zero entries:
 #spike_count = spike_count[spike_count>0]
 plt.figure()
@@ -202,9 +211,9 @@ plt.xticks(range(0,int(max(spike_count)),1))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-spike-histogram-log.png")
 
 # Plot y spikes
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(8,1))
 foo_mat = ax.matshow(y_spikes) #cmap=plt.cm.Blues
-fig.colorbar(foo_mat, ax=ax)
+#fig.colorbar(foo_mat, ax=ax)
 plt.title("y spikes")
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-y-spikes.png")
 
@@ -283,6 +292,7 @@ def x_posterior_no_la(X_estimate):
     K_gx = K_xg.T
     stop = time.time()
     if SPEEDCHECK:
+        print("Speedcheck of L function:")
         print("Making Kxg            :", stop-start)
 
     start = time.time()
@@ -435,6 +445,38 @@ X_estimate = np.copy(X_initial)
 F_initial = np.sqrt(y_spikes)
 F_estimate = np.copy(F_initial)
 
+########
+# Initialize F at the values given path:
+print("Setting f hat to the estimates given the true path")
+temp_X_estimate = np.copy(X_estimate)
+X_estimate = path
+
+K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+K_gx_prev = K_xg_prev.T
+
+if LIKELIHOOD_MODEL == "bernoulli":
+    for i in range(N):
+        y_i = y_spikes[i]
+        optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+        F_estimate[i] = optimization_result.x
+elif LIKELIHOOD_MODEL == "poisson":
+    for i in range(N):
+        y_i = y_spikes[i]
+        optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+        F_estimate[i] = optimization_result.x 
+true_f = np.copy(F_estimate)
+## Plot F estimate
+fig, ax = plt.subplots(figsize=(10,1))
+foo_mat = ax.matshow(F_estimate) #cmap=plt.cm.Blues
+#fig.colorbar(foo_mat, ax=ax)
+plt.title("F given path")
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-optimal.png")
+plt.clf()
+plt.close()
+
+X_estimate = temp_X_estimate
+#########
+
 ## Plot initial f
 fig, ax = plt.subplots(figsize=(8,1))
 plt.tight_layout()
@@ -450,7 +492,9 @@ SPEEDCHECK = True
 x_posterior_no_la(X_estimate)
 SPEEDCHECK = False
 
-print("Test L value for different X")
+print("\nTest L value for different X given true F")
+temp_F_estimate = np.copy(F_estimate)
+F_estimate = true_f
 tempsigma = sigma_n
 for sigma in [3.0, 2.5, 2.0, 1.5, 2.0, 1.5, 1.0, 0.5, 0.1]:
     sigma_n = sigma
@@ -467,38 +511,7 @@ for sigma in [3.0, 2.5, 2.0, 1.5, 2.0, 1.5, 1.0, 0.5, 0.1]:
     print("path + 0.3\n",x_posterior_no_la(path + 0.3))
     print("Random start\n",x_posterior_no_la(2*np.pi*np.random.random(T)), "\n")
 sigma_n = tempsigma
-
-########
-# Initialize F at the values given path:
-print("Setting f hat to the estimates given the true path")
-temp_estimate = X_estimate
-X_estimate = path
-
-K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-K_gx_prev = K_xg_prev.T
-
-if LIKELIHOOD_MODEL == "bernoulli":
-    for i in range(N):
-        y_i = y_spikes[i]
-        optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
-        F_estimate[i] = optimization_result.x
-elif LIKELIHOOD_MODEL == "poisson":
-    for i in range(N):
-        y_i = y_spikes[i]
-        optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
-        F_estimate[i] = optimization_result.x 
-true_f = F_estimate
-## Plot F estimate
-fig, ax = plt.subplots(figsize=(10,1))
-foo_mat = ax.matshow(F_estimate) #cmap=plt.cm.Blues
-#fig.colorbar(foo_mat, ax=ax)
-plt.title("F given path")
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-F-optimal.png")
-plt.clf()
-plt.close()
-
-X_estimate = temp_estimate
-#########
+F_estimate = temp_F_estimate
 
 plt.figure()
 plt.title("X estimates across iterations")
@@ -545,13 +558,13 @@ for iteration in range(N_iterations):
     plt.clf()
     plt.close()
 
+    # Attempt to explore more of the surrounding by adding noise
+    X_estimate += -0.1 + 0.2*np.random.multivariate_normal(np.zeros(T), K_t) #np.random.multivariate_normal(np.zeros(T), K_t)     #np.random.random(T)
+
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
     print("NB! NB! We're setting the f value to the optimal F given the path.")
     F_estimate = true_f
-
-    # Attempt to explore more of the surrounding by adding noise
-    X_estimate += -0.1 + 0.2*np.random.multivariate_normal(np.zeros(T), K_t) #np.random.multivariate_normal(np.zeros(T), K_t)     #np.random.random(T)
     optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
     X_estimate = optimization_result.x
 
@@ -563,7 +576,9 @@ for iteration in range(N_iterations):
         best_offset = scaling_optimization_result.x
         X_estimate = X_estimate + best_offset
         print("Best offset:", best_offset)
-
+        # Keep it between 0 and 2Pi
+        mean_of_offset_estimate = mean(X_estimate)
+        X_estimate -= 2*np.pi* (mean_of_offset_estimate // (2*np.pi))
     #plt.plot(X_estimate, label='Best offset')
 
     plt.figure()
@@ -573,7 +588,7 @@ for iteration in range(N_iterations):
     collected_estimates[iteration] = np.transpose(X_estimate)
     for i in range(int(iteration+1)):
         plt.plot(collected_estimates[i], label="Estimate") #"%s" % i
-    plt.legend()
+    plt.legend(loc='upper right')
     #plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
     plt.clf()
@@ -586,12 +601,15 @@ for iteration in range(N_iterations):
     plt.plot(path, color="black", label='True X')
     plt.plot(X_initial, label='Initial')
     plt.plot(X_estimate, label='Estimate')
-    plt.legend()
+    plt.legend(loc='upper right')
     #plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
 
     if np.linalg.norm(X_estimate - prev_X_estimate) < 10**-3:
         break
+    # Flipping estimate!
+    if iteration == 1:
+        X_estimate = 2*mean(X_estimate) - X_estimate
     prev_X_estimate = X_estimate
 
 # Final estimate
@@ -600,7 +618,7 @@ plt.title("Final estimate")
 plt.plot(path, color="black", label='True X')
 plt.plot(X_initial, label='Initial')
 plt.plot(X_estimate, label='Estimate')
-plt.legend()
+plt.legend(loc='upper right')
 plt.ylim((0,2*np.pi))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
 plt.show()
@@ -615,6 +633,6 @@ plt.plot(X_initial, label='Initial')
 plt.plot(path, color="black", label='True X')
 #plt.plot(X_estimate, label='Estimate')
 plt.plot(X_flipped, label='Flipped')
-plt.legend()
+plt.legend(loc='upper right')
 plt.ylim((0,2*np.pi))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-flipped.png")

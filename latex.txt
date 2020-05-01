@@ -74,3 +74,9 @@ f prior term          : 0.00348663330078125
 logdet term            : 0.00015544891357421875
 X prior term          : 0.0025467872619628906
 
+01.05.2020
+Can we justify the rationale behind the offset chooser? 
+An offset of X does not affect the Kx. (A scaling will affect the Kx.)
+But how in the seven hells does the offset function work then????
+So the only thing governing the placement is the x prior term.
+
