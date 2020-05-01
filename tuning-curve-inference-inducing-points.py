@@ -110,9 +110,6 @@ def gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
 #######################
 # Covariance matrices #
 #######################
-N_observations = T
-x_values_observed = path
-
 # Inducing points 
 x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
 K_uu = np.zeros((N_inducing_points,N_inducing_points))
@@ -129,7 +126,7 @@ K_uu_inverse = np.linalg.inv(K_uu)
 K_fu = np.zeros((T,N_inducing_points))
 for x1 in range(T):
     for x2 in range(N_inducing_points):
-        K_fu[x1,x2] = gaussian_periodic_covariance(x_values_observed[x1],x_grid_induce[x2], sigma_fit, delta_fit)
+        K_fu[x1,x2] = gaussian_periodic_covariance(path[x1],x_grid_induce[x2], sigma_fit, delta_fit)
 K_uf = K_fu.T
 
 # NEGATIVE log posterior of f given X and Y (since we minimize it to maximize the loglikelihood)
