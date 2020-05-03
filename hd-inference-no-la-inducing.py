@@ -18,7 +18,7 @@ numpy.random.seed(17)
 ##############
 T = 100
 N = 100
-N_iterations = 1
+N_iterations = 0
 sigma_n = 0.7 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.9 # Learning rate by which we multiply sigma_n at every iteration
 

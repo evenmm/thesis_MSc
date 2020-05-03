@@ -22,11 +22,11 @@ numpy.random.seed(13)
 ##############
 # Parameters #
 ##############
-offset = 1000 # Starting point in observed X values
-T = 20000
+offset = 70400 # Starting point in observed X values
+T = 2000
 sigma_fit = 8 # Variance for the GP that is fitted
-delta_fit = 0.5 # Scale for the GP that is fitted
-sigma_n = 0.4 # Assumed variance of observations for the GP that is fitted
+delta_fit = 0.5 # Not much more than 1.0. Scale for the GP that is fitted
+sigma_n = 3.0 # Assumed variance of observations for the GP that is fitted
 N_plotgridpoints = 50 # Number of grid points
 N_inducing_points = 20
 print("Inducing points:",N_inducing_points)
@@ -37,7 +37,6 @@ print("Inducing points:",N_inducing_points)
 
 name = sys.argv[1] #'Mouse28-140313_stuff_BS0030_awakedata.mat'
 
-sigma = 10 # window for smoothing
 thresholdforneuronstokeep = 1000 # number of spikes to be considered useful
 
 mat = scipy.io.loadmat(name)
@@ -166,6 +165,8 @@ endtime = time.time()
 print("Time spent:", "{:.2f}".format(endtime - starttime))
 print("f tuning curve max and min:", np.amax(f_tuning_curve), np.amin(f_tuning_curve))
 
+np.save("F_estimate_tuningcurve-inf",f_tuning_curve)
+
 #################################################
 # Find posterior prediction of log tuning curve #
 #################################################
@@ -249,7 +250,7 @@ for i in range(N):
         timesinbin = (path>bins[x])*(path<bins[x+1])
         if(sum(timesinbin)>0):
             observed_spikes[i,x] = mean( y_spikes[i, timesinbin] )
-        else:
+        elif i==0:
             print("No observations of X between",bins[x],"and",bins[x+1],".")
 colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
 for n4 in range(N//4):

@@ -78,5 +78,48 @@ X prior term          : 0.0025467872619628906
 Can we justify the rationale behind the offset chooser? 
 An offset of X does not affect the Kx. (A scaling will affect the Kx.)
 But how in the seven hells does the offset function work then????
+I think in general it should not work. 
 So the only thing governing the placement is the x prior term.
 
+02.05.2020
+With T=2000, downsampling=2, the F inference is real shitty.
+Fixed: Now it is good. 
+
+Making sense of bad F inference situation: 
+The sigma_n was NOT set too high to be able to infer F correctly before this was given to the X.
+Something with the matrix making was not correct in the new "copy-and-fix" version! Must take more care?
+Also, true f copying was shallow instead of deep.
+Can
+
+I have also added some more, possible essential neurons.
+Trying downsampling too: Good.
+We find F nicely given the right sigma_n.
+Now give it to em and find a way to initialize the F.
+But banksy boomboom heyhey heyday: 
+What is the robustness for finding a good F with regards to sigma???
+
+What is the effect of neurons that have more than one tuning peak?
+
+
+NEW NICE PROBLEM:
+It is flipped for some parts but not flipped for entire length!!!!!
+More likely where we have a long sequence of similar values.
+
+Long story short, this plot is real head direction data inferred based only on the spikes :)
+And here are some log tuning curves inferred: 
+Some caveats: - Instead of the entire estimate being upside down, we also have cases where parts of the estimate is upside down, like around 1250 here.- 
+I had to scale the estimate by using numerical optimization to find the best scaling factor, like I did with the position. 
+This is unexpected, since the L function stays the same under repositioning but not under rescaling. 
+
+Mailing with Ben:
+First I made the evaluation of the cost function more efficient. With T=2000, it still takes some hours to converge though. 
+I spent some time making sure we got the neurons we wanted from the data preprocessing, and I added the option of increasing the bin size to get more spikes per bin (Go Poisson!). 
+For this case with T=2000, we're using 4000 of the original bins, two-in-one. 
+This histogram shows the distribution of spikes in the current setup:
+2020-05-03-em-spike-histogram-log.png
+If you look at the head direction path in the previous mail, I had to select a 4000 timebin piece (from the initial 80.000) where the path does not behave periodically.  
+I've worked on being able to infer it even if it's periodic, but that will be next step. Then we can increase the bin size even more without impairing the continuity of the X path, if we want to.
+
+But first I'll finish making the presentation and start practicing :)
+A cool bonus is that I didn't have to use a fancy initialization of the X like PLDS or something. The important thing was to start inferring X based on F instead of F based on X, since we get  a pretty good F estimate this way: 
+There should maybe be some theory on how to transform Poisson data to look like Normal data? 
