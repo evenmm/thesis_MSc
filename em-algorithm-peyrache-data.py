@@ -17,7 +17,7 @@ numpy.random.seed(13)
 # Parameters for inference, not for generating #
 ################################################
 T = 2000 #2000 # Max time 85504
-N_iterations = 50
+N_iterations = 0
 sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
@@ -27,6 +27,9 @@ USE_SCALING_AFTER_ITERATION_NUMBER = 3
 NOISE_REGULARIZATION = False
 FLIP_AFTER_TWO_ITERATIONS = False
 GIVEN_TRUE_F = False
+DUMB_NOT_SO_DUMB_SEARCH = False
+SUPREME_STARTING = False
+GRADIENT_FLAG = False # Choose to use gradient or not
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
@@ -36,7 +39,6 @@ delta_f_fit = 0.5 # Scale for the tuning curve GP that is fitted. 0.3
 sigma_x = 5 # Variance of X for K_t
 delta_x = 50 # Scale of X for K_t
 P = 1 # Dimensions of latent variable 
-GRADIENT_FLAG = False # Choose to use gradient or not
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
@@ -50,8 +52,8 @@ if FLIP_AFTER_TWO_ITERATIONS:
 ##################################
 # Parameters for data generation #
 ##################################
-downsampling_factor = 2
-offset = 68170 #64460 #68170 # supreme: 70400
+downsampling_factor = 2 #supreme: 2
+offset = 70400 #64460 (not so good) #68170 (getting stuck lower in middle) # 70400 (supreme)
 print("Offset:", offset)
 print("Downsampling factor:", downsampling_factor)
 ######################################
@@ -131,38 +133,45 @@ path = path[downsampled_offset:downsampled_offset+T]
 binnedspikes = binnedspikes[:,downsampled_offset:downsampled_offset+T]
 
 ## plot head direction for the selected interval
-plt.figure(figsize=(10,2))
+plt.figure(figsize=(5,2))
 plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
 #plt.plot(trackingtimes, path, '.', color='black', markersize=1.) # trackingtimes as x optional
 #plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
 plt.xlabel("Time")
 plt.ylabel("x")
+plt.yticks([0,3.14,6.28])
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-headdirection.png")
 #plt.show()
-# Plot binned spikes for the selected interval (Bernoulli style since they are binned)
-bernoullispikes = (binnedspikes>0)*1
-plt.figure(figsize=(10,5))
-for i in range(len(cellnames)):
-    plt.plot(bernoullispikes[i,:]*(i+1), '|', color='black', markersize=1.)
-    plt.ylabel("neuron")
-    plt.xlabel("time")
-plt.tight_layout()
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-binnedspikes.png",format="png")
 
 ## 5) Remove neurons that are not actually tuned to head direction
 # On the entire range of time, these neurons are tuned to head direction
 #neuronsthataretunedtoheaddirection = [   17,18,   20,21,22,23,24,25,26,27,28,29,   31,32,34,35,36,37,38,39,68] # from my analysis and no spike cutoff
 #                                     [16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,            38, 47] ## from tc-inference, after removing those with too few spikers
-neuronsthataretunedtoheaddirection = [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,34,35,36,37,38,39,47,68] # best of both worlds
-#neuronsthataretunedtoheaddirection = [i for i in range(len(cellnames))]
+#neuronsthataretunedtoheaddirection = [17,18,19,20,21,22,23,24,25,26,27,29,31,34,35,36,38,39,68] # for presentation
+neuronsthataretunedtoheaddirection = [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,34,35,36,37,38,39,47,68] # best of both worlds?
+#neuronsthataretunedtoheaddirection = [i for i in range(len(cellnames))] # all of them
 sgood = np.zeros(len(cellnames))<1 
 for i in range(len(cellnames)):
     if i not in neuronsthataretunedtoheaddirection:
         sgood[i] = False
 binnedspikes = binnedspikes[sgood,:]
 cellnames = cellnames[sgood]
+print("len(cellnames)",len(cellnames))
 
+# Plot binned spikes for selected neurons in the selected interval (Bernoulli style since they are binned)
+bernoullispikes = (binnedspikes>0)*1
+plt.figure(figsize=(5,4))
+for i in range(len(cellnames)):
+    plt.plot(bernoullispikes[i,:]*(i+1), '|', color='black', markersize=2.)
+    plt.ylabel("neuron")
+    plt.xlabel("time")
+plt.ylim(ymin=0.5)
+plt.yticks(range(1,len(cellnames)+1))
+#plt.yticks([9*i+1 for i in range(0,9)])
+plt.tight_layout()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-binnedspikes.png",format="png")
+#plt.show()
 ## 6) Change names to fit the rest of the code
 N = len(cellnames) #51 with cutoff at 1000 spikes
 print("N:",N)
@@ -337,6 +346,11 @@ def x_posterior_no_la(X_estimate):
     #print("posterior_loglikelihood",posterior_loglikelihood)
     return - posterior_loglikelihood
 
+# Gradient of L according to Anqi Wu
+def x_jacobian_no_la(X_estimate):
+    x_gradient = 0
+    return - x_gradient
+
 def just_fprior_term(X_estimate): 
     K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     K_gx = K_xg.T
@@ -496,10 +510,13 @@ X_initial = 1.5 * np.ones(T)
 X_initial += 0.2*np.random.random(T)
 
 X_estimate = np.copy(X_initial)
+if SUPREME_STARTING:
+    X_estimate = np.load("X_estimate_supreme.npy")
 
 # finitialize
-#F_initial = np.load("F_estimate_supreme.npy")
 F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
+if SUPREME_STARTING:
+    F_initial = np.load("F_estimate_supreme.npy")
 F_estimate = np.copy(F_initial)
 
 if GIVEN_TRUE_F:
@@ -542,26 +559,43 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-initial-f.png")
 SPEEDCHECK = True
 x_posterior_no_la(X_estimate)
 SPEEDCHECK = False
-"""
-# Given F, find best X value at every point without looking at the whole
-# For each time bin, we try all values of X in a grid based on resolution
-resolution = 20
-x_trial_values = np.linspace(0,2*np.pi,resolution)
-x_trial_values = x_trial_values.reshape((resolution,1))
-testvalues = np.repeat(x_trial_values, T, axis=1)
-L_values = np.zeros_like(testvalues) # Then we evaluate how well that position fits for every timebin, and store them
-for i in range(resolution):
-    for j in range(T):
-        trial_X =  np.copy(X_estimate) # Make sure this is a linear something before
-        trial_X[i,j] = testvalues[i,j] # L value of this 
-        L_values[i,j] = without_x_prior_term(trial_X)
-maxvalues  = np.amax(L_values, axis=0) # Choose best X value for every time bin (column)
-for i in range(T): 
-    max_position = np.where(L_values[:,i] == maxvalues[i]) # Choose best X value for every time bin.
-    X_estimate[i] = testvalues[max_position]
 
-# Then make it  continuous
-"""
+def run_naive_estimate():
+    # Given some F, find best X value at every point without looking at the whole
+    # For each time bin, we try all values of X in a grid based on some resolution
+    print("Running naive estimation...")
+    resolution = 10
+    x_trial_values = np.linspace(0,2*np.pi,resolution)
+    print(x_trial_values)
+    x_trial_values = x_trial_values.reshape((resolution,1))
+    print(x_trial_values)
+    print("yolo")
+    testvalues = np.repeat(x_trial_values, T, axis=1)
+    print("smolo")
+    L_values = np.zeros((resolution, T)) # Then we evaluate how well that position fits for every timebin, and store them
+    print(L_values)
+    for i in range(resolution):
+        print("Testing X value", testvalues[i,0], "for all neurons")
+        for j in range(T):
+            trial_X = 2*np.pi*np.ones(T)
+            trial_X[j] = testvalues[i,j] # L value of this 
+            L_values[i,j] = just_fprior_term(trial_X)
+    maxvalues  = np.amax(L_values, axis=0) # Choose best X value for every time bin (column)
+    for i in range(T): 
+        max_position = np.where(L_values[:,i] == maxvalues[i]) # Choose best X value for every time bin.
+#        print("Max position:", max_position[0][0])
+        X_estimate[i] = testvalues[max_position[0][0], i]
+    fig, ax = plt.subplots()
+    foo_mat = ax.matshow(L_values) #cmap=plt.cm.Blues
+    fig.colorbar(foo_mat, ax=ax)
+    plt.title("L_values")
+    plt.tight_layout()
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-L-values-dumb-estimate.png")
+    print("X_estimate after naively iterating\n",X_estimate)
+    # Then make it continuous by running it through the iterations
+
+if DUMB_NOT_SO_DUMB_SEARCH:
+    run_naive_estimate()
 
 print("\nTest L value for different X given true F")
 temp_F_estimate = np.copy(F_estimate)
@@ -642,9 +676,13 @@ for iteration in range(N_iterations):
     if GIVEN_TRUE_F: 
         print("NB! NB! We're setting the f value to the optimal F given the path.")
         F_estimate = np.copy(true_f)
-    optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True}) #jac=x_jacobian_decoupled_la, 
+    if GRADIENT_FLAG: 
+        optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':True})
+    else:
+        optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True})
     X_estimate = optimization_result.x
 
+    X_beforeoffset1 = np.copy(X_estimate)
     # Find best offset_for_estimate
     if iteration >= USE_OFFSET_AFTER_ITERATION_NUMBER:
         print("\n\nFind best offset X for sigma =",sigma_n)
@@ -671,6 +709,8 @@ for iteration in range(N_iterations):
         X_estimate = best_scale_factor * X_estimate
         print("Best fit using sigma =", sigma_n, "is", best_scale_factor, "* X")
         sigma_n = tempsigma
+
+    X_beforeoffset2 = np.copy(X_estimate)
 
     if iteration >= USE_OFFSET_AFTER_ITERATION_NUMBER:
         print("\n\nFind best offset X for sigma =",sigma_n)
@@ -701,10 +741,12 @@ for iteration in range(N_iterations):
     plt.plot(path, color="black", label='True X')
     #plt.plot(X_initial, label='Initial')
     plt.plot(X_estimate, label='Estimate')
+    plt.plot(X_beforeoffset1, label="before offset 1")
     plt.plot(X_beforescaling, label="before scaling")
-    #plt.legend(loc='upper right')
+    plt.plot(X_beforeoffset2, label="before offset 2")
+    plt.legend()
     #plt.ylim((0,2*np.pi))
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-as-we-go.png")
 
     if np.linalg.norm(X_estimate - prev_X_estimate) < 10**-3:
         break
@@ -714,13 +756,20 @@ for iteration in range(N_iterations):
             X_estimate = 2*mean(X_estimate) - X_estimate
         prev_X_estimate = X_estimate
 
+SStot = sum((path - mean(path))**2)
+SSdev = sum((X_estimate-path)**2)
+Rsquared = 1 - SSdev / SStot
+print("R squared value of X estimate:", Rsquared)
+
 # Final estimate
 plt.figure()
-plt.title("Final estimate")
-plt.plot(path, color="black", label='True X')
-#plt.plot(X_initial, label='Initial')
+plt.title("Head direction")
+plt.plot(path, color="black", label='Observed')
+plt.plot(X_initial, label='Initial')
 plt.plot(X_estimate, label='Estimate')
-#plt.legend(loc='upper right')
+plt.ylabel("X")
+plt.xlabel("Timebin")
+plt.legend() #loc='upper right'
 plt.ylim((0,2*np.pi))
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-final.png")
 #plt.show()
@@ -855,13 +904,15 @@ for i in range(N):
             print("No observations of X between",bins[x],"and",bins[x+1],".")
 for i in range(N):
     plt.figure()
-    plt.plot(x_grid, observed_mean_spikes_in_bins[i,:], color=plt.cm.viridis(0.1))
-    plt.plot(x_grid, h_estimate[i,:], color=plt.cm.viridis(0.5)) 
+    plt.plot(x_grid, observed_mean_spikes_in_bins[i,:], color=plt.cm.viridis(0.1), label="Observed")
+    plt.plot(x_grid, h_estimate[i,:], color=plt.cm.viridis(0.5), label="Estimated") 
 #    plt.plot(x_grid, mu_posterior[i,:], color=plt.cm.viridis(0.5)) 
-    plt.title("Neuron "+str(i)+" with "+str(sum(binnedspikes[i,:]))+" spikes")
+    plt.title("Average number of activities, neuron "+str(i)) #spikes
+#    plt.title("Neuron "+str(i)+" with "+str(sum(binnedspikes[i,:]))+" spikes")
     plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_mean_spikes_in_bins[i,:])))
     plt.xlabel("X")
-    plt.ylabel("Average number of spikes")
+#    plt.ylabel("Number of spikes")
+    plt.legend()
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-tuning-"+str(i)+".png")
 
 colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]

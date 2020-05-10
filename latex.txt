@@ -123,3 +123,6 @@ I've worked on being able to infer it even if it's periodic, but that will be ne
 But first I'll finish making the presentation and start practicing :)
 A cool bonus is that I didn't have to use a fancy initialization of the X like PLDS or something. The important thing was to start inferring X based on F instead of F based on X, since we get  a pretty good F estimate this way: 
 There should maybe be some theory on how to transform Poisson data to look like Normal data? 
+
+A cool bonus is that I didn't have to use a fancy initialization of the X like PLDS or something. The important thing was to start inferring X based on F instead of F based on X, since we get  a pretty good F estimate this way: ...
+There could maybe be some theory on how to transform Poisson data to look like Normal data? 
