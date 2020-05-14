@@ -16,7 +16,7 @@ numpy.random.seed(13)
 ##############
 # Parameters #
 ##############x
-T = 80
+T = 80 # 2000
 N = 100
 N_iterations = 10
 sigma_n = 1.2 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -32,18 +32,30 @@ delta_f_fit = 0.7 # Scale for the tuning curve GP that is fitted. 0.3
 sigma_x = 6 # Variance of X for K_t
 delta_x = 10 # Scale of X for K_t
 P = 1 # Dimensions of latent variable 
+USE_OFFSET_AFTER_ITERATION_NUMBER = 2
+USE_SCALING_AFTER_ITERATION_NUMBER = 3
+NOISE_REGULARIZATION = False
+FLIP_AFTER_TWO_ITERATIONS = False
+GIVEN_TRUE_F = False
+OPTIMIZE_HYPERPARAMETERS = False
 GRADIENT_FLAG = False # Choose to use gradient or not
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
 print("Using gradient?", GRADIENT_FLAG)
 print("True tuning curve shape:", TUNINGCURVE_DEFINITION)
+print("Noise regulation:",NOISE_REGULARIZATION)
+print("Initial sigma_n:", sigma_n)
+print("Learning rate:", lr)
+print("T:", T, "\n")
+print("N:", N, "\n")
+if FLIP_AFTER_TWO_ITERATIONS:
+    print("NBBBB!!! We're flipping the estimate after the second iteration in line 600.")
 
-if TUNINGCURVE_DEFINITION == "triangles":
-    tuningwidth = 1 # width of tuning (in radians)
-    biasterm = -2 # Average H outside tuningwidth -4
-    tuningcovariatestrength = np.linspace(0.5*tuningwidth,10.*tuningwidth, N) # H value at centre of tuningwidth 6*tuningwidth
-    neuronpeak = [(i+0.5)*2.*pi/N for i in range(N)]
+######################################
+## Data generation                  ##
+######################################
+
 def exponential_covariance(t1,t2, sigma, delta):
     distance = abs(t1-t2)
     return sigma * exp(-distance/delta)
@@ -55,9 +67,12 @@ def squared_exponential_covariance(x1,x2, sigma, delta):
         distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
 
-######################################
-## Generate data for simple example ##
-######################################
+if TUNINGCURVE_DEFINITION == "triangles":
+    tuningwidth = 1 # width of tuning (in radians)
+    biasterm = -2 # Average H outside tuningwidth -4
+    tuningcovariatestrength = np.linspace(0.5*tuningwidth,10.*tuningwidth, N) # H value at centre of tuningwidth 6*tuningwidth
+    neuronpeak = [(i+0.5)*2.*pi/N for i in range(N)]
+
 bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=N_plotgridpoints + 1)
 evaluationpoints = 0.5*(bins[:(-1)]+bins[1:])
 

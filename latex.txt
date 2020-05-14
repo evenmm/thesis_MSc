@@ -126,3 +126,46 @@ There should maybe be some theory on how to transform Poisson data to look like 
 
 A cool bonus is that I didn't have to use a fancy initialization of the X like PLDS or something. The important thing was to start inferring X based on F instead of F based on X, since we get  a pretty good F estimate this way: ...
 There could maybe be some theory on how to transform Poisson data to look like Normal data? 
+
+
+\subsection{10.05.2020}
+Finding point estimators of the hyperparameters of the Gaussian processes after we have converged to some estimates.
+Wu does this on logscale for the parameters.
+And she does it all in one big shebang.
+Thankfully with no gradient. 
+hypers are [sigma_x, delta_x, sigma_f, delta_f, sigma_n]
+Setting the hyperparameters to these, we did not even converge at all...
+
+\subsection{11.05.2020}
+Now we just want things to work for a simple simulated example. F AND X inference.
+Which means that we're actually doing something new here. Earlier we did this given true f.
+Exploring:
+Initial F: Pretty good with np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2
+Scaling / offset together does nothing. Trying both L and just f prior.
+(Also, with good conditions we don't really need offset or scaling)
+How good are our F estimates? 
+Much lower than the true ones. Here we have very Narrow peaks though.
+
+Trying periodic: 
+Very seasick with regards to up and down.
+Only allow path to go outside (0, 2pi) if you deal with that in spike generation.
+
+To get a good benchmark we use:
+Many neurons
+Much time
+Good initialization
+Some random path
+Narrow tuning width
+Strong tuning_strength 
+
+Then, when it works, let's start with many neurons and much time and see how strong the tuning must be for us to find it.
+
+OBSERVATAION::::
+When we changed to not uniform distribution of widths and position, inference worked better!
+MaY BE DUE TO just wider tunings. 
+Can check this by just varying positions while keeping widths the same.
+Then task will be to check what width is optimal.
+
+\subsection{12.05.2020}
+There is a very high background noise rate. Neurons have 1 spike most of the time. 
+Background noise should be set. 
