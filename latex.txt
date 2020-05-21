@@ -169,3 +169,54 @@ Then task will be to check what width is optimal.
 \subsection{12.05.2020}
 There is a very high background noise rate. Neurons have 1 spike most of the time. 
 Background noise should be set. 
+
+\subsection{14.05.2020}
+Too sharply defined tuning curves gives too sharp local minima.
+
+# of neurons, weight on X(t), background noise, … 
+length of recording 
+other kinds of noise: other tuning, etc. 
+
+
+\subsection{18.05.2020}
+Implementing gradient
+
+h = 1e-5
+numderiv = (L(x+h) - L(x))/h 
+
+
+\subsection{19.05.2020}
+Using cdist function.
+400 by 200 matrix: Self-defined distance function.
+0.1 seconds used per operation in distance function.
+Versus 0.0003 for inbuilt.
+
+!! I assume that lambda u,v refers to u from XA and v from XB.
+
+
+\subsection{20.05.2020}
+Trying out the gradient I implemented.
+In total: Difference is 18.81434038901393
+logdet term: 6.801736937448393
+f prior term: 297.3210614517232
+x prior term: 3.3325630662444756e-05
+
+
+T = 100
+xprior: 2.5*10^-6
+fprior: 69.80775303343978
+
+
+TIME USE: 
+    I_times_dK_B_K = np.matmul(I_minus_column_tensor, dKx_B_inv_Kg)
+0.34
+
+    K_B_dK_times_I = np.matmul(Kx_B_inv_dKg, I_minus_row_tensor)
+0.19
+
+    squarebrackets = I_times_dK_B_K + K_B_dK_times_I
+0.11
+
+    fM = np.matmul(F_tensor, squarebrackets)
+0.12
+

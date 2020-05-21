@@ -18,22 +18,22 @@ numpy.random.seed(13)
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 1000 #2000 # Max time 85504
+T = 400 #2000 # Max time 85504
 N = 100
 N_iterations = 200
 sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
-lr = 0.90 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
+lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
+GRADIENT_FLAG = False # Set True to use analytic gradient
 SPEEDCHECK = False
-USE_OFFSET = True
-USE_SCALING = True
+USE_OFFSET = False
+USE_SCALING = False
 TOLERANCE = 0.01
 NOISE_REGULARIZATION = False
 FLIP_AFTER_TWO_ITERATIONS = False
 GIVEN_TRUE_F = False
 DUMB_NOT_SO_DUMB_SEARCH = False
 SUPREME_STARTING = False
-GRADIENT_FLAG = False # Choose to use gradient or not
 OPTIMIZE_HYPERPARAMETERS = False
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
@@ -41,9 +41,9 @@ LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
 TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = False
-tuning_strength = 0.8 #2 #tuning strength for bumps
+tuning_strength = 12 # 0.8 #2 #tuning strength for bumps
 tuning_width = 0.1
-baseline_f_value = -2.3 # -2.3 means 10 per cent chance of spiking when outside tuning area.
+baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
                         # This can be inspired by observed values from the head direction data if we want to. 
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
@@ -128,7 +128,7 @@ def bumptuningfunction(x, i):
         distancesquared = min([(x1-x2)**2, (x1+2*pi-x2)**2, (x1-2*pi-x2)**2])
     elif COVARIANCE_KERNEL_KX == "nonperiodic":
         distancesquared = (x1-x2)**2
-    return tuning_strength * exp(-distancesquared/(2*delta_x_generate))
+    return baseline_f_value + tuning_strength * exp(-distancesquared/(2*delta_x_generate))
 
 print("Generating spikes.")
 if TUNINGCURVE_DEFINITION == "triangles":
@@ -179,7 +179,7 @@ for i in range(N):
         if(sum(timesinbin)>0):
             observed_mean_spikes_in_bins[i,x] = mean( y_spikes[i, timesinbin] )
         elif i==0:
-            print("No observations of X between",bins[x],"and",bins[x+1],".")
+            print("No observations of X between",bins[x],"and",bins[x+1],".") # This should be taken care of by continuity of f though?
 colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
 # Plot observed firing rate
 plt.figure()
@@ -429,16 +429,154 @@ def x_posterior_no_la(X_estimate):
     #print("f_prior_term",f_prior_term)
     #print("logdet_term",logdet_term)
     #print("x_prior_term",x_prior_term)
-    posterior_loglikelihood = f_prior_term + logdet_term + x_prior_term #+ yf_term
+    posterior_loglikelihood = logdet_term + f_prior_term + x_prior_term #+ yf_term
 #    if posterior_loglikelihood>0:
 #        print("positive L value!!!! It should be negative.")
 #        print("yf f logdet x || posterior\t",yf_term,"\t",f_prior_term,"\t",logdet_term,"\t",x_prior_term,"\t||",posterior_loglikelihood )
     #print("posterior_loglikelihood",posterior_loglikelihood)
     return - posterior_loglikelihood
 
-# Gradient of L according to Anqi Wu
+# Gradient of L 
 def x_jacobian_no_la(X_estimate):
-    x_gradient = 0
+    ####################
+    # Initial matrices #
+    ####################
+    start = time.time()
+    K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+    K_gx = K_xg.T
+    stop = time.time()
+    if SPEEDCHECK:
+        print("\nSpeedcheck of x_jacobian function:")
+        print("Making Kxg            :", stop-start)
+
+    start = time.time()
+    B_matrix = np.matmul(K_gx, K_xg) + (sigma_n**2) * K_gg
+    B_matrix_inverse = np.linalg.inv(B_matrix)
+    stop = time.time()
+    if SPEEDCHECK:
+        print("Making B and B inverse:", stop-start)
+
+    start = time.time()
+    #Kx_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2
+    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
+    # Kx_inducing_inverse = sigma_n**-2*np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_gx)
+    tempmatrix = np.matmul(np.matmul(K_xg, smallinverse), K_gx)
+    stop = time.time()
+    if SPEEDCHECK:
+        print("Making small/tempmatrx:", stop-start)
+
+    ####################
+    # logdet term ######
+    ####################
+    start = time.time()
+
+    ## Evaluate the derivative of K_xg. Row t of this matrix holds the nonzero row of the matrix d/dx_t K_xg
+    d_Kxg = scipy.spatial.distance.cdist(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), lambda u, v: -(u-v)*np.exp(-(u-v)**2/(2*delta_f_fit**2)))
+    d_Kxg = d_Kxg*sigma_f_fit*(delta_f_fit**-2)
+
+    ## Reshape K_gx and K_xg to speed up matrix multiplication
+    K_gx_tensor = K_gx.T.reshape((T, N_inducing_points, 1)) # Tensor with T depth containing single columns of length N_ind 
+    d_Kxg_tensor = d_Kxg.reshape((T, 1, N_inducing_points)) # Tensor with T depth containing single rows of length N_ind 
+
+    # Matrix multiply K_gx and d(K_xg)
+    product_Kgx_dKxg = np.matmul(K_gx_tensor, d_Kxg_tensor) # 1000 by 30 by 30
+
+    # Sum with transpose
+    trans_sum_K_dK = product_Kgx_dKxg + np.transpose(product_Kgx_dKxg, axes=(0,2,1))
+
+    # Create B^-1 copies for vectorial matrix multiplication
+    B_inv_tensor = np.repeat([B_matrix_inverse],T,axis=0)
+    
+    # Then tensor multiply B^-1 with all the different trans_sum_K_dK
+    big_tensor = np.matmul(B_inv_tensor, trans_sum_K_dK)
+    
+    # Take trace of each individually
+    trace_array = np.trace(big_tensor, axis1=1, axis2=2)
+    
+    # Multiply by - N/2
+    logdet_gradient = - N/2 * trace_array
+
+    stop = time.time()
+    if SPEEDCHECK:
+        print("logdet term            :", stop-start)
+
+    ####################
+    # f prior term #####
+    ####################
+    start = time.time()
+
+    # Make (I - Kx B^-1 Kg)
+    I_minus_KBK = np.identity(T) - np.matmul(K_xg, np.matmul(B_matrix_inverse, K_gx))   
+
+    ## Split I_minus into its colums and put into tensor
+    I_minus_column_tensor = I_minus_KBK.T.reshape((T, T, 1)) # Tensor with T depth containing single columns of length T 
+    
+    # Split I minus into rows
+    I_minus_row_tensor = I_minus_KBK.reshape((T, 1, T)) # Tensor with T depth containing single rows of length N_ind 
+
+    ## Make B_inv Kg
+    B_inv_Kg = np.matmul(B_matrix_inverse, K_gx)
+
+    ## Make tensor of copies of B inv Kg
+    B_inv_Kg_tensor = np.repeat([B_inv_Kg],T,axis=0)
+
+    ## dKx*B_inv_Kg tensor product
+    dKx_B_inv_Kg = np.matmul(d_Kxg_tensor, B_inv_Kg_tensor)
+
+    ## Make its transpose. All these are T by T by T
+    Kx_B_inv_dKg = np.transpose(dKx_B_inv_Kg, axes=(0,2,1))
+
+    I_times_dK_B_K = np.matmul(I_minus_column_tensor, dKx_B_inv_Kg)
+
+    K_B_dK_times_I = np.matmul(Kx_B_inv_dKg, I_minus_row_tensor)
+
+    squarebrackets = I_times_dK_B_K + K_B_dK_times_I
+
+    ## Make copies of F_estimate
+    F_tensor = np.repeat([F_estimate],T,axis=0)
+
+    ## Do tensor product
+    fM = np.matmul(F_tensor, squarebrackets)
+    fMf = np.matmul(fM, np.transpose(F_tensor, axes=(0,2,1)))
+
+    ## Trace for each matrix in the tensor
+    fMfsum = np.trace(fMf, axis1=1, axis2=2)
+    f_prior_gradient = sigma_n**-2 / 2 * fMfsum
+    
+    ## Elementwise
+    #f_prior_gradient = np.zeros(T)
+    #for t in range(T):
+    #    d_Kxg_t = np.zeros((T,N_inducing_points))
+    #    d_Kxg_t[t] = d_Kxg[t]
+    #    # Make dKx B^-1 Kg and its transpose Kx B^-1 dKg 
+    #    dKx_B_inv_Kg = np.matmul(d_Kxg_t, np.matmul(B_matrix_inverse, K_gx))
+    #    Kx_B_inv_dKg = np.transpose(dKx_B_inv_Kg)
+    #    # Add the two matrix products in the big brackets
+    #    square_brackets = np.matmul(I_minus_KBK, dKx_B_inv_Kg) + np.matmul(Kx_B_inv_dKg, I_minus_KBK)
+    #    # multiply by f on each side and sum over F using trace for computational speed
+    #    fM = np.matmul(F_estimate, square_brackets)
+    #    fMf = np.matmul(fM, F_estimate.T)
+    #    fMfsum = np.trace(fMf)
+    #    f_prior_gradient[t] = sigma_n**-2 / 2 * fMfsum
+    stop = time.time()
+    if SPEEDCHECK:
+        print("f prior term          :", stop-start)
+
+    ####################
+    # x prior term #####
+    ####################
+    start = time.time()
+    x_prior_gradient = - np.dot(X_estimate.T, K_t_inverse)
+    stop = time.time()
+    if SPEEDCHECK:
+        print("X prior term          :", stop-start)
+    ####################
+
+    #print("logdet_gradient\n", logdet_gradient)
+    #print("f_prior_gradient\n",f_prior_gradient) # Is it sensible? Can plot these and compare with true X
+    #print("x_prior_gradient\n", x_prior_gradient)
+
+    x_gradient = logdet_gradient + f_prior_gradient + x_prior_gradient 
     return - x_gradient
 
 def just_fprior_term(X_estimate): 
@@ -627,6 +765,45 @@ F_estimate = np.copy(F_initial)
 if GIVEN_TRUE_F:
     F_estimate = true_f
 
+print("Testing gradient...")
+X_estimate = path
+F_estimate = true_f
+print("Gradient difference using check_grad:",scipy.optimize.check_grad(x_posterior_no_la, x_jacobian_no_la, path))
+#plt.show()
+SPEEDCHECK = True
+x_jacobian_no_la(X_estimate)
+SPEEDCHECK = False
+
+#optim_gradient = optimization_result.jac
+print("Epsilon:", np.sqrt(np.finfo(float).eps))
+optim_gradient1 = scipy.optimize.approx_fprime(X_estimate, x_posterior_no_la, 1*np.sqrt(np.finfo(float).eps))
+optim_gradient2 = scipy.optimize.approx_fprime(X_estimate, x_posterior_no_la, 1e-4)
+optim_gradient4 = scipy.optimize.approx_fprime(X_estimate, x_posterior_no_la, 1e-2)
+calculated_gradient = x_jacobian_no_la(X_estimate)
+difference_approx_fprime_1 = optim_gradient1 - calculated_gradient
+difference_approx_fprime_2 = optim_gradient2 - calculated_gradient
+difference_approx_fprime_4 = optim_gradient4 - calculated_gradient
+difference_norm1 = np.linalg.norm(difference_approx_fprime_1)
+difference_norm2 = np.linalg.norm(difference_approx_fprime_2)
+difference_norm4 = np.linalg.norm(difference_approx_fprime_4)
+print("Gradient difference using approx f prime, epsilon 1e-8:", difference_norm1)
+print("Gradient difference using approx f prime, epsilon 1e-4:", difference_norm2)
+print("Gradient difference using approx f prime, epsilon 1e-2:", difference_norm4)
+plt.figure()
+plt.title("Gradient, all terms")
+plt.plot(calculated_gradient, label="Analytic")
+plt.plot(optim_gradient1, label="Numerical 1")
+plt.plot(optim_gradient2, label="Numerical 2")
+plt.plot(optim_gradient4, label="Numerical 4")
+plt.legend()
+plt.figure()
+plt.plot(difference_approx_fprime_1, label="difference")
+plt.plot(difference_approx_fprime_2, label="difference")
+plt.plot(difference_approx_fprime_4, label="difference")
+plt.legend()
+plt.show()
+
+
 ## Plot initial f
 fig, ax = plt.subplots(figsize=(8,1))
 foo_mat = ax.matshow(F_initial) #cmap=plt.cm.Blues
@@ -640,6 +817,7 @@ SPEEDCHECK = True
 x_posterior_no_la(X_estimate)
 SPEEDCHECK = False
 
+"""
 print("\nTest L value for different X given true F")
 temp_F_estimate = np.copy(F_estimate)
 if GIVEN_TRUE_F:
@@ -661,6 +839,7 @@ for sigma in [3.0, 2.5, 2.0, 1.5, 2.0, 1.5, 1.0, 0.5, 0.1]:
     print("Random start\n",x_posterior_no_la(2*np.pi*np.random.random(T)), "\n")
 sigma_n = tempsigma
 F_estimate = temp_F_estimate
+"""
 
 collected_estimates = np.zeros((N_iterations, T))
 plt.figure()
@@ -674,8 +853,7 @@ prev_X_estimate = np.Inf
 ### EM algorithm: Find f given X, then X given f.
 for iteration in range(N_iterations):
     print("\nIteration", iteration)
-    if sigma_n > 1.9:
-        sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
+    sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
     print("Sigma2:", sigma_n)
     print("L value at path for this sigma:",x_posterior_no_la(path))
     print("L value at estimate for this sigma:",x_posterior_no_la(X_estimate))
