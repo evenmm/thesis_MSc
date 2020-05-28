@@ -26,15 +26,15 @@ lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 GRADIENT_FLAG = True # Set True to use analytic gradient
 SPEEDCHECK = False
-#USE_OFFSET = False
-#USE_SCALING = False
+USE_OFFSET = False
+USE_SCALING = False
 TOLERANCE = 1e-6
-#NOISE_REGULARIZATION = False
+NOISE_REGULARIZATION = False
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 10
 GIVEN_TRUE_F = False
-#DUMB_NOT_SO_DUMB_SEARCH = False
-#SUPREME_STARTING = False
+DUMB_NOT_SO_DUMB_SEARCH = False
+SUPREME_STARTING = False
 OPTIMIZE_HYPERPARAMETERS = False
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
@@ -561,6 +561,20 @@ def x_jacobian_no_la(X_estimate):
     x_gradient = logdet_gradient + f_prior_gradient + x_prior_gradient 
     return - x_gradient
 
+def offset_function(offset_for_estimate):
+    offset_estimate = X_estimate + offset_for_estimate
+    return just_fprior_term(offset_estimate)
+
+def scaling_function(scaling_factor):
+    scaled_estimate = scaling_factor*X_estimate
+    return x_posterior_no_la(scaled_estimate)
+#    return just_fprior_term(scaled_estimate)
+
+def scale_and_offset(scale_offset):
+    scaled_estimate = scale_offset[0] * X_estimate + scale_offset[1]
+    return just_fprior_term(scaled_estimate)
+#    return x_posterior_no_la(scaled_estimate)
+
 ########################
 # Covariance matrices  #
 ########################
@@ -714,9 +728,9 @@ prev_X_estimate = np.Inf
 ### EM algorithm: Find f given X, then X given f.
 for iteration in range(N_iterations):
     print("\nIteration", iteration)
+    sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
     if iteration > 0:
-        sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
-    print("Sigma2:", sigma_n)
+        print("Sigma2:", sigma_n)
     print("L value at path for this sigma:",x_posterior_no_la(path))
     print("L value at estimate for this sigma:",x_posterior_no_la(X_estimate))
     K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
@@ -749,6 +763,10 @@ for iteration in range(N_iterations):
     else: 
         print("First iteration: Skipping F inference.")
 
+    # Attempt to explore more of the surrounding by adding noise
+    if NOISE_REGULARIZATION:
+        X_estimate += -0.1 + 0.2*np.random.multivariate_normal(np.zeros(T), K_t) #np.random.multivariate_normal(np.zeros(T), K_t)     #np.random.random(T)
+
     # Find next X estimate, that can be outside (0,2pi)
     print("Finding next X estimate...")
     if GIVEN_TRUE_F: 
@@ -760,10 +778,56 @@ for iteration in range(N_iterations):
         optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True})
     X_estimate = optimization_result.x
 
-    if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
+    if FLIP_AFTER_SOME_ITERATION:
         # Flipping estimate after iteration 1 has been plotted
-        X_estimate = 2*mean(X_estimate) - X_estimate
+        if iteration == (FLIP_AFTER_HOW_MANY - 1):
+            X_estimate = 2*mean(X_estimate) - X_estimate
+    """
+    # Rescaling
+    tempsigma = sigma_n
+    sigma_n = 0.5
+    print("\n\nFind best scaled, offset X for sigma =",sigma_n)
+    initial_scale_offset = np.array([1,0])
+    scaling_optimization_result = optimize.minimize(scale_and_offset, initial_scale_offset, method = "L-BFGS-B", options = {'disp':True})
+    best_scale_offset = scaling_optimization_result.x
+    X_scaled = best_scale_offset[0] * X_estimate + best_scale_offset[1]
+    print("Best fit using sigma =", sigma_n, "is", best_scale_offset[0], "* X +", best_scale_offset[1])
+    sigma_n = tempsigma
+    """
+    X_beforeoffset = np.copy(X_estimate) 
+    # Find best offset_for_estimate
+    if USE_OFFSET:
+        print("\n\nFind best offset X for sigma =",sigma_n)
+        initial_offset = 0
+        offset_optimization_result = optimize.minimize(offset_function, initial_offset, method = "L-BFGS-B", options = {'disp':True})
+        best_offset = offset_optimization_result.x
+        X_estimate = X_estimate + best_offset
+        print("Best offset:", best_offset)
+        # Keep it between 0 and 2Pi
+        #mean_of_offset_estimate = mean(X_estimate)
+        #X_estimate -= 2*np.pi* (mean_of_offset_estimate // (2*np.pi))
+    #plt.plot(X_estimate, label='Best offset')
 
+    # Rescaling
+    if USE_SCALING:
+        X_beforescaling = np.copy(X_estimate)
+        print("\n\nFind best scaled, offset X for sigma =",sigma_n)
+        tempsigma = sigma_n
+        sigma_n = 0.5
+        initial_scale_factor = 1
+        scaling_optimization_result = optimize.minimize(scaling_function, initial_scale_factor, method = "L-BFGS-B", options = {'disp':True})
+        best_scale_factor = scaling_optimization_result.x
+        X_estimate = best_scale_factor * X_estimate
+        print("Best fit using sigma =", sigma_n, "is", best_scale_factor, "* X")
+        sigma_n = tempsigma
+        X_beforeoffset2 = np.copy(X_estimate)
+        print("\n\nFind best offset X for sigma =",sigma_n)
+        initial_offset = 0
+        offset_optimization_result = optimize.minimize(offset_function, initial_offset, method = "L-BFGS-B", options = {'disp':True})
+        best_offset = offset_optimization_result.x
+        X_estimate = X_estimate + best_offset
+        print("Best offset:", best_offset)
+    
     plt.figure()
     plt.title("X estimates across iterations")
     plt.plot(path, color="black", label='True X')
@@ -779,9 +843,14 @@ for iteration in range(N_iterations):
     print("Difference in X norm from last iteration:", np.linalg.norm(X_estimate - prev_X_estimate))
 
     plt.figure()
-    plt.title("X Estimate") # as we go
+    plt.title("Estimate as we go")
     plt.plot(path, color="black", label='True X')
     plt.plot(X_initial, label='Initial')
+    if USE_OFFSET:
+        plt.plot(X_beforeoffset, label="before offset")
+    if USE_SCALING:
+        plt.plot(X_beforescaling, label="before scaling")
+        plt.plot(X_beforeoffset2, label="before offset 2")
     plt.plot(X_estimate, label='Estimate')
     plt.legend()
     #plt.ylim((0,2*np.pi))
