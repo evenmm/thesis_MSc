@@ -208,15 +208,89 @@ fprior: 69.80775303343978
 
 
 TIME USE: 
-    I_times_dK_B_K = np.matmul(I_minus_column_tensor, dKx_B_inv_Kg)
-0.34
+I_times_dK_B_K = np.matmul(I_minus_column_tensor, dKx_B_inv_Kg)
+Multiply (T x 1) x T , (1 x T) x T
+0.21-22
 
-    K_B_dK_times_I = np.matmul(Kx_B_inv_dKg, I_minus_row_tensor)
-0.19
+K_B_dK_times_I = np.matmul(Kx_B_inv_dKg, I_minus_row_tensor)
+Multiply (1 x T) x T , (T x 1) x T
+0.20
 
-    squarebrackets = I_times_dK_B_K + K_B_dK_times_I
+squarebrackets = I_times_dK_B_K + K_B_dK_times_I
+Addition of T TxT matrices
 0.11
 
-    fM = np.matmul(F_tensor, squarebrackets)
+fM = np.matmul(F_tensor, squarebrackets)
 0.12
 
+
+
+\subsection{23.05}
+I tried the stupid idea. It was fast but wrong. 
+Maybe if I'm lucky I can now use the fast techniques to get the original one faster.
+
+If sigma is small the difference between the analytical gradient and the numerical is bigger.
+
+Exciting new speed check of revamped speedy original f prior gradient term:
+Speedcheck of x_jacobian function:
+Making Kxg            : 0.0001239776611328125
+Making B and B inverse: 7.796287536621094e-05
+Making small/tempmatrx: 0.00014638900756835938
+logdet term            : 0.06461167335510254
+f prior term          : 0.07611465454101562
+X prior term          : 0.00014853477478027344
+Speedcheck of x_jacobian function:
+Making Kxg            : 0.00012040138244628906
+Making B and B inverse: 7.390975952148438e-05
+Making small/tempmatrx: 0.0001380443572998047
+logdet term            : 0.05887794494628906
+f prior term          : 0.07275986671447754
+X prior term          : 0.00015592575073242188
+
+HMMMMMM! Many iterations do not seem to help us converge....
+I'd sooner say we diverge.
+Hm.
+
+\subsection[24.05.2020]
+Making the perfect testing example
+Voila! Wider tuning curves gives us much better performance! ! ! 
+The y spikes plot has white lines. But that is just the scren resolution.
+Conclusion: 
+The analytical handles the offset all by itself! From this day onward we are free from the offset crutch!!
+And is it stable when we really drop sigma: It converges <3 
+And are the estimate values still better than path: yes. May be due to randomness, numerical error, OR: simply the fact that when we generate from the GP it will not be the max likelihood
+thing in the prior sense, and this plays a part. It is a strugglebetween path correctness and f generative correctness. The path was created just from GP simulation. 
+Therefore it is not optimal!! Even if we have true f given, it is not the randomness but sooner the fact that it is drawn from a GP and is therefore strange. Then f helps us kinda find it anyway. 
+
+Starting with very low sigma: 
+
+Now: What tuning width is optimal? 
+How about periodic? 
+Can we run this on real HD data too? 
+
+
+\subsection{27.05}
+Robustness plots
+* Tuning strength *
+Bumptuningfunction defines true f values. These can be negative.
+Best to define tuning strength as f value at peak! 
+We have defined baseline f value with no tuning to be -10 (avoids background noise)
+
+T = 100
+lambda  rms
+0.1     0.5165187057084998
+0.2     0.5194637238709657
+ 1      0.41777308117293027
+ 1 flip 0.41415404503400055 (Flipped after convergence)
+ 2      0.2356399579694827
+ 3      
+ 4 
+ 8 0.5201834760253742
+ 9 
+10 
+11 
+12 0.09598990632141391
+16 0.6762482397087992
+T = 1000
+
+T = 10.000
