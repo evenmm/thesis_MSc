@@ -294,3 +294,88 @@ lambda  rms
 T = 1000
 
 T = 10.000
+
+
+
+\subsection{28.05}
+Making efficient script.
+
+When we are unable to infer the X due to too low tuning strength, and end up with a flat line as estimate: then the RMS value will only depend on the variance of X. 
+The R squared value would maybe be better, but if we average the RMS over seeds then we average over the variance of X path as well.
+
+If X estimate is precisely zero we get an error in the determinant of Kx.
+That is fixed by adding a small term.
+But that problem could also be due to the constant dropping of sigma n without restoring it!
+Needs a global unchangable startign sigma n and then we decrease it locally at every iteration.
+
+Had to reset F estimate when we flip X estimate because I think it was trapped in a local minima leading to worse convergence for X
+
+Re-converging after flipping gave worse RMSE values, so we're just taking the min RMSE vlaue of X and X flipped.
+Though could it be the case that X converges better if it is flipped?
+-- Now for ts 16 the after flip is always better
+
+\subsection{29.05}
+Discovered that: ts 16, good converge except for line stuck far down at end.
+Attempts at fixing it: 
+- re-adding random noise for initial guess:
+Worked for that case.
+No-flip RMSE: 0.3764127947575389
+
+We are not spreading across enough of the domain.
+- Try lowering the sigma_x from 100 to 50:
+Did not work
+- Try increasing the variance of generative (and inferring) X
+Worked (obviously)
+
+Having convergence issues at seed 9:
+- that is right after plot figures warning.
+- it is also a seed that gave us a very low variation in X except for a small number of sharp peaks.
+
+######################################
+Lambda strength: 16
+Baseline expected spikes: 4.5399929762484854e-05
+Expected no. of spikes at peak: 16
+RMSE for X, Averaged across seeds: 0.2587602343114252
+RMSE for X flipped: 1.221666999270192
+RMSE for F, Averaged across seeds: 8.422289793214146
+######################################
+
+T = 100
+lambda_strength and RMSE
+16: 0.43703416548029617
+12: 0.49388507368447404
+10: 0.45196784300534765
+8: 0.3528263031609709
+6: 0.3867000231202763
+4: 0.45159691185191636
+2: 0.739551482437652
+1: 
+
+ts 2 has some unfortunate cases where it is upside down only in parts
+Unfortunate seeds: 2, (4 is unfortunate for 12), 
+
+T = 10
+lambda_strength and RMSE and R squared
+Averaged over 12 seeds 
+0.1 1.0364895956799882  -50.4728346460829
+0.5 1.0406274710325414  -50.47464357537558
+1   0.7422087009697954  -20.3087918773691
+2   0.7466309328194045  -20.328251915084937
+3   0.7472190837927086  -20.328615752135146
+4   0.7527862724434419  -20.35709780525213
+5   0.7404025520105525  -20.321719480758173
+6   0.7350274848878883  -20.304027117377405
+7   0.7760717833525844  -20.661516639707507
+8   0.746736816844552   -20.409954797527746
+9   0.7642916964361809  -20.61791412042584
+10  0.7342163509093863  -20.44656243089726
+11  0.6783056187618514  -20.138536419227183
+12  0.6734560913326089  -20.129929968875064
+13  0.6679172321859862  -20.115018289674417
+14  0.6534704062828897  -20.081188426730588
+15  0.6512345921874434  -20.238918624651173
+16  0.6354140567049367  -20.044956895538427
+
+T = 100
+
+T = 1000

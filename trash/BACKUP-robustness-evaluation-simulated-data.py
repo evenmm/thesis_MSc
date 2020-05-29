@@ -11,14 +11,14 @@ import time
 import sys
 plt.rc('image', cmap='viridis')
 from scipy import optimize
-numpy.random.seed(9) # 13
+numpy.random.seed(13)
 
 # This bad boi branched off from em-algorithm on 11.05.2020
 
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 1000 #2000 # Max time 85504
+T = 100 #2000 # Max time 85504
 N = 100
 N_iterations = 200
 sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -26,12 +26,15 @@ lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 GRADIENT_FLAG = True # Set True to use analytic gradient
 SPEEDCHECK = False
-TOLERANCE = 1e-5
-NOISE_REGULARIZATION = False
+#USE_OFFSET = False
+#USE_SCALING = False
+TOLERANCE = 1e-6
+#NOISE_REGULARIZATION = False
 FLIP_AFTER_SOME_ITERATION = False
-FLIP_AFTER_HOW_MANY = 6
+FLIP_AFTER_HOW_MANY = 10
 GIVEN_TRUE_F = False
-SUPREME_STARTING = False
+#DUMB_NOT_SO_DUMB_SEARCH = False
+#SUPREME_STARTING = False
 OPTIMIZE_HYPERPARAMETERS = False
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
@@ -41,13 +44,13 @@ TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = True
 tuning_width = 1.2 # 0.1
 baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
-lambda_strength = 16 ##### Set this ######
+lambda_strength = 2 ##### Set this ######
 f_strength = np.log(lambda_strength) # 12 #tuning strength at bump centre
 tuning_strength = f_strength - baseline_f_value
                         # This can be inspired by observed values from the head direction data if we want to. 
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_x = 5 #5 # Variance of X for K_t
+sigma_x = 1 #5 # Variance of X for K_t
 delta_x = 100 #50 # Scale of X for K_t
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
@@ -93,45 +96,15 @@ bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=N_plotgridpoints + 1)
 x_grid = 0.5*(bins[:(-1)]+bins[1:])
 
 # Generative path for X:
-sigma_path = 5 # Variance
+sigma_path = 1 # Variance
 delta_path = 100 # Scale 
 
 K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_path, delta_path)
 K_t_inverse = np.linalg.inv(K_t)
 
-#path = 3 + numpy.random.multivariate_normal(np.zeros(T), K_t)
+path = 3 + numpy.random.multivariate_normal(np.zeros(T), K_t)
 #path = np.linspace(0,2*np.pi,T)
 #path = np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
-path = np.pi + numpy.random.multivariate_normal(np.zeros(T), K_t)
-print("Min and max of path:", min(path), max(path))
-## plot path 
-plt.figure(figsize=(5,2))
-plt.title("Before folding")
-plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
-#plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
-plt.xlabel("Time")
-plt.ylabel("x")
-plt.tight_layout()
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-path.png")
-# Time for some boolean masks
-modulo_two_pi_values = path // (2*np.pi)
-oddmodulos = (modulo_two_pi_values % 2).astype(bool)
-evenmodulos = np.invert(oddmodulos)
-# Even modulos: Adjust for being outside
-path[evenmodulos] -= 2*np.pi*modulo_two_pi_values[evenmodulos]
-# Odd modulos: Adjust for being outside and flip for continuity
-path[oddmodulos] -= 2*np.pi*(modulo_two_pi_values[oddmodulos])
-differences = 2*np.pi - path[oddmodulos]
-path[oddmodulos] = differences
-## plot path 
-plt.figure(figsize=(5,2))
-plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
-#plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
-plt.xlabel("Time")
-plt.ylabel("x")
-plt.tight_layout()
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-path.png")
-plt.show()
 
 ## Generate spike data from a Bernoulli GLM (logistic regression) 
 # True tuning curves are defined here
@@ -287,6 +260,17 @@ plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-true-f.png")
 plt.clf()
 plt.close()
+
+## plot path 
+plt.figure(figsize=(5,2))
+plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
+#plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
+plt.xlabel("Time")
+plt.ylabel("x")
+plt.yticks([0,3.14,6.28])
+plt.tight_layout()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-em-headdirection.png")
+#plt.show()
 
 # Plot binned spikes for selected neurons in the selected interval (Bernoulli style since they are binned)
 bernoullispikes = (y_spikes>0)*1
@@ -791,6 +775,8 @@ for iteration in range(N_iterations):
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-EM-collected-estimates.png")
     plt.clf()
     plt.close()
+    np.save("X_estimate", X_estimate)
+    print("Difference in X norm from last iteration:", np.linalg.norm(X_estimate - prev_X_estimate))
 
     plt.figure()
     plt.title("X Estimate") # as we go
@@ -801,79 +787,9 @@ for iteration in range(N_iterations):
     #plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-EM-as-we-go.png")
 
-    np.save("X_estimate", X_estimate)
-    print("Difference in X norm from last iteration:", np.linalg.norm(X_estimate - prev_X_estimate))
     if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
         break
     prev_X_estimate = X_estimate
-## Flipped 
-#X_flipped = - X_estimate + 2*mean(X_estimate)
-## Rootmeansquarederror for X
-#X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
-#X_flipped_rmse = np.sqrt(sum((X_flipped-path)**2) / T)
-#print("First convergence")
-#print("RMSE for X:", X_rmse)
-#print("RMSE Flipped X:", X_flipped_rmse)
-#print("\n")
-#
-###### Check if flipped and maybe iterate again with flipped estimate
-#if X_flipped_rmse < X_rmse:
-#    X_estimate = X_flipped
-#    prev_X_estimate = np.Inf
-#    for iteration in range(N_iterations):
-#        if iteration > 0:
-#            sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
-#        K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
-#        K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-#        K_gx_prev = K_xg_prev.T
-#        # Find F estimate only if we're not at the first iteration
-#        if iteration > 0:
-#            if LIKELIHOOD_MODEL == "bernoulli":
-#                for i in range(N):
-#                    y_i = y_spikes[i]
-#                    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
-#                    F_estimate[i] = optimization_result.x
-#            elif LIKELIHOOD_MODEL == "poisson":
-#                for i in range(N):
-#                    y_i = y_spikes[i]
-#                    optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
-#                    F_estimate[i] = optimization_result.x 
-#        # Find next X estimate, that can be outside (0,2pi)
-#        if GIVEN_TRUE_F: 
-#            print("NB! NB! We're setting the f value to the optimal F given the path.")
-#            F_estimate = np.copy(true_f)
-#        if GRADIENT_FLAG: 
-#            optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
-#        else:
-#            optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':False})
-#        X_estimate = optimization_result.x
-#        if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
-#            # Flipping estimate after iteration 1 has been plotted
-#            X_estimate = 2*mean(X_estimate) - X_estimate
-#        plt.figure()
-#        plt.title("X estimates across iterations")
-#        plt.plot(path, color="black", label='True X')
-#        plt.plot(X_initial, label='Initial')
-#        collected_estimates[iteration] = np.transpose(X_estimate)
-#        for i in range(int(iteration+1)):
-#            plt.plot(collected_estimates[i], label="Estimate") #"%s" % i
-#        ##plt.legend(loc='upper right')
-#        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-EM-collected-estimates.png")
-#        plt.clf()
-#        plt.close()
-#
-#        plt.figure()
-#        plt.title("X Estimate") # as we go
-#        plt.plot(path, color="black", label='True X')
-#        plt.plot(X_initial, label='Initial')
-#        plt.plot(X_estimate, label='Estimate')
-#        plt.legend()
-#        #plt.ylim((0,2*np.pi))
-#        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-simulated-EM-as-we-go.png")
-#
-#        if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
-#            break
-#        prev_X_estimate = X_estimate
 
 # Final estimate
 plt.figure()

@@ -16,20 +16,18 @@ numpy.random.seed(13)
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 2000 #2000 # Max time 85504
+T = 1000 #2000 # Max time 85504
 N_iterations = 50
 sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 SPEEDCHECK = False
-USE_OFFSET_AFTER_ITERATION_NUMBER = 2
-USE_SCALING_AFTER_ITERATION_NUMBER = 3
 NOISE_REGULARIZATION = False
 FLIP_AFTER_TWO_ITERATIONS = False
 GIVEN_TRUE_F = False
 DUMB_NOT_SO_DUMB_SEARCH = False
 SUPREME_STARTING = False
-GRADIENT_FLAG = False # Choose to use gradient or not
+GRADIENT_FLAG = True # Choose to use gradient or not
 OPTIMIZE_HYPERPARAMETERS = True
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
@@ -347,62 +345,25 @@ def x_posterior_no_la(X_estimate):
     #print("posterior_loglikelihood",posterior_loglikelihood)
     return - posterior_loglikelihood
 
-# Gradient of L according to Anqi Wu
+# Gradient of L 
 def x_jacobian_no_la(X_estimate):
-    x_gradient = 0
-    return - x_gradient
-
-def just_fprior_term(X_estimate): 
-    K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-    K_gx = K_xg.T
-
-    #Kx_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
-    # Kx_inducing_inverse = sigma_n**-2*np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_gx)
-    tempmatrix = np.matmul(np.matmul(K_xg, smallinverse), K_gx)
-
-    # yf_term ##########
     ####################
-    if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.log(1 + np.exp(F_estimate)))
-    elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.exp(F_estimate))
-
-    # f prior term #####
+    # Initial matrices #
     ####################
-    f_prior_term_1 = sigma_n**-2 * np.trace(np.matmul(F_estimate, F_estimate.T))
-    fK = np.matmul(F_estimate, tempmatrix)
-    fKf = np.matmul(fK, F_estimate.T)
-    f_prior_term_2 = - sigma_n**-2 * np.trace(fKf)
-
-    f_prior_term = - 0.5 * (f_prior_term_1 + f_prior_term_2)
-    # logdet term ######
-    ####################
-    # My variant: 
-    #logdet_term = - 0.5 * N * np.log(np.linalg.det(Kx_inducing))
-    # Wu variant:
-    logDetS1 = -np.log(np.linalg.det(smallinverse))-np.log(np.linalg.det(K_gg))+np.log(sigma_n)*(T-N_inducing_points)
-    logdet_term = - 0.5 * N * logDetS1
-
-    # x prior term #####
-    ####################
-    #xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
-    #x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
-
-    #print("f_prior_term",f_prior_term)
-    #print("logdet_term",logdet_term)
-    #print("x_prior_term",x_prior_term)
-    posterior_loglikelihood = yf_term + f_prior_term #+ logdet_term #+ x_prior_term
-    return - posterior_loglikelihood
-
-def without_x_prior_term(X_estimate): 
     start = time.time()
     K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     K_gx = K_xg.T
     stop = time.time()
     if SPEEDCHECK:
-        print("Speedcheck of L function:")
+        print("\nSpeedcheck of x_jacobian function:")
         print("Making Kxg            :", stop-start)
+
+    start = time.time()
+    B_matrix = np.matmul(K_gx, K_xg) + (sigma_n**2) * K_gg
+    B_matrix_inverse = np.linalg.inv(B_matrix)
+    stop = time.time()
+    if SPEEDCHECK:
+        print("Making B and B inverse:", stop-start)
 
     start = time.time()
     #Kx_inducing = np.matmul(np.matmul(K_xg, K_gg_inverse), K_gx) + sigma_n**2
@@ -413,69 +374,105 @@ def without_x_prior_term(X_estimate):
     if SPEEDCHECK:
         print("Making small/tempmatrx:", stop-start)
 
-    # yf_term ##########
     ####################
-    start = time.time()
-    if LIKELIHOOD_MODEL == "bernoulli": # equation 4.26
-        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.log(1 + np.exp(F_estimate)))
-    elif LIKELIHOOD_MODEL == "poisson": # equation 4.43
-        yf_term = sum(np.multiply(y_spikes, F_estimate) - np.exp(F_estimate))
-    stop = time.time()
-    if SPEEDCHECK:
-        print("yf term               :", stop-start)
-
-    # f prior term #####
-    ####################
-    start = time.time()
-    f_prior_term_1 = sigma_n**-2 * np.trace(np.matmul(F_estimate, F_estimate.T))
-    fK = np.matmul(F_estimate, tempmatrix)
-    fKf = np.matmul(fK, F_estimate.T)
-    f_prior_term_2 = - sigma_n**-2 * np.trace(fKf)
-
-    f_prior_term = - 0.5 * (f_prior_term_1 + f_prior_term_2)
-    stop = time.time()
-    if SPEEDCHECK:
-        print("f prior term          :", stop-start)
-
     # logdet term ######
     ####################
-    # My variant: 
-    #logdet_term = - 0.5 * N * np.log(np.linalg.det(Kx_inducing))
-    # Wu variant:
     start = time.time()
-    logDetS1 = -np.log(np.linalg.det(smallinverse))-np.log(np.linalg.det(K_gg))+np.log(sigma_n)*(T-N_inducing_points)
-    logdet_term = - 0.5 * N * logDetS1
+
+    ## Evaluate the derivative of K_xg. Row t of this matrix holds the nonzero row of the matrix d/dx_t K_xg
+    d_Kxg = scipy.spatial.distance.cdist(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), lambda u, v: -(u-v)*np.exp(-(u-v)**2/(2*delta_f_fit**2)))
+    d_Kxg = d_Kxg*sigma_f_fit*(delta_f_fit**-2)
+
+    ## Reshape K_gx and K_xg to speed up matrix multiplication
+    K_g_column_tensor = K_gx.T.reshape((T, N_inducing_points, 1)) # Tensor with T depth containing single columns of length N_ind 
+    d_Kx_row_tensor = d_Kxg.reshape((T, 1, N_inducing_points)) # Tensor with T depth containing single rows of length N_ind 
+
+    # Matrix multiply K_gx and d(K_xg)
+    product_Kgx_dKxg = np.matmul(K_g_column_tensor, d_Kx_row_tensor) # 1000 by 30 by 30
+
+    # Sum with transpose
+    trans_sum_K_dK = product_Kgx_dKxg + np.transpose(product_Kgx_dKxg, axes=(0,2,1))
+
+    # Create B^-1 copies for vectorial matrix multiplication
+    B_inv_tensor = np.repeat([B_matrix_inverse],T,axis=0)
+    
+    # Then tensor multiply B^-1 with all the different trans_sum_K_dK
+    big_tensor = np.matmul(B_inv_tensor, trans_sum_K_dK)
+    
+    # Take trace of each individually
+    trace_array = np.trace(big_tensor, axis1=1, axis2=2)
+    
+    # Multiply by - N/2
+    logdet_gradient = - N/2 * trace_array
+
     stop = time.time()
     if SPEEDCHECK:
         print("logdet term            :", stop-start)
 
+    ####################
+    # f prior term ##### (speeded up 10x)
+    ####################
+    start = time.time()
+    fMf = np.zeros((T,N,N))
+
+    ## New hot take:
+    # Elementwise in the sum, priority on things with dim T, AND things that don't need to be vectorized *first*.
+    # Wrap things in from the sides to sandwich the tensor.
+    f_Kx = np.matmul(F_estimate, K_xg)
+    f_Kx_Binv = np.matmul(f_Kx, B_matrix_inverse)
+    #Binv_Kg_f = np.transpose(f_Kx_Binv)
+
+    #d_Kg_column_tensor = np.transpose(d_Kx_row_tensor, axes=(0,2,1))
+
+    # partial derivatives need tensorization
+    # f_dKx = np.matmul(F_estimate, d_Kxg)
+    f_column_tensor = F_estimate.T.reshape((T, N, 1))
+    f_dKx_tensor = np.matmul(f_column_tensor, d_Kx_row_tensor) # (N x N_inducing) matrices  
+    dKg_f_tensor = np.transpose(f_dKx_tensor, axes=(0,2,1))
+
+    f_Kx_Binv_copy_tensor = np.repeat([f_Kx_Binv], T, axis=0)
+    Binv_Kg_f_copy_tensor = np.transpose(f_Kx_Binv_copy_tensor, axes=(0,2,1)) #repeat([Binv_Kg_f], T, axis=0)
+
+    ## A: f dKx Binv Kgx f
+    fMf += np.matmul(f_dKx_tensor, Binv_Kg_f_copy_tensor)
+
+    ## C: - f Kx Binv Kg dKx Binv Kg f
+    Kg_dKx_tensor = np.matmul(K_g_column_tensor, d_Kx_row_tensor)
+    f_Kx_Binv_Kg_dKx_tensor = np.matmul(f_Kx_Binv_copy_tensor, Kg_dKx_tensor)
+    fMf -= np.matmul(f_Kx_Binv_Kg_dKx_tensor, Binv_Kg_f_copy_tensor)
+
+    ## B: - f Kx Binv dKg Kx Binv Kg f
+    dKg_Kx_tensor = np.transpose(Kg_dKx_tensor, axes=(0,2,1))
+    f_Kx_Binv_dKg_Kx_tensor = np.matmul(f_Kx_Binv_copy_tensor, dKg_Kx_tensor)
+    fMf -= np.matmul(f_Kx_Binv_dKg_Kx_tensor, Binv_Kg_f_copy_tensor)
+
+    ## D: f Kx Binv dKg f
+    fMf += np.matmul(f_Kx_Binv_copy_tensor, dKg_f_tensor)
+
+    ## Trace for each matrix in the tensor
+    fMfsum = np.trace(fMf, axis1=1, axis2=2)
+    f_prior_gradient = sigma_n**-2 / 2 * fMfsum
+
+    stop = time.time()
+    if SPEEDCHECK:
+        print("f prior term          :", stop-start)
+
+    ####################
     # x prior term #####
     ####################
     start = time.time()
-    xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
-    x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
+    x_prior_gradient = - np.dot(X_estimate.T, K_t_inverse)
     stop = time.time()
     if SPEEDCHECK:
         print("X prior term          :", stop-start)
+    ####################
 
-    #print("f_prior_term",f_prior_term)
-    #print("logdet_term",logdet_term)
-    #print("x_prior_term",x_prior_term)
-    posterior_loglikelihood = yf_term + f_prior_term + logdet_term # + x_prior_term
-#    if posterior_loglikelihood>0:
-#        print("positive L value!!!! It should be negative.")
-#        print("yf f logdet x || posterior\t",yf_term,"\t",f_prior_term,"\t",logdet_term,"\t",x_prior_term,"\t||",posterior_loglikelihood )
-    #print("posterior_loglikelihood",posterior_loglikelihood)
-    return - posterior_loglikelihood
+    #print("logdet_gradient\n", logdet_gradient)
+    #print("f_prior_gradient\n",f_prior_gradient) 
+    #print("x_prior_gradient\n", x_prior_gradient)
 
-def offset_function(offset_for_estimate):
-    offset_estimate = X_estimate + offset_for_estimate
-    return just_fprior_term(offset_estimate)
-
-def scaling_function(scaling_factor):
-    scaled_estimate = scaling_factor*X_estimate
-    return x_posterior_no_la(scaled_estimate)
-#    return just_fprior_term(scaled_estimate)
+    x_gradient = logdet_gradient + f_prior_gradient + x_prior_gradient 
+    return - x_gradient
 
 ########################
 # Covariance functions #
@@ -560,43 +557,6 @@ SPEEDCHECK = True
 x_posterior_no_la(X_estimate)
 SPEEDCHECK = False
 
-def run_naive_estimate():
-    # Given some F, find best X value at every point without looking at the whole
-    # For each time bin, we try all values of X in a grid based on some resolution
-    print("Running naive estimation...")
-    resolution = 10
-    x_trial_values = np.linspace(0,2*np.pi,resolution)
-    print(x_trial_values)
-    x_trial_values = x_trial_values.reshape((resolution,1))
-    print(x_trial_values)
-    print("yolo")
-    testvalues = np.repeat(x_trial_values, T, axis=1)
-    print("smolo")
-    L_values = np.zeros((resolution, T)) # Then we evaluate how well that position fits for every timebin, and store them
-    print(L_values)
-    for i in range(resolution):
-        print("Testing X value", testvalues[i,0], "for all neurons")
-        for j in range(T):
-            trial_X = 2*np.pi*np.ones(T)
-            trial_X[j] = testvalues[i,j] # L value of this 
-            L_values[i,j] = just_fprior_term(trial_X)
-    maxvalues  = np.amax(L_values, axis=0) # Choose best X value for every time bin (column)
-    for i in range(T): 
-        max_position = np.where(L_values[:,i] == maxvalues[i]) # Choose best X value for every time bin.
-#        print("Max position:", max_position[0][0])
-        X_estimate[i] = testvalues[max_position[0][0], i]
-    fig, ax = plt.subplots()
-    foo_mat = ax.matshow(L_values) #cmap=plt.cm.Blues
-    fig.colorbar(foo_mat, ax=ax)
-    plt.title("L_values")
-    plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-em-L-values-dumb-estimate.png")
-    print("X_estimate after naively iterating\n",X_estimate)
-    # Then make it continuous by running it through the iterations
-
-if DUMB_NOT_SO_DUMB_SEARCH:
-    run_naive_estimate()
-
 print("\nTest L value for different X given true F")
 temp_F_estimate = np.copy(F_estimate)
 if GIVEN_TRUE_F:
@@ -631,7 +591,7 @@ prev_X_estimate = np.Inf
 ### EM algorithm: Find f given X, then X given f.
 for iteration in range(N_iterations):
     print("\nIteration", iteration)
-    if sigma_n > 1.9:
+    if iteration > 0:
         sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
     print("Sigma2:", sigma_n)
     print("L value at path for this sigma:",x_posterior_no_la(path))
@@ -681,72 +641,29 @@ for iteration in range(N_iterations):
         optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':True})
     X_estimate = optimization_result.x
 
-    X_beforeoffset1 = np.copy(X_estimate)
-    # Find best offset_for_estimate
-    if iteration >= USE_OFFSET_AFTER_ITERATION_NUMBER:
-        print("\n\nFind best offset X for sigma =",sigma_n)
-        initial_offset = 0
-        offset_optimization_result = optimize.minimize(offset_function, initial_offset, method = "L-BFGS-B", options = {'disp':True})
-        best_offset = offset_optimization_result.x
-        X_estimate = X_estimate + best_offset
-        print("Best offset:", best_offset)
-        # Keep it between 0 and 2Pi
-        #mean_of_offset_estimate = mean(X_estimate)
-        #X_estimate -= 2*np.pi* (mean_of_offset_estimate // (2*np.pi))
-    #plt.plot(X_estimate, label='Best offset')
-
-    X_beforescaling = np.copy(X_estimate)
-
-    # Rescaling
-    if iteration >= USE_SCALING_AFTER_ITERATION_NUMBER:
-        print("\n\nFind best scaled, offset X for sigma =",sigma_n)
-        tempsigma = sigma_n
-        sigma_n = 0.5
-        initial_scale_factor = 1
-        scaling_optimization_result = optimize.minimize(scaling_function, initial_scale_factor, method = "L-BFGS-B", options = {'disp':True})
-        best_scale_factor = scaling_optimization_result.x
-        X_estimate = best_scale_factor * X_estimate
-        print("Best fit using sigma =", sigma_n, "is", best_scale_factor, "* X")
-        sigma_n = tempsigma
-
-    X_beforeoffset2 = np.copy(X_estimate)
-
-    if iteration >= USE_OFFSET_AFTER_ITERATION_NUMBER:
-        print("\n\nFind best offset X for sigma =",sigma_n)
-        initial_offset = 0
-        offset_optimization_result = optimize.minimize(offset_function, initial_offset, method = "L-BFGS-B", options = {'disp':True})
-        best_offset = offset_optimization_result.x
-        X_estimate = X_estimate + best_offset
-        print("Best offset:", best_offset)
-
     plt.figure()
     plt.title("X estimates across iterations")
     plt.plot(path, color="black", label='True X')
-    #plt.plot(X_initial, label='Initial')
-    plt.plot(X_beforescaling, label="before scaling")
+    plt.plot(X_initial, label='Initial')
     collected_estimates[iteration] = np.transpose(X_estimate)
     for i in range(int(iteration+1)):
         plt.plot(collected_estimates[i], label="Estimate") #"%s" % i
     ##plt.legend(loc='upper right')
-    #plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-collected-estimates.png")
     plt.clf()
     plt.close()
-    np.save("X_estimate", X_estimate)
-    print("Difference in X norm from last iteration:", np.linalg.norm(X_estimate - prev_X_estimate))
 
     plt.figure()
-    plt.title("Final estimate")
+    plt.title("X Estimate") # as we go
     plt.plot(path, color="black", label='True X')
-    #plt.plot(X_initial, label='Initial')
-    plt.plot(X_beforeoffset1, label="before offset 1")
-    plt.plot(X_beforescaling, label="before scaling")
-    plt.plot(X_beforeoffset2, label="before offset 2")
+    plt.plot(X_initial, label='Initial')
     plt.plot(X_estimate, label='Estimate')
     plt.legend()
     #plt.ylim((0,2*np.pi))
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-EM-as-we-go.png")
 
+    np.save("X_estimate", X_estimate)
+    print("Difference in X norm from last iteration:", np.linalg.norm(X_estimate - prev_X_estimate))
     if np.linalg.norm(X_estimate - prev_X_estimate) < 10**-3:
         break
     if FLIP_AFTER_TWO_ITERATIONS:

@@ -37,6 +37,7 @@ FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 10
 GIVEN_TRUE_F = False
 OPTIMIZE_HYPERPARAMETERS = False
+PLOTTING = False
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
@@ -45,14 +46,15 @@ TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = True
 tuning_width = 1.2 # 0.1
 baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
-lambda_strength_array = [16, 8, 4, 2, 1, 0.5] ##### Set this ###### 0.5, 1
+lambda_strength_array = [0.5,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16] # , 12, 10, 8, 6, 4, 2, 1, 0.5 
 f_strength_array = np.log(lambda_strength_array) # 12 #tuning strength at bump centre
 tuning_strength_array = f_strength_array - baseline_f_value
-seeds = [0,1,2,3,4,5,6,7,8,9] 
+seeds = [0,1,3,5,6,7,8,9,11,12,13,15,16,17,18,19,21,23,25,26] #       # 2, 14 unfortunate for all, 4 unfortunate for 12, (10,20) unfortunate for some
 NUMBER_OF_SEEDS = len(seeds)
+print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_x = 1 #5 # Variance of X for K_t
+sigma_x = 5 #1 #5 # Variance of X for K_t
 delta_x = 100 #50 # Scale of X for K_t
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
@@ -348,7 +350,7 @@ def x_jacobian_no_la(X_estimate):
 bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=N_plotgridpoints + 1)
 x_grid = 0.5*(bins[:(-1)]+bins[1:])
 # Generative parameters for X path:
-sigma_path = 1 # Variance
+sigma_path = 5 # Variance
 delta_path = 100 # Scale 
 if UNIFORM_BUMPS:
     # Uniform positioning and width:'
@@ -368,6 +370,8 @@ def bumptuningfunction(x, i):
         distancesquared = (x1-x2)**2
     return baseline_f_value + tuning_strength * exp(-distancesquared/(2*delta_x_generate))
 
+mean_rmse_values = np.zeros(len(lambda_strength_array))
+mean_rsquared_values = np.zeros(len(lambda_strength_array))
 # Loop over tuning strengths and seeds
 for tuning_strength_index in range(len(tuning_strength_array)):
     lambda_strength = lambda_strength_array[tuning_strength_index]
@@ -377,6 +381,7 @@ for tuning_strength_index in range(len(tuning_strength_array)):
     X_rmse_values = np.zeros(NUMBER_OF_SEEDS)
     X_flipped_rmse_values = np.zeros(NUMBER_OF_SEEDS)
     F_rmse_values = np.zeros(NUMBER_OF_SEEDS)
+    Rsquared_values = np.zeros(NUMBER_OF_SEEDS)
     for seed in range(NUMBER_OF_SEEDS):
         np.random.seed(seeds[seed])
         print("Seed:",seeds[seed])
@@ -384,7 +389,7 @@ for tuning_strength_index in range(len(tuning_strength_array)):
         K_t_inverse = np.linalg.inv(K_t)
         #path = np.linspace(0,2*np.pi,T)
         #path = np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
-        path = numpy.random.multivariate_normal(np.zeros(T), K_t)
+        path = np.pi + numpy.random.multivariate_normal(np.zeros(T), K_t)
         #path += 0.75 * np.pi + 0.25 * np.linspace(0,2*np.pi,T)
         # Time for some boolean masks
         modulo_two_pi_values = path // (2*np.pi)
@@ -396,14 +401,15 @@ for tuning_strength_index in range(len(tuning_strength_array)):
         path[oddmodulos] -= 2*np.pi*(modulo_two_pi_values[oddmodulos])
         differences = 2*np.pi - path[oddmodulos]
         path[oddmodulos] = differences
-        ## plot path 
-        plt.figure(figsize=(5,2))
-        plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
-        #plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
-        plt.xlabel("Time")
-        plt.ylabel("x")
-        plt.tight_layout()
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-path.png")
+        if PLOTTING:
+            ## plot path 
+            plt.figure(figsize=(5,2))
+            plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
+            #plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
+            plt.xlabel("Time")
+            plt.ylabel("x")
+            plt.tight_layout()
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-path.png")
         ## Generate spike data. True tuning curves are defined here
         if TUNINGCURVE_DEFINITION == "triangles":
             tuningwidth = 1 # width of tuning (in radians)
@@ -452,7 +458,6 @@ for tuning_strength_index in range(len(tuning_strength_array)):
                     observed_mean_spikes_in_bins[i,x] = mean( y_spikes[i, timesinbin] )
         #        elif i==0:
         #            print("No observations of X between",bins[x],"and",bins[x+1],".") 
-        colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
         #print("mean(y_spikes)",mean(y_spikes))
         #print("mean(y_spikes>0)",mean(y_spikes[y_spikes>0]))
         ########################
@@ -460,7 +465,7 @@ for tuning_strength_index in range(len(tuning_strength_array)):
         ########################
         # Inducing points based on the actual range of X
         x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
-        print("Min and max of path:", min(path), max(path))
+        #print("Min and max of path:", min(path), max(path))
         K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
         K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x, delta_x)
         K_t_inverse = np.linalg.inv(K_t)
@@ -469,7 +474,7 @@ for tuning_strength_index in range(len(tuning_strength_array)):
         ######################
         #X_initial = np.load("X_estimate.npy")
         X_initial = 1.5 * np.ones(T)
-        #X_initial += 0.2*np.random.random(T)
+        X_initial += 0.2*np.random.random(T)
         X_estimate = np.copy(X_initial)
         # finitialize
         F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
@@ -477,11 +482,12 @@ for tuning_strength_index in range(len(tuning_strength_array)):
         if GIVEN_TRUE_F:
             F_estimate = true_f
         ### EM algorithm: Find f given X, then X given f.
-        plt.figure()
-        plt.title("X Estimate") # as we go
-        plt.plot(path, color="black", label='True X')
-        plt.plot(X_initial, label='Initial')
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust.png")
+        if PLOTTING:
+            plt.figure()
+            plt.title("X Estimate") # as we go
+            plt.plot(path, color="black", label='True X')
+            plt.plot(X_initial, label='Initial')
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seed]) + ".png")
         prev_X_estimate = np.Inf
         sigma_n = np.copy(global_initial_sigma_n)
         for iteration in range(N_iterations):
@@ -511,8 +517,9 @@ for tuning_strength_index in range(len(tuning_strength_array)):
             else:
                 optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':False})
             X_estimate = optimization_result.x
-            plt.plot(X_estimate, label='Estimate')
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust.png")
+            if PLOTTING:
+                plt.plot(X_estimate, label='Estimate')
+                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seed]) + ".png")
             if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
                 # Flipping estimate after iteration 1 has been plotted
                 X_estimate = 2*mean(X_estimate) - X_estimate
@@ -532,13 +539,15 @@ for tuning_strength_index in range(len(tuning_strength_array)):
             print("RMSE for X flipped:", X_flipped_rmse)
             sigma_n = np.copy(global_initial_sigma_n)
             print("Re-iterating because of flip")
+            X_initial_2 = np.copy(X_flipped)
             X_estimate = np.copy(X_flipped)
             F_estimate = np.copy(F_initial)
-            plt.figure()
-            plt.title("After flipping") # as we go
-            plt.plot(path, color="black", label='True X')
-            plt.plot(X_initial, label='Initial')
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-flipped.png")
+            if PLOTTING:
+                plt.figure()
+                plt.title("After flipping") # as we go
+                plt.plot(path, color="black", label='True X')
+                plt.plot(X_initial_2, label='Initial')
+                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seed]) + "-flipped.png")
             prev_X_estimate = np.Inf
             for iteration in range(N_iterations):
                 if iteration > 0:
@@ -566,8 +575,9 @@ for tuning_strength_index in range(len(tuning_strength_array)):
                 else:
                     optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':False})
                 X_estimate = optimization_result.x
-                plt.plot(X_estimate, label='Estimate (after flip)')
-                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-flipped.png")
+                if PLOTTING:
+                    plt.plot(X_estimate, label='Estimate (after flip)')
+                    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seed]) + "-flipped.png")
                 if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
                     # Flipping estimate after iteration 1 has been plotted
                     X_estimate = 2*mean(X_estimate) - X_estimate
@@ -582,6 +592,11 @@ for tuning_strength_index in range(len(tuning_strength_array)):
             X_flipped_rmse_values[seed] = X_flipped_rmse
         print("RMSE for X:", X_rmse)
         print("RMSE for X flipped:", X_flipped_rmse)
+        SStot = sum((path - mean(path))**2)
+        SSdev = sum((X_estimate-path)**2)
+        Rsquared = 1 - SSdev / SStot
+        Rsquared_values[seed] = Rsquared
+        print("R squared value of X estimate:", Rsquared, "\n")
         #####
         # Rootmeansquarederror for F
         if LIKELIHOOD_MODEL == "bernoulli":
@@ -592,13 +607,16 @@ for tuning_strength_index in range(len(tuning_strength_array)):
         #print("RMSE for F:", F_rmse)
         F_rmse_values[seed] = F_rmse
         if seed == NUMBER_OF_SEEDS - 1:
+            mean_rmse_values[tuning_strength_index] = np.mean(X_rmse_values)
+            mean_rsquared_values[tuning_strength_index] = np.mean(Rsquared_values)
             print("\n######################################")
             print("Lambda strength:", lambda_strength)
-            print("Baseline expected spikes:", np.exp(baseline_f_value))
-            print("Expected no. of spikes at peak:", lambda_strength)
+            #print("Baseline expected spikes:", np.exp(baseline_f_value))
             #print("f value at peak:", baseline_f_value + tuning_strength)
             print("RMSE for X, Averaged across seeds:", np.mean(X_rmse_values))
             print("RMSE for X flipped:", np.mean(X_flipped_rmse_values))
+            print("R squared for X, Averaged across seeds:", np.mean(Rsquared_values))
             print("RMSE for F, Averaged across seeds:", np.mean(F_rmse_values))
             print("######################################")
-        #exit()
+            np.save("mean_rmse_values-T-" + str(T) + "-lambda-up-to-" + str(lambda_strength), mean_rmse_values)
+            np.save("mean_rsquared_values-T-" + str(T) + "-lambda-up-to-" + str(lambda_strength), mean_rsquared_values)
