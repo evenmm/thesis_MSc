@@ -352,7 +352,7 @@ lambda_strength and RMSE
 1: 
 
 ts 2 has some unfortunate cases where it is upside down only in parts
-Unfortunate seeds: 2, (4 is unfortunate for 12), 
+Unfortunate seeds: 2, 14, (4 is unfortunate for 12), 
 
 T = 10
 lambda_strength and RMSE and R squared
@@ -379,3 +379,8 @@ Averaged over 12 seeds
 T = 100
 
 T = 1000
+Ganske bra rmse for T = 1000! 
+Kan godt kjøre en plotterunde.
+Men vi trenger altså flere lave tuning strengths 
+
+
