@@ -24,7 +24,7 @@ from multiprocessing import Pool
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 100 #2000 # Max time 85504
+T = 10 #2000 # Max time 85504
 N = 100
 N_iterations = 200
 
@@ -105,19 +105,29 @@ def f_gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
     distancesquared = (x1-x2)**2
     return sigma * exp(-distancesquared/(2*delta))
 
+########################
+# Covariance matrices  #
+########################
+# Inducing points based on the actual range of X
+x_grid_induce = np.linspace(0, 2*np.pi, N_inducing_points) 
+#print("Min and max of path:", min(path), max(path))
+K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x, delta_x)
+K_t_inverse = np.linalg.inv(K_t)
+
 #########################
 ## Likelihood functions #
 #########################
 
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize. Equation (4.17)++
-def f_loglikelihood_bernoulli(f_i): # Psi
+def f_loglikelihood_bernoulli(f_i, sigma_n, y_i, K_xg_prev, K_gg): # Psi
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.log(1+np.exp(f_i))) # Corrected 16.03 from sum( np.multiply(y_i, (f_i - np.log(1+np.exp(f_i)))) + np.multiply((1-y_i), np.log(1- np.divide(np.exp(f_i), 1 + np.exp(f_i)))))
     priorterm_1 = -0.5*sigma_n**-2 * np.dot(f_i.T, f_i)
     fT_k = np.dot(f_i, K_xg_prev)
     smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
     priorterm_2 = 0.5*sigma_n**-2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
     return - (likelihoodterm + priorterm_1 + priorterm_2)
-def f_jacobian_bernoulli(f_i):
+def f_jacobian_bernoulli(f_i, sigma_n, y_i, K_xg_prev, K_gg):
     yf_term = y_i - np.divide(np.exp(f_i), 1 + np.exp(f_i))
     priorterm_1 = -sigma_n**-2 * f_i
     kTf = np.dot(K_xg_prev.T, f_i)
@@ -125,14 +135,14 @@ def f_jacobian_bernoulli(f_i):
     priorterm_2 = sigma_n**-2 * np.dot(K_xg_prev, np.dot(smallinverse, kTf))
     f_derivative = yf_term + priorterm_1 + priorterm_2
     return - f_derivative
-def f_hessian_bernoulli(f_i):
+def f_hessian_bernoulli(f_i, sigma_n, y_i, K_xg_prev, K_gg):
     e_tilde = np.divide(np.exp(f_i), (1 + np.exp(f_i))**2)
     smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
     f_hessian = - np.diag(e_tilde) - sigma_n**-2 * np.identity(T) + sigma_n**-2 * np.dot(K_xg_prev, np.dot(smallinverse, K_xg_prev.T))
     return - f_hessian
 
 # NEGATIVE Loglikelihood, gradient and Hessian. minimize to maximize.
-def f_loglikelihood_poisson(f_i):
+def f_loglikelihood_poisson(f_i, sigma_n, y_i, K_xg_prev, K_gg):
     likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i)) 
     priorterm_1 = -0.5*sigma_n**-2 * np.dot(f_i.T, f_i)
     fT_k = np.dot(f_i, K_xg_prev)
@@ -140,7 +150,7 @@ def f_loglikelihood_poisson(f_i):
     priorterm_2 = 0.5*sigma_n**-2 * np.dot(np.dot(fT_k, smallinverse), fT_k.T)
     return - (likelihoodterm + priorterm_1 + priorterm_2)
 
-def f_jacobian_poisson(f_i):
+def f_jacobian_poisson(f_i, sigma_n, y_i, K_xg_prev, K_gg):
     yf_term = y_i - np.exp(f_i)
     priorterm_1 = -sigma_n**-2 * f_i
     kTf = np.dot(K_xg_prev.T, f_i)
@@ -148,14 +158,14 @@ def f_jacobian_poisson(f_i):
     priorterm_2 = sigma_n**-2 * np.dot(K_xg_prev, np.dot(smallinverse, kTf))
     f_derivative = yf_term + priorterm_1 + priorterm_2
     return - f_derivative
-def f_hessian_poisson(f_i):
+def f_hessian_poisson(f_i, sigma_n, y_i, K_xg_prev, K_gg):
     e_poiss = np.exp(f_i)
     smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_xg_prev.T, K_xg_prev))
     f_hessian = - np.diag(e_poiss) - sigma_n**-2*np.identity(T) + sigma_n**-2 * np.dot(K_xg_prev, np.dot(smallinverse, K_xg_prev.T))
     return - f_hessian
 
 # L function
-def x_posterior_no_la(X_estimate): 
+def x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg): 
     start = time.time()
     K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     K_gx = K_xg.T
@@ -221,7 +231,7 @@ def x_posterior_no_la(X_estimate):
     return - posterior_loglikelihood
 
 # Gradient of L 
-def x_jacobian_no_la(X_estimate):
+def x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg):
     ####################
     # Initial matrices #
     ####################
@@ -351,6 +361,7 @@ x_grid = 0.5*(bins[:(-1)]+bins[1:])
 # Generative parameters for X path:
 sigma_path = 5 # Variance
 delta_path = 100 # Scale 
+K_t_generate = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_path, delta_path)
 if UNIFORM_BUMPS:
     # Uniform positioning and width:'
     bumplocations = [(i+0.5)*2.*pi/N for i in range(N)]
@@ -359,7 +370,7 @@ else:
     # Random placement and width:
     bumplocations = 2*np.pi*np.random.random(N)
     bumpwidths = 0.01 + 0.5*np.random.random(N)
-def bumptuningfunction(x, i): 
+def bumptuningfunction(x, i, tuning_strength): 
     x1 = x
     x2 = bumplocations[i]
     delta_x_generate = bumpwidths[i]
@@ -374,12 +385,9 @@ def bumptuningfunction(x, i):
 ######################################
 def find_rmse_for_this_lambda_this_seed(seedindex):
     print("Seed", seeds[seedindex], "started.")
-    global tuning_strength, x_grid_induce, F_estimate, y_i, sigma_n, K_xg_prev, K_gg, K_t_inverse
     tuning_strength = np.log(lambda_strength) - baseline_f_value # f_strength - baseline_f_value # 12 #tuning strength at bump centre
     np.random.seed(seeds[seedindex])
-    K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_path, delta_path)
-    K_t_inverse = np.linalg.inv(K_t)
-    path = np.pi + numpy.random.multivariate_normal(np.zeros(T), K_t)
+    path = np.pi + numpy.random.multivariate_normal(np.zeros(T), K_t_generate)
     # Use boolean masks to keep X within (0, 2pi)
     modulo_two_pi_values = path // (2*np.pi)
     oddmodulos = (modulo_two_pi_values % 2).astype(bool)
@@ -431,7 +439,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         y_spikes = np.zeros((N, T))
         for i in range(N):
             for t in range(T):
-                true_f[i,t] = bumptuningfunction(path[t], i)
+                true_f[i,t] = bumptuningfunction(path[t], i, tuning_strength)
                 if LIKELIHOOD_MODEL == "bernoulli":
                     spike_probability = exp(true_f[i,t])/(1.+exp(true_f[i,t]))
                     y_spikes[i,t] = 1.0*(rand()<spike_probability)
@@ -445,15 +453,6 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             timesinbin = (path>bins[x])*(path<bins[x+1])
             if(sum(timesinbin)>0):
                 observed_mean_spikes_in_bins[i,x] = mean( y_spikes[i, timesinbin] )
-    ########################
-    # Covariance matrices  #
-    ########################
-    # Inducing points based on the actual range of X
-    x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
-    #print("Min and max of path:", min(path), max(path))
-    K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-    K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x, delta_x)
-    K_t_inverse = np.linalg.inv(K_t)
     ######################
     # Initialize X and F #
     ######################
@@ -464,7 +463,9 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     F_estimate = np.copy(F_initial)
     if GIVEN_TRUE_F:
         F_estimate = true_f
-    ### EM algorithm: Find f given X, then X given f.
+    #############################
+    # Iterate with EM algorithm #
+    #############################
     if PLOTTING:
         plt.figure()
         plt.title("X Estimate") # as we go
@@ -483,21 +484,21 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             if LIKELIHOOD_MODEL == "bernoulli":
                 for i in range(N):
                     y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+                    optimization_result = optimize.minimize(fun=f_loglikelihood_bernoulli, x0=F_estimate[i], jac=f_jacobian_bernoulli, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
                     F_estimate[i] = optimization_result.x
             elif LIKELIHOOD_MODEL == "poisson":
                 for i in range(N):
                     y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+                    optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                     F_estimate[i] = optimization_result.x 
         # Find next X estimate, that can be outside (0,2pi)
         if GIVEN_TRUE_F: 
             print("NB! NB! We're setting the f value to the optimal F given the path.")
             F_estimate = np.copy(true_f)
         if GRADIENT_FLAG: 
-            optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
+            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
         else:
-            optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':False})
+            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", options = {'disp':False})
         X_estimate = optimization_result.x
         if PLOTTING:
             plt.plot(X_estimate, label='Estimate')
@@ -538,21 +539,21 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             if LIKELIHOOD_MODEL == "bernoulli":
                 for i in range(N):
                     y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+                    optimization_result = optimize.minimize(fun=f_loglikelihood_bernoulli, x0=F_estimate[i], jac=f_jacobian_bernoulli, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
                     F_estimate[i] = optimization_result.x
             elif LIKELIHOOD_MODEL == "poisson":
                 for i in range(N):
                     y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+                    optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                     F_estimate[i] = optimization_result.x 
             # Find next X estimate, that can be outside (0,2pi)
             if GIVEN_TRUE_F: 
                 print("NB! NB! We're setting the f value to the optimal F given the path.")
                 F_estimate = np.copy(true_f)
             if GRADIENT_FLAG: 
-                optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
+                optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
             else:
-                optimization_result = optimize.minimize(x_posterior_no_la, X_estimate, method = "L-BFGS-B", options = {'disp':False})
+                optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", options = {'disp':False})
             X_estimate = optimization_result.x
             if PLOTTING:
                 plt.plot(X_estimate, label='Estimate (after flip)')
