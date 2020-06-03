@@ -22,7 +22,7 @@ numpy.random.seed(13)
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 1000 #2000 # Max time 85504
+T = 100 #2000 # Max time 85504
 N = 100
 N_iterations = 200
 
@@ -37,7 +37,7 @@ FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 10
 GIVEN_TRUE_F = False
 OPTIMIZE_HYPERPARAMETERS = False
-PLOTTING = False
+PLOTTING = True
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
@@ -46,10 +46,10 @@ TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = True
 tuning_width = 1.2 # 0.1
 baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
-lambda_strength_array = [0.5,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] # , 12, 10, 8, 6, 4, 2, 1, 0.5 
+lambda_strength_array = [8] #[0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] # , 12, 10, 8, 6, 4, 2, 1, 0.5 
 f_strength_array = np.log(lambda_strength_array) # 12 #tuning strength at bump centre
 tuning_strength_array = f_strength_array - baseline_f_value
-seeds = [0,1,3,5,6,7,8,9,11,12,13,15,16,17,18,19,21,23,25,26,27] #       # 2, 14 unfortunate for all, 4 unfortunate for 12, (10,20) unfortunate for some
+seeds = [11] #[0,1,3,5,6,7,8,9,11,12,13,15,16,17,18,19,21,23,25,26,27] #       # 2, 14 unfortunate for all, 4 unfortunate for 12, (10,20) unfortunate for some
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
@@ -383,6 +383,7 @@ for tuning_strength_index in range(len(tuning_strength_array)):
     F_rmse_values = np.zeros(NUMBER_OF_SEEDS)
     Rsquared_values = np.zeros(NUMBER_OF_SEEDS)
     for seed in range(NUMBER_OF_SEEDS):
+        starttime = time.time()
         np.random.seed(seeds[seed])
         print("Seed:",seeds[seed])
         K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_path, delta_path)
@@ -606,6 +607,8 @@ for tuning_strength_index in range(len(tuning_strength_array)):
         F_rmse = np.sqrt(sum((h_estimate-true_f)**2) / (T*N))
         #print("RMSE for F:", F_rmse)
         F_rmse_values[seed] = F_rmse
+        endtime = time.time()
+        print("Time for one iteration:", endtime - starttime)
         if seed == NUMBER_OF_SEEDS - 1:
             mean_rmse_values[tuning_strength_index] = np.mean(X_rmse_values)
             mean_rsquared_values[tuning_strength_index] = np.mean(Rsquared_values)
