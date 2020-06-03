@@ -436,3 +436,46 @@ Even though we say that we know the X when we place the inducing points there. T
 - make x_grid_inducing a variable passed to function
 - Kt still proiduced outside, x_grid_inducing and Kggplain inside.
 
+Original:
+    #SBATCH --nodes=1
+    #SBATCH --ntasks-per-node=16
+with result:
+We are using 16 cores
+We are using 16 cores per node
+Total of 16 cores
+Time use: 5.85500431060791
+Time use: 2.7465834617614746
+Time use: 4.408917665481567
+or 
+    #SBATCH --nodes=1
+    #SBATCH --ntasks-per-node=20
+with result:
+#SBATCH --nodes=1
+with result:
+We are using 20 cores
+We are using 20 cores per node
+Total of 20 cores
+Time use: 2.641716718673706
+Time use: 2.4316775798797607
+Time use: 4.215567350387573
+
+Alternative: 
+    #SBATCH --ntasks=20
+with result
+We are using 20 cores
+We are using 20 cores per node
+Total of 20 cores
+Time use: 5.856815814971924
+Time use: 2.4280481338500977
+Time use: 4.860387563705444
+
+Much of the same. 
+
+I am calling 20 processes, and I think this means 20 tasks. I don't care about hte number of nodes this is spread on. 
+
+----- Time use on cluster:
+T=10:
+Between 2 and 101 seconds for an all seed iteration
+Mean about 50 sek.
+Times 25, and we're at 1250 sek = 20 min
+
