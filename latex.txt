@@ -384,3 +384,55 @@ Kan godt kjøre en plotterunde.
 Men vi trenger altså flere lave tuning strengths 
 
 
+\subsection{02.05}
+OpenMP driver og parallelliserer numpy-koden for å få brukt mer juice når jeg kjører ett skript (noe jeg har observert på min maskin).
+Det mest effektive som Per Kristian foreslår er å begrense kjernebruken til 1 CPU per prosess, så bruken av hver CPU blir optimal, og så se hvor mange prosesser vi har plass til på siden av hverandre. 
+Plan 1: 
+Alternativ: Ikke begrens antall CPU-er i Open MP og kjør færre prosesser på siden av hverandre. 
+
+\subsection{03.05}
+export OMP_NUM_THREADS=1 setter 1 CPU på hver parallelle tråd. Antall tråder = len(seed).
+
+Noticed difference in performance.
+There's a fucking bug that makes the results bad. May come from adding function arguments to shit. 
+Relax, we have different versions. We can handle this. 
+- Attempt to highlight changes and see what is being done differently:
+
+Checking how important initial X is:
+L value for path varies due to different F!!!!!: 6287.955163043913, , 
+seed 0       , offset 1.5: L -13565.381001321895 
+seed original, offset 1.5: L -14806.454455027344    path                            sqrt(mean(X_estimate-previous_X))= 0.0017169788566815862
+seed 2       , offset 1.5: L -13878.157314977567    path                            sqrt(mean(X_estimate-previous_X))= 0.0037116017844465625
+seed 2       , offset 1.0: L -14801.72865808279     path                            sqrt(mean(X_estimate-previous_X))= 0.008494824335477224
+seed 2       , offset 6.0: L  6249.93726898615      path  6287.955163043913         sqrt(mean(X_estimate-previous_X))= 0.04860226552057797 (This one flipped)
+seed 2       , offset 5.0: L -13876.44994915217     path  -9755.027979408747        sqrt(mean(X_estimate-previous_X))= 0.048404832338805145 
+seed 2       , offset 4.0: L -13876.44994915217     path  -17883.73500880844        sqrt(mean(X_estimate-previous_X))= 0.007112102245324013 
+seed 0       , offset 4.0: L -15419.344845948024     path  -8550.152602300686        sqrt(mean(X_estimate-previous_X))= 0.002785984840746242 
+frisluppen,    2pi random: L -14497.101410959049     path  -8550.152602300686        sqrt(mean(X_estimate-previous_X))= 0.007158166109343249 (FLIPPER IKKE!)
+helt random start, path seed 12 i stedet for 11  DNF (Did not flip)
+path seed 13 DNF
+14 
+
+Conclusion: Enough for a discussion, possibly a plot showing different results and having different L values given true F.
+
+
+Changed on robust-efficient-script to include extra parameters. RMSE difference 0.08330439712884885 which is almost nothing. 
+Must be something else. 
+
+I suspect it may be due to the spread of tuning curves outside range of X when path does not spread.
+For seed 16 path spread, ok inference.
+Seed 
+
+For good performance: 
+Let the inducing grid stay in the range of the path! Huzzah! That is realistic anyway <3 
+Actually quite important since we have to talk with the inducing points that are outside and also lose precision.
+
+Now to decide whether to initialize X over the range of the entire X or just in the width of the path? Can do it in 0,2pi because we can. 
+Even though we say that we know the X when we place the inducing points there. Those can be moved though. But is job.
+
+############ Today's changes to parallel:
+- change initialization to 2pi random random
+- make x_grid_inducing range only over the path of X
+- make x_grid_inducing a variable passed to function
+- Kt still proiduced outside, x_grid_inducing and Kggplain inside.
+

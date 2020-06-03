@@ -24,7 +24,7 @@ from multiprocessing import Pool
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 10 #2000 # Max time 85504
+T = 100 #2000 # Max time 85504
 N = 100
 N_iterations = 200
 
@@ -48,8 +48,8 @@ TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = True
 tuning_width = 1.2 # 0.1
 baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
-lambda_strength_array = [0.01]#,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
-seeds = [0,1]#,3,5,6,7,8,9,11,12,13,15,16,17,18,19,21,23,25,26] # 27 good #       # 2, 14 unfortunate for all, 4 unfortunate for 12, (10,20) unfortunate for some
+lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+seeds = [0,1,3,5,6,7,8,9,11,12,13,15,16,17,18,19,21,23,25,26] # 27 good #       # 2, 14 unfortunate for all, 4 unfortunate for 12, (10,20) unfortunate for some
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
@@ -108,10 +108,6 @@ def f_gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
 ########################
 # Covariance matrices  #
 ########################
-# Inducing points based on the actual range of X
-x_grid_induce = np.linspace(0, 2*np.pi, N_inducing_points) 
-#print("Min and max of path:", min(path), max(path))
-K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
 K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x, delta_x)
 K_t_inverse = np.linalg.inv(K_t)
 
@@ -165,7 +161,7 @@ def f_hessian_poisson(f_i, sigma_n, y_i, K_xg_prev, K_gg):
     return - f_hessian
 
 # L function
-def x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg): 
+def x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce): 
     start = time.time()
     K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     K_gx = K_xg.T
@@ -231,7 +227,7 @@ def x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg):
     return - posterior_loglikelihood
 
 # Gradient of L 
-def x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg):
+def x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce):
     ####################
     # Initial matrices #
     ####################
@@ -335,7 +331,7 @@ def x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg):
 
     ## Trace for each matrix in the tensor
     fMfsum = np.trace(fMf, axis1=1, axis2=2)
-    f_prior_gradient = sigma_n**-2 / 2 * fMfsum
+    f_prior_gradient = sigma_n**(-2) / 2 * fMfsum
 
     stop = time.time()
     if SPEEDCHECK:
@@ -406,7 +402,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         plt.xlabel("Time")
         plt.ylabel("x")
         plt.tight_layout()
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-path.png")
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-path.png")
     ## Generate spike data. True tuning curves are defined here
     if TUNINGCURVE_DEFINITION == "triangles":
         tuningwidth = 1 # width of tuning (in radians)
@@ -453,12 +449,18 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             timesinbin = (path>bins[x])*(path<bins[x+1])
             if(sum(timesinbin)>0):
                 observed_mean_spikes_in_bins[i,x] = mean( y_spikes[i, timesinbin] )
+    ###############################
+    # Covariance matrix Kgg_plain #
+    ###############################
+    # Inducing points based on the actual range of X
+    x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
+    #print("Min and max of path:", min(path), max(path))
+    K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     ######################
     # Initialize X and F #
     ######################
-    X_initial = 1.5 * np.ones(T)
     np.random.seed(0)
-    X_initial += 0.2*np.random.random(T)
+    X_initial = 2*np.pi*np.random.random(T)
     X_estimate = np.copy(X_initial)
     F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
     F_estimate = np.copy(F_initial)
@@ -472,7 +474,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         plt.title("X Estimate") # as we go
         plt.plot(path, color="black", label='True X')
         plt.plot(X_initial, label='Initial')
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + ".png")
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + ".png")
     prev_X_estimate = np.Inf
     sigma_n = np.copy(global_initial_sigma_n)
     for iteration in range(N_iterations):
@@ -497,13 +499,13 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             print("NB! NB! We're setting the f value to the optimal F given the path.")
             F_estimate = np.copy(true_f)
         if GRADIENT_FLAG: 
-            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
+            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
         else:
-            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", options = {'disp':False})
+            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", options = {'disp':False})
         X_estimate = optimization_result.x
         if PLOTTING:
             plt.plot(X_estimate, label='Estimate')
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + ".png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + ".png")
         if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
             # Flipping estimate after iteration 1 has been plotted
             X_estimate = 2*mean(X_estimate) - X_estimate
@@ -529,7 +531,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.title("After flipping") # as we go
             plt.plot(path, color="black", label='True X')
             plt.plot(X_initial_2, label='Initial')
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
         prev_X_estimate = np.Inf
         for iteration in range(N_iterations):
             if iteration > 0:
@@ -552,13 +554,13 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 print("NB! NB! We're setting the f value to the optimal F given the path.")
                 F_estimate = np.copy(true_f)
             if GRADIENT_FLAG: 
-                optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
+                optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
             else:
-                optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg), method = "L-BFGS-B", options = {'disp':False})
+                optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", options = {'disp':False})
             X_estimate = optimization_result.x
             if PLOTTING:
                 plt.plot(X_estimate, label='Estimate (after flip)')
-                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
+                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
             if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
                 # Flipping estimate after iteration 1 has been plotted
                 X_estimate = 2*mean(X_estimate) - X_estimate
