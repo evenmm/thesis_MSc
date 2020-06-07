@@ -1,0 +1,1555 @@
+we are running from this directory: /lustre1/home/evenmm/Master/thesis
+ the name of the job is: parallel_test
+Th job ID is 843620
+The job was run on these nodes: compute-2-0-16
+Number of nodes: 1
+We are using 20 cores
+We are using 20 cores per node
+Total of 20 cores
+Number of seeds we average over: 20
+Likelihood model: poisson
+Covariance kernel for Kx: nonperiodic
+Using gradient? True
+Noise regulation: False
+Initial sigma_n: 2.5
+Learning rate: 0.95
+T: 1000
+N: 100
+
+
+
+
+Lambda strength: 0.01
+RMSE for X, Averaged across seeds: 2.4541170722105483
+Time use: 352.05941796302795
+
+
+Seed 21 started.
+Seed 21 finished. RMSE for X: 2.7356137046288103
+Seed 13 started.
+Seed 13 finished. RMSE for X: 3.2151727291321515
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.2317472712829334
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.8553477780241545
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.6205497118119967
+Seed 6 started.
+Seed 6 finished. RMSE for X: 3.071093931640441
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.9497782186332393
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.520220498730465
+Seed 8 started.
+Seed 8 finished. RMSE for X: 3.059245666956965
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.099826224906776
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.1177999954716777
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.200533601090405
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.5016762561649726
+Seed 19 started.
+Seed 19 finished. RMSE for X: 2.5603310878272008
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.889563199467149
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.407122893103658
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.487819374888205
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.781108471742788
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.0367333604969518
+Seed 9 started.
+Seed 9 finished. RMSE for X: 2.741057468210023
+
+
+Lambda strength: 0.1
+RMSE for X, Averaged across seeds: 2.311403648746755
+Time use: 2194.7684655189514
+
+
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.7422490570957554
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.0933123859255884
+Seed 6 started.
+Seed 6 finished. RMSE for X: 3.0752183023375887
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.4992982329550393
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.9515769231664755
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.4621992446528205
+Seed 19 started.
+Seed 19 finished. RMSE for X: 2.570221810662978
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.7823123756318275
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.7184002788451123
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.4494317111635624
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.3652349625374383
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.014659120641581
+Seed 9 started.
+Seed 9 finished. RMSE for X: 2.2669318440427944
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.3474639533688526
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.275959089868973
+Seed 21 started.
+Seed 21 finished. RMSE for X: 2.286970590713397
+Seed 5 started.
+Seed 5 finished. RMSE for X: 1.8947250732920815
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.656073947690022
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.784945920287284
+Seed 11 started.
+Seed 11 finished. RMSE for X: 1.9908881500559215
+
+
+Lambda strength: 0.3
+RMSE for X, Averaged across seeds: 1.7207280804347982
+Time use: 4149.991794347763
+
+
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.4019590343761794
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.6297002665070424
+Seed 21 started.
+Seed 21 finished. RMSE for X: 2.216344038731158
+Seed 6 started.
+Seed 6 finished. RMSE for X: 2.3562824795188204
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.2789108052788234
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.7529306439593473
+Seed 9 started.
+Seed 9 finished. RMSE for X: 2.1599149280688485
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.8975433899208924
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.554662256684378
+Seed 11 started.
+Seed 11 finished. RMSE for X: 1.093936755578549
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.3358657955430173
+Seed 0 started.
+Seed 0 finished. RMSE for X: 1.0238743188156236
+Seed 7 started.
+Seed 7 finished. RMSE for X: 0.6448599143298809
+Seed 12 started.
+Seed 12 finished. RMSE for X: 1.4479359185079204
+Seed 23 started.
+Seed 23 finished. RMSE for X: 1.431450839748224
+Seed 26 started.
+Seed 26 finished. RMSE for X: 1.6692599698592596
+Seed 1 started.
+Seed 1 finished. RMSE for X: 0.7418012000611925
+Seed 15 started.
+Seed 15 finished. RMSE for X: 1.9139372519270454
+Seed 3 started.
+Seed 3 finished. RMSE for X: 0.7664410596422513
+Seed 5 started.
+Seed 5 finished. RMSE for X: 1.0969507416375113
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 0.5
+RMSE for X, Averaged across seeds: 1.282153077614604
+Time use: 4199.376188278198
+
+
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.6326351612727847
+Seed 8 started.
+Seed 8 finished. RMSE for X: 1.925721709238676
+Seed 15 started.
+Seed 15 finished. RMSE for X: 1.616052815598702
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.2169989926356903
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.845696125648901
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.8881495754138615
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.0053089187701008
+Seed 3 started.
+Seed 3 finished. RMSE for X: 0.6248012003689085
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 11 started.
+Seed 11 finished. RMSE for X: 0.860263805702554
+Seed 5 started.
+Seed 5 finished. RMSE for X: 0.8407290041324685
+Seed 7 started.
+Seed 7 finished. RMSE for X: 0.46130553866348106
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 23 started.
+Seed 23 finished. RMSE for X: 0.8589682174506392
+Seed 16 started.
+Seed 16 finished. RMSE for X: 1.446472905510762
+Seed 26 started.
+Seed 26 finished. RMSE for X: 1.3626512434089726
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.37396836139785
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 1 started.
+Seed 1 finished. RMSE for X: 0.5408323104871118
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.325113189933914
+Seed 12 started.
+Seed 12 finished. RMSE for X: 0.9139658876577483
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.2174278731509944
+Seed 0 started.
+Seed 0 finished. RMSE for X: 0.6859987158479555
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 0.7
+RMSE for X, Averaged across seeds: 1.1835180683199369
+Time use: 4270.729000329971
+
+
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.0376365591413013
+Seed 23 started.
+Seed 23 finished. RMSE for X: 1.1346392016983367
+Seed 1 started.
+Seed 1 finished. RMSE for X: 0.7069196100252371
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.395599789381759
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.697535092532417
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.3267402335716572
+Seed 18 started.
+Seed 18 finished. RMSE for X: 1.7598502519606167
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.4895907896147216
+Seed 19 started.
+Seed 19 finished. RMSE for X: 0.9825200688332776
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.6670627664314461
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 0 started.
+Seed 0 finished. RMSE for X: 0.9161390115982219
+Seed 8 started.
+Seed 8 finished. RMSE for X: 0.9462901559465305
+Seed 12 started.
+Seed 12 finished. RMSE for X: 1.340462705824739
+Seed 5 started.
+Seed 5 finished. RMSE for X: 0.5756883541007146
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.2025914889506395
+Seed 11 started.
+Seed 11 finished. RMSE for X: 0.6600646210336344
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 15 started.
+Seed 15 finished. RMSE for X: 0.6172693565732016
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.015775961576869
+Seed 26 started.
+Seed 26 finished. RMSE for X: 1.1748473801932722
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 16 started.
+Seed 16 finished. RMSE for X: 1.0231379674101446
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 1
+RMSE for X, Averaged across seeds: 0.9957058005811197
+Time use: 5069.2377343177795
+
+
+Seed 13 started.
+Seed 13 finished. RMSE for X: 0.9337130534718284
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.532861876239843
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.4854278851348073
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.6834588140245191
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.2936154420552144
+Seed 23 started.
+Seed 23 finished. RMSE for X: 0.7295399043268516
+Seed 15 started.
+Seed 15 finished. RMSE for X: 0.7636951518288367
+Seed 19 started.
+Seed 19 finished. RMSE for X: 0.3973344393951241
+Seed 7 started.
+Seed 7 finished. RMSE for X: 0.6886228826839388
+Seed 0 started.
+Seed 0 finished. RMSE for X: 1.1385482023622946
+Seed 6 started.
+Seed 6 finished. RMSE for X: 0.9154494072745956
+Seed 5 started.
+Seed 5 finished. RMSE for X: 0.7043649046997328
+Seed 12 started.
+Seed 12 finished. RMSE for X: 1.4882842962301037
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.4891179318756453
+Seed 26 started.
+Seed 26 finished. RMSE for X: 1.0162879349202312
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.3477447253413548
+Seed 16 started.
+Seed 16 finished. RMSE for X: 0.6938299829548533
+Seed 18 started.
+Seed 18 finished. RMSE for X: 0.7399741889379169
+Seed 11 started.
+Seed 11 finished. RMSE for X: 0.9480986901776479
+Seed 8 started.
+Seed 8 finished. RMSE for X: 0.9241462976870515
+
+
+Lambda strength: 2
+RMSE for X, Averaged across seeds: 1.0622986457860093
+Time use: 3777.9227628707886
+
+
+Seed 15 started.
+Seed 15 finished. RMSE for X: 0.8430997991311979
+Seed 0 started.
+Seed 0 finished. RMSE for X: 0.8869075048802926
+Seed 11 started.
+Seed 11 finished. RMSE for X: 0.5116702528192203
+Seed 12 started.
+Seed 12 finished. RMSE for X: 1.8470485786125548
+Seed 13 started.
+Seed 13 finished. RMSE for X: 0.8146903244909102
+Seed 16 started.
+Seed 16 finished. RMSE for X: 0.3087146787446717
+Seed 26 started.
+Seed 26 finished. RMSE for X: 0.7789535133078818
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.2050823492439355
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.9284986428230921
+Seed 19 started.
+Seed 19 finished. RMSE for X: 0.33790688470413627
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.1761305500109822
+Seed 6 started.
+Seed 6 finished. RMSE for X: 0.360565120921821
+Seed 5 started.
+Seed 5 finished. RMSE for X: 0.6709510357665937
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.5116593609592757
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.060957763292127
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.2736858406452694
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.8556963842229808
+Seed 25 started.
+Seed 25 finished. RMSE for X: 0.7348572037774793
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.26073094251793
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 26 started.
+Seed 26 finished. RMSE for X: 0.7739016332662364
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.5511585250469795
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.3889109613180379
+Seed 18 started.
+Seed 18 finished. RMSE for X: 1.7853830780680808
+Seed 16 started.
+Seed 16 finished. RMSE for X: 1.8618580685622037
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.3172159590533037
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.0414727896227074
+Seed 6 started.
+Seed 6 finished. RMSE for X: 0.26889565797757564
+Seed 23 started.
+Seed 23 finished. RMSE for X: 0.671316564373129
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.0479271502989946
+Seed 7 started.
+Seed 7 finished. RMSE for X: 0.6829348463633399
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.490810097889755
+Seed 0 started.
+Seed 0 finished. RMSE for X: 1.964788696898706
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.5625820222963756
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.4713403090706083
+Seed 15 started.
+Seed 15 finished. RMSE for X: 1.4450683372444817
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.950260071223957
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.303094687132554
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.6430403335093526
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 13 started.
+Seed 13 finished. RMSE for X: 1.7173788622916606
+
+
+Lambda strength: 3
+RMSE for X, Averaged across seeds: 1.496966932575402
+Time use: 6690.050822257996
+
+
+Seed 23 started.
+Seed 23 finished. RMSE for X: 0.35889883535175165
+Seed 7 started.
+Seed 7 finished. RMSE for X: 0.6204390701882218
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.3268032464343111
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.051166073327245
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.7509052359928372
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.069352185043243
+Seed 5 started.
+Seed 5 finished. RMSE for X: 0.36437397984464065
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.2147577754239836
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.6172772517085994
+Seed 6 started.
+Seed 6 finished. RMSE for X: 0.2371925962655705
+Seed 16 started.
+Seed 16 finished. RMSE for X: 1.876054125925281
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.7767635363457746
+Seed 0 started.
+Seed 0 finished. RMSE for X: 1.9910986298233537
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.499335670342604
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.4671872833890929
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.0365325530669516
+Seed 15 started.
+Seed 15 finished. RMSE for X: 1.4595534371264125
+Seed 18 started.
+Seed 18 finished. RMSE for X: 1.5899018115440817
+Seed 26 started.
+Seed 26 finished. RMSE for X: 1.608347439047549
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.1004310410934135
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 4
+RMSE for X, Averaged across seeds: 1.4508185888642458
+Time use: 6921.350073814392
+
+
+
+
+Lambda strength: 5
+RMSE for X, Averaged across seeds: 1.6502942768325628
+Time use: 5097.766581058502
+
+
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.4347621965161819
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.35511354777526544
+Seed 6 started.
+Seed 6 finished. RMSE for X: 0.19588149400384794
+Seed 16 started.
+Seed 16 finished. RMSE for X: 1.9369470831285607
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.7150348042384471
+Seed 13 started.
+Seed 13 finished. RMSE for X: 1.8581385412483284
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.4590298687639671
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.8776817359084792
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.289256868352919
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.594301957330062
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.017376615329683
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.179825354777781
+Seed 18 started.
+Seed 18 finished. RMSE for X: 1.6998883316247988
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.5084583178264181
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.50117765988274
+Seed 5 started.
+Seed 5 finished. RMSE for X: 1.1973213955141835
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 15 started.
+Seed 15 finished. RMSE for X: 1.463693130135103
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.355648422442915
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.724985186839454
+Seed 23 started.
+Seed 23 finished. RMSE for X: 1.641363025012123
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 6
+RMSE for X, Averaged across seeds: 1.8121303911776774
+Time use: 7294.699887752533
+
+
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.3039497194887123
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.4974212373620146
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.458429615062292
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.5855979857140996
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.6985879513213666
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.9091827092692324
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.512068798621162
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.4153219507907313
+Seed 18 started.
+Seed 18 finished. RMSE for X: 1.6832221994047318
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.943763865553434
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.247449548855174
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.0030345811154944
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.556701391597579
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.375167253310935
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.8966466019874353
+Seed 23 started.
+Seed 23 finished. RMSE for X: 1.5402600732082385
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 5 started.
+Seed 5 finished. RMSE for X: 1.4122652995127258
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.547854058515493
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.0268094892515176
+Seed 13 started.
+Seed 13 finished. RMSE for X: 1.6288734936111808
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 7
+RMSE for X, Averaged across seeds: 1.9276727123620918
+Time use: 5230.836555480957
+
+
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.6304822578733924
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.4797820698441506
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.2564770600326223
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.6371360276359113
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.8206417898506586
+Seed 1 started.
+Seed 1 finished. RMSE for X: 1.8981520680802983
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.8349129059165774
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.3261215981508294
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.2795309238126764
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.6727749531886247
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.393405553703048
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.5993209128307009
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.075908652429029
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.364509697782866
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.9965741544064775
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.9294950023844237
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.0536311914261582
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 23 started.
+Seed 23 finished. RMSE for X: 0.9266364821046956
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.260822011269323
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1171389345193767
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.9313853812923254
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.731890060881243
+Seed 9 started.
+Seed 9 finished. RMSE for X: 0.7465835600151423
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.418933992888752
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.1024193024007505
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.7233981585564455
+Seed 12 started.
+Seed 12 finished. RMSE for X: 1.8525724431869954
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.772055443614012
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.114216475088493
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.3531537610611024
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.290086303127127
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.2414528703473167
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.4016233953416535
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.1039212442959263
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.010027975490346
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.9320512897589006
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.210987626811612
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.107067816728841
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.912193724427965
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.665160112120875
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 8
+RMSE for X, Averaged across seeds: 2.031059046871791
+Time use: 9633.522401809692
+
+
+Seed 12 started.
+Seed 12 finished. RMSE for X: 1.9629409411142962
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.7649770100147864
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.0611735781230274
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.6857531193051305
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.6809634796365616
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.149761561287046
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.3175436264650497
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.7852126266464574
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.3341868199027758
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.718037732798857
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.200942895889197
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.2447064304554196
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.8409107036713506
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.0400327654620756
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.326338006450355
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.213346889594449
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1004239211835976
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.3177268058643516
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.8962383480510234
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.2021723673632856
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 9
+RMSE for X, Averaged across seeds: 2.0421694814639544
+Time use: 6518.524954557419
+
+
+
+
+Lambda strength: 10
+RMSE for X, Averaged across seeds: 2.1300197446311864
+Time use: 5377.434408426285
+
+
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.194039856377634
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.8669903147494364
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.4327808709496
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.2612419435911386
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.6518593415589233
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.1742262738241864
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.66099487417239
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.9450875221197848
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.320011687109521
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.3012157764769685
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.201641949423778
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.080328795587799
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.323710326329068
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.2653385319095656
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.3165561626701336
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.8754110375012465
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.8294550996692103
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1285196182647512
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.835467184250852
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.9355177260877354
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 11
+RMSE for X, Averaged across seeds: 2.1395135901339293
+Time use: 8517.707441091537
+
+
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.8297784430885535
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.9699521813159566
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.531538045276209
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.259005898859561
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.181124518561683
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.967914072884573
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.4006411431862693
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.3428035551083006
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.8906684908986282
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.6649539284056167
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.121541698780089
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.8680293547098459
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.3412043940897576
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.6491232706373318
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.1530516664553367
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.30380127245621
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.5728037010133686
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.8680517134469625
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.392675022268387
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.4816094312359582
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.9013511987575868
+Seed 25 started.
+Seed 25 finished. RMSE for X: 1.9750274161348604
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.166569169728784
+Seed 6 started.
+Seed 6 finished. RMSE for X: 1.9867725521578545
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.2802477595036805
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.107621021722547
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.5304458318628766
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.6799270757155726
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.3076156443766753
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.1624532594961177
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.9098622567698011
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.9188604815486272
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.3240675581081907
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.139781695905532
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.8929108390199456
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.7864753736780077
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.565629990668749
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.0697819582302848
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.174813685741882
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.48529768188056
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 12
+RMSE for X, Averaged across seeds: 2.1182756225504065
+Time use: 9204.245648384094
+
+
+
+
+Lambda strength: 13
+RMSE for X, Averaged across seeds: 2.160261884583843
+Time use: 9191.518896579742
+
+
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.0287723055979603
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.311512609297897
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.392027142017101
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.0899628109598973
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.700917326649415
+Seed 6 started.
+Seed 6 finished. RMSE for X: 2.0184933359874795
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.329148660472408
+Seed 17 started.
+Seed 17 finished. RMSE for X: 1.843101263867243
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.2756878991065017
+Seed 3 started.
+Seed 3 finished. RMSE for X: 2.016237535738491
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.1102016328059965
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.9225849059331304
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.7559741409248542
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.3462154855965
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.312411466193755
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.306128900742227
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1602343658645897
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.8523193425684967
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.4853941554166266
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.9479124059362949
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 14
+RMSE for X, Averaged across seeds: 2.173111420285705
+Time use: 9601.43127989769
+
+
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.8766041278925691
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.3370771793025913
+Seed 6 started.
+Seed 6 finished. RMSE for X: 2.1049915401770463
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.321425192983211
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.101353889253902
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.258909246676681
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.7856804183768535
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.207377528010914
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.373600678566192
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.9175891550966977
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.3390586964995004
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.8246849646357042
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.152842657026485
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.2948238170190804
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.370321718400432
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.1019670438076634
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1478479254298
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.5276071422124007
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.474938165095424
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.9435273192509537
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.9035690787570452
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.345727180187348
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.2965090865080082
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.364927597069387
+Seed 6 started.
+Seed 6 finished. RMSE for X: 2.0891488834849214
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.2248006870184853
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.383454890237177
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.711203960454372
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.374934443767845
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.4384595913310707
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.9196633650700183
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.8202694930346226
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.077488286243925
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.8767653739595787
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.798957612640339
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.1323128858784672
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.350244456826849
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1800472887212194
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.4672204134454487
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.0808477342694776
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 15
+RMSE for X, Averaged across seeds: 2.1918276154452805
+Time use: 9823.432631731033
+
+
+
+
+Lambda strength: 16
+RMSE for X, Averaged across seeds: 2.2145110576336933
+Time use: 9471.475401639938
+
+
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.8655968864988544
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.085688027168524
+Seed 6 started.
+Seed 6 finished. RMSE for X: 2.1627361445911157
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.4253069019548277
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.920219672069225
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.3798673882421286
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.8333918896409158
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.4584050870249556
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.147850795547572
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.3576530427069247
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1813333855511465
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.328033412644789
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.1140820011322514
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.7810797907628222
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.825123385328467
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.265330975477996
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.10517095481536
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.5638783450736335
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.9833441877169304
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.5061288787254306
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 17
+RMSE for X, Averaged across seeds: 2.201474087977145
+Time use: 8581.958387851715
+
+
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.8800016350638413
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.1290753057811047
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.0907050312983966
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.4013756175114143
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.7732413761937322
+Seed 6 started.
+Seed 6 finished. RMSE for X: 2.17058584524998
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.391199231749916
+Seed 23 started.
+Seed 23 finished. RMSE for X: 1.9550382995301807
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.4906564287252726
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.8704310778692457
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.1207636061760664
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.3419037096016058
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.1820477847427324
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.909231345204948
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.320666935350865
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.4022940027994273
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.5129161717464608
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.856544244306867
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.2439078259387233
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.9868962847021119
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+
+
+Lambda strength: 18
+RMSE for X, Averaged across seeds: 2.1872387986083255
+Time use: 8183.067131280899
+
+
+Seed 3 started.
+Seed 3 finished. RMSE for X: 1.8444267139226047
+Seed 25 started.
+Seed 25 finished. RMSE for X: 2.125111061339467
+Seed 7 started.
+Seed 7 finished. RMSE for X: 1.8485842251896902
+Seed 1 started.
+Seed 1 finished. RMSE for X: 2.3570107127902946
+Seed 16 started.
+Seed 16 finished. RMSE for X: 2.369910251497683
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 6 started.
+Seed 6 finished. RMSE for X: 2.204868094721255
+Seed 8 started.
+Seed 8 finished. RMSE for X: 2.4386341735315407
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 17 started.
+Seed 17 finished. RMSE for X: 2.002097639946315
+Seed 11 started.
+Seed 11 finished. RMSE for X: 2.3173084679748497
+Seed 9 started.
+Seed 9 finished. RMSE for X: 1.9099484860581133
+Seed 18 started.
+Seed 18 finished. RMSE for X: 2.3398808460896254
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 12 started.
+Seed 12 finished. RMSE for X: 2.378591143278625
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 19 started.
+Seed 19 finished. RMSE for X: 1.865588506161519
+Seed 15 started.
+Seed 15 finished. RMSE for X: 2.135235515335284
+Seed 13 started.
+Seed 13 finished. RMSE for X: 2.187888008925809
+Seed 0 started.
+Seed 0 finished. RMSE for X: 2.218599253952443
+Seed 5 started.
+Seed 5 finished. RMSE for X: 2.5471565746976483
+Seed 26 started.
+Seed 26 finished. RMSE for X: 2.471660287362722
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+Seed 21 started.
+Seed 21 finished. RMSE for X: 1.9820503395614848
+Seed 23 started.
+Seed 23 finished. RMSE for X: 2.2002256698295364
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+parallel-robustness-evaluation.py:142: RuntimeWarning: overflow encountered in exp
+  likelihoodterm = sum( np.multiply(y_i, f_i) - np.exp(f_i))
+parallel-robustness-evaluation.py:150: RuntimeWarning: overflow encountered in exp
+  yf_term = y_i - np.exp(f_i)
+slurmstepd: error: *** JOB 843620 ON compute-2-0-16 CANCELLED AT 2020-06-07T09:48:45 DUE TO TIME LIMIT ***

@@ -285,14 +285,14 @@ Many neurons
 Much time
 Good initialization
 Some random path
-Narrow tuning width
+Narrow tuning width --> NO! Wide tuning width 06.07
 Strong tuning_strength 
 
 Then, when it works, let's start with many neurons and much time and see how strong the tuning must be for us to find it.
 
 OBSERVATAION::::
 When we changed to not uniform distribution of widths and position, inference worked better!
-MaY BE DUE TO just wider tunings. 
+MaY BE DUE TO just wider tunings. (Yes.)
 Can check this by just varying positions while keeping widths the same.
 Then task will be to check what width is optimal.
 
@@ -706,3 +706,78 @@ The inference is super bad for T=1000 (!)
 Initial positioning may have more significance for higher T??
 Y E S .
 2pirandom starts horrible for high T.
+
+
+\subsection{07.06}
+
+HOW TO PLOT: 
+plt.figure()
+plt.title("Final estimates") 
+plt.xlabel("Time")
+plt.ylabel("x")
+plt.plot(path, color="black", label='True X')
+plt.plot(X_estimate, label='Estimate')
+plt.legend(loc="upper right")
+plt.tight_layout()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-final.png")
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/2020-06-07-ii-initial.png}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/2020-06-07-ii-final.png}
+    \end{minipage}
+    \caption{Left: 7 Initial starting points. The initial estimates are independent uniform samples between 0 and $2\pi$ for every timepoint $\vect{x}_t$. Right: Final estimates. }
+    \label{upsidedown1}
+\end{figure}
+
+
+W O O W !!
+Random noise makes the start worse!!!! 
+Start it just flatly!!!
+(Then no ensemble :o ) 
+
+Lærdom: 
+Når jeg sender mail til bEN med ting som ikke funker, men fremdeles har ting jeg kan gjøre eller skrive opp, så kan jeg fort finne ut av det ved bare å skrive det opp systematisk
+eller prøve ut ting. 
+Mye artigere å sende gode resultater og ting som funker. 
+Men når man lurer på ting er det bare å sende.
+Spesielt fordi man får ordnet tankene sine på det viset. 
+
+Attempt for cluster: 
+5 different path seeds, 1 starting (1*np.ones(T)), 4 processors each to maybe speed up times 4? 
+Also lower tolerance to 1e-3
+
+First, try 5 different seeds for T = 1000 locally to see if rmse is any good: 
+Then run T = 1000 on cluster: 
+Run T = 10 and 10 locally at the same time: 
+Old time uses, from high to low tuning strrength
+8183.067131280899
+8581.958387851715
+9471.475401639938
+9823.432631731033
+9601.43127989769
+9191.518896579742
+9204.245648384094
+8517.707441091537
+5377.434408426285
+9633.522401809692
+5230.836555480957
+7294.699887752533
+5097.766581058502
+6921.350073814392 4
+6690.050822257996 3
+3777.9227628707886 2
+5069.2377343177795 1
+4270.729000329971
+4199.376188278198
+4149.991794347763
+2194.7684655189514
+352.05941796302795 0.01
+
+
+Check if overflow still exists?:

@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --partition=CPUQ
 #SBATCH --account=share-ie-imf
-#SBATCH --time=00:30:00
+#SBATCH --time=70:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=20
 #SBATCH --mem=12000
@@ -27,12 +27,12 @@ module load CUDA/9.2.88
 module load OpenMPI/3.1.1
 module load Python/3.6.6
 
-virtualenv pythonhome
+#virtualenv pythonhome
 source pythonhome/bin/activate
-pip install scipy numpy matplotlib
-export OMP_NUM_THREADS=1
+#pip install scipy numpy matplotlib
+export OMP_NUM_THREADS=4
 
-nice python parallel-robustness-evaluation.py
+/usr/bin/time -v python parallel-robustness-evaluation.py
 
 uname -a
 
