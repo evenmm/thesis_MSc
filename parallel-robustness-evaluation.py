@@ -24,7 +24,7 @@ from multiprocessing import Pool
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 100 #2000 # Max time 85504
+T = 1000 #2000 # Max time 85504
 N = 100
 N_iterations = 200
 
@@ -48,8 +48,8 @@ TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = True
 tuning_width = 1.2 # 0.1
 baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
-lambda_strength_array = [12] #[0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
-seeds = [0,1,3,5,6] # 7,8,9,11,12,13,15,16,17,18,19,21,23,25,26,27 good #       # 2, 14 unfortunate for all, 4 unfortunate for 12, (10,20) unfortunate for some
+lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+seeds = [0,1,3,5,11] #[0,1,3,5,7,9,11,12,13,15,16,17,18,19,21,23,25,26,27 good #      2,6,8,10,14,20 bad
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8

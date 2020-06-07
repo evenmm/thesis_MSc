@@ -30,7 +30,7 @@ lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 GRADIENT_FLAG = True # Set True to use analytic gradient
 SPEEDCHECK = False
-TOLERANCE = 1e-5
+TOLERANCE = 1e-3
 NOISE_REGULARIZATION = False
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 10
@@ -451,13 +451,11 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     ######################
     np.random.seed(seedindex)
     print("Initializing X using seed", starting_seed_array[seedindex])
-    #X_initial = 1 * np.ones(T)
-    X_initial = path
+    X_initial = 1 * np.ones(T)
     X_estimate = np.copy(X_initial)
     #epsilon_fstart = 1e-3
     #F_initial = np.log(y_spikes + epsilon_fstart)
-    #F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
-    F_initial = true_f
+    F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
     F_estimate = np.copy(F_initial)
     if GIVEN_TRUE_F:
         F_estimate = true_f
@@ -643,7 +641,6 @@ if __name__ == "__main__":
         endtime = time.time()
         print("Time use:", endtime - starttime)
 
-        print(result_array)
         # Unpack results
         for i in range(len(starting_seed_array)):
             initial_array[i] = result_array[i][0]
@@ -653,7 +650,7 @@ if __name__ == "__main__":
             L_values_true_f[i] = result_array[i][4]
             seed_index_array[i] = result_array[i][5]
             
-        print("rmse from indexing:\n", rmse_values)
+        print("rmse:\n", rmse_values)
         print("L values with corresponding F estimate\n", L_values)
         print("L values with true F\n", L_values_true_f)
 
