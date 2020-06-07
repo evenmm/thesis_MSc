@@ -23,17 +23,18 @@ numpy.random.seed(13)
 #print(a)
 #plt.plot(lambda_strength_array, a, ".")
 
-lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
-T_10 = np.load("T_10.npy")
-T_100 = np.load("T_100.npy")
-T_1000 = np.load("T_1000.npy")
+#lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+T_10 = np.load("mean_rmse_values-T-10-up-to-lambda-15.npy")
+T_100 = np.load("mean_rmse_values-T-100-up-to-lambda-15.npy")
+T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-0.7.npy")
 
 plt.figure()
 plt.xlabel("Tuning strength")
 plt.ylabel("RMSE")
-plt.plot(lambda_strength_array[:len(T_1000)], T_10[:len(T_1000)], ".", label="T=10")
-plt.plot(lambda_strength_array[:len(T_1000)], T_100[:len(T_1000)], ".", label="T=100")
-plt.plot(lambda_strength_array[:len(T_1000)], T_1000, ".", label="T=1000")
+plt.plot(lambda_strength_array, T_10, ".", label="T=10")
+plt.plot(lambda_strength_array, T_100, ".", label="T=100")
+plt.plot(lambda_strength_array, T_1000, ".", label="T=1000")
 plt.legend(loc="upper right")
 plt.ylim(ymin=0)
 plt.tight_layout()

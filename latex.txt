@@ -735,6 +735,19 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-final.png")
     \label{upsidedown1}
 \end{figure}
 
+Old ensemble idea before flat start proved worthy: 
+\subsection{Ensemble of starting points}
+4 seeds for initial start, take best L value. 
+Show ensemble of 4 seeds for good starting position.
+\subsection{Hack-y solution for dealing with partly flipped estimates}
+As can be seen in figure \ref{upsidedown2}, there is (usually) a bigger discontinuity than usual in \matr{X}.
+\begin{itemize}
+    \item Find discontinuity points.
+    \item For each interval between, find best if flipped or not flipped. 
+    \item Re-iterate from the edited estimate 
+    \item If necessary, repeat until no discontinuities
+\end{itemize}
+
 
 W O O W !!
 Random noise makes the start worse!!!! 
@@ -748,14 +761,19 @@ Mye artigere å sende gode resultater og ting som funker.
 Men når man lurer på ting er det bare å sende.
 Spesielt fordi man får ordnet tankene sine på det viset. 
 
+
+Interestingly: When started at true X, it converges to something worse than when it is started flatly!!!!! ???? !!!!!
+For flat start: 0.17342200792078588
+For true start: 0.2890430891684393
+
 Attempt for cluster: 
 5 different path seeds, 1 starting (1*np.ones(T)), 4 processors each to maybe speed up times 4? 
-Also lower tolerance to 1e-3
+Also inrease tolerance, from 1e-5 to 1e-3, and remove Plotting
 
-First, try 5 different seeds for T = 1000 locally to see if rmse is any good: 
+First, try 5 different seeds for T = 1000 locally to see if rmse is any good with flat start: Flat start, no problem, found 5 good seeds for path.
 Then run T = 1000 on cluster: 
-Run T = 10 and 10 locally at the same time: 
-Old time uses, from high to low tuning strrength
+Run T = 10 and 100 locally at the same time: 
+Old time uses T=1000, from high to low tuning strrength
 8183.067131280899
 8581.958387851715
 9471.475401639938
@@ -779,5 +797,8 @@ Old time uses, from high to low tuning strrength
 2194.7684655189514
 352.05941796302795 0.01
 
-
 Check if overflow still exists?:
+
+And that's a good day for a good boy.
+
+Seed 1 may actually be unfortunate!!!!!! for T=100
