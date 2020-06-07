@@ -1,3 +1,137 @@
+\subsection{15.04.20}
+The value of the objective function L depends with the hyperparameter sigma\_n. But does the position of local minima around the true path also vary?
+
+Given sigma = 0.6, we compare true path and estimate and find that the estimate has a lower p value. This estimate is flipped around. 
+
+path 1058.4738079522733
+Estimate 1002.3897741405133
+
+What happens if we shift the placing of the estimate? Or if we shift the path? Or flip the estimate? Or flip and align with the true X?
+
+Shifting the estimate up and down gives min value at the estimate: 
+shifted by -5 : 1118.238888004169
+shifted by -4 : 1070.7585427495162
+shifted by -3 : 1038.0394208892214
+shifted by -2 : 1017.0359855482621
+shifted by -1 : 1005.5726677442016
+shifted by 0 : 1002.3897741405133
+shifted by 1 : 1007.1324971575576
+shifted by 2 : 1020.3231269647
+shifted by 3 : 1043.3376392501282
+shifted by 4 : 1078.3924929922844
+
+scaling the estimate: 
+scaled by 1.1 ** -5 : 2485.9833285452078
+scaled by 1.1 ** -4 : 1938.1712650892023
+scaled by 1.1 ** -3 : 1519.2471886941853
+scaled by 1.1 ** -2 : 1216.146747465932
+scaled by 1.1 ** -1 : 1054.4233313992177
+scaled by 1.1 ** 0 : 1002.3897741405133
+scaled by 1.1 ** 1 : 1121.07586794378
+scaled by 1.1 ** 2 : 1861.9337805872415
+scaled by 1.1 ** 3 : 4002.5830860546175
+scaled by 1.1 ** 4 : 8631.15748918654
+
+Flipped path kept in the same place 1139.1409233458628
+Flipped path moved to the placement of estimate 1062.0333587660612
+(Now we learned that the estimate and the true X do not have exactly equal shapes. They MAY be scaled versions of each other still. 
+
+Flipped path moved to the placement of estimate 1000.6911275431675
+So the estimate has even better likelihood score when flipped the right way. We interpret this to mean that it has fallen into a local optima that has a better L value than the actual estimate for this setup of parameter and f curves. 
+But it is still an affine transformation of the true path. That shape yields the best fit (under this sigma) but it has lower likelihood values for some other affine versions of it. 
+Affine transformation of estimate can be done to line it up with true X:
+Flipped path moved to the placement of estimate 1043.08809847666
+A value better than true X, but worse than X estimate that was mirrored.
+
+
+Now to try with other sigma in the likelihood function (in the data creation we actually have sigma = 0)
+
+sigma 0.285
+path -3535.13732508039
+Estimate -3746.7165741981266
+Flipped path moved to the placement of estimate -3585.0665772629027
+
+sigma 1.9
+path 7213.622080631035
+Estimate 7216.433651711254
+Flipped path moved to the placement of estimate 7211.890379103076
+
+sigma 2.8499999999999996
+path 9662.270955111982
+Estimate 9672.375863996107
+Flipped path moved to the placement of estimate 9662.432108591025
+
+For low sigmas, the path is worse than estimate. 
+For large sigmas, the path is better. So maybe we're lucky and fall into a good local minimum. 
+
+\subsubsection{Change the tuning curves}
+Idea: Could it be due to the symmetry of the problem?
+We should have more random tuning curves for a good example that has a unique solution, now that the loglikelihood approximation has enabled us to infer the X based on f.
+
+Ideas: 
+Change to less symmetric tuning curves, lke gaussian bumps with different height and width or something.
+
+If the true X is needed to align the estimate, then the use of this for exploratory data analysis will be to find some latent variable that we do not know what is, nor on what scale. Then that must be interpreted to set up a new experiment. 
+So this tool can measure how much of the variance in a dataset can be explained by an N-dimensional latent variable. And then we can hold it up to the observed whatever, and observe if the relevant variable is what causes the activity. 
+
+\subsection{17.04.2020}
+When sigma is increased to say 10, the variations in f values are smaller than the expected variation that is due to noise, and Kx looks more like a diagonal matrix. If the f don't matter so much then the most important thing is to make X smooth and small. Therefore we get a shrinked version of the estimate. 
+
+\subsection{18.04.2020}
+Checking how the different terms of the posterior respond to shifting. 
+The yf term does not care
+The f prior term finds the correct spot!!
+The logdet term has a peak instead of a valley when the estimate is shifted to align with the true path. 
+The X prior term is just soooooo fucking small when we have a continuous path!! Like 8 or 9 compared to 4000 for others. It generally prefer smaller values of X but has a small local minima around the estimated position. Cool. 
+
+1. Verify that f prior term finds the right alignment also for other paths.
+2. Maybe f prior term can work to flip? 
+Do same mewthod there! Check which terms help flip around and get it done. 
+
+\subsection{24.04.2020}
+Shifting. Works well, but may be more important to let it optimize on its own.
+We can shift it 0.5 or 0.1 of the estimated correct shift to allow the f values to adjust and mauybe get a better fit.
+It appears that if I choose a good sigma in the beginning it gives a good result, but if I choose a bad sigma, it will settle for a bad local minima. Maybe this is true? Importance of parameter selection.
+
+\subsection{25.04.2020}
+For standard errors, bootstrap the data.
+
+\subsection{EM algorithm \cite{dempster1977maximum} }
+Incomplete data setting. 
+We have Observed variables X, Unobserved variables Z; Y denotes the complete dataset of hidden and observed variables: Y = (X,Z).
+$\theta^{(t)}$ is used in the calculation of E(Z|X), the expected value of the hidden given the observed. 
+THat is it. 
+We want to take Max likelihood of some observations X and Z, where Z is actually unobserved. 
+Then start off with some estimate of $\theta$. Compute the expected loglikelihood of the observations, conditioned on x and $\theta$: The observed X stay, but for z we input the expectation given the estimate of $\theta$. 
+Then from this expression take the argmax; Repeat. 
+
+In the TMA4300 exam, the complete data likelihood was just the unobserved one that we were interested in. Then to find the Q function we find the expected loglikelihood of the hidden variabels conditioned on the observed value and the previous lambda estimate.
+
+''we will
+learn that taking the required expectation is tricker in real applications, because one
+needs to know the conditional distribution of the complete data given the missing
+data. Here, they were independent.''
+
+\subsection{27.04.2020}
+Kjører EM på ekte HD-data.
+80 nevroner ser ikke ut til å være nok. X er knapt innom 1 og 2, ikke resten av området. 
+
+\subsection{10.05.2020}
+Finding point estimators of the hyperparameters of the Gaussian processes after we have converged to some estimates.
+Taking 
+§
+§
+§
+§
+§
+§§
+§§§
+§§§
+§§§§§§§
+§§§§§§§§
+§§§§§§§§§
+§§§§§§§§§§
+§§§§§§§§§
 
 For T = 
 
@@ -123,10 +257,6 @@ I've worked on being able to infer it even if it's periodic, but that will be ne
 But first I'll finish making the presentation and start practicing :)
 A cool bonus is that I didn't have to use a fancy initialization of the X like PLDS or something. The important thing was to start inferring X based on F instead of F based on X, since we get  a pretty good F estimate this way: 
 There should maybe be some theory on how to transform Poisson data to look like Normal data? 
-
-A cool bonus is that I didn't have to use a fancy initialization of the X like PLDS or something. The important thing was to start inferring X based on F instead of F based on X, since we get  a pretty good F estimate this way: ...
-There could maybe be some theory on how to transform Poisson data to look like Normal data? 
-
 
 \subsection{10.05.2020}
 Finding point estimators of the hyperparameters of the Gaussian processes after we have converged to some estimates.
@@ -479,3 +609,100 @@ Between 2 and 101 seconds for an all seed iteration
 Mean about 50 sek.
 Times 25, and we're at 1250 sek = 20 min
 
+\subsection{04.06}
+Attempt at fixing flipping: 
+Took estimate after 1 iteration and continued converging from there -> worse results. OK.
+Or in some cases it is actually better since it escapes the local minima.
+RMSe values: 
+Old flipping regime: 
+#############################
+Seed: 5
+RMSE for X: 2.000361249666058
+RMSE for X flipped: 0.757352511105472
+Re-iterating because of flip
+RMSE for X: 0.30142939816461645
+RMSE for X flipped: 0.757352511105472
+L value for path: -7631.550567025655
+L value for X: -10266.25078619499
+Time for one iteration: 187.27693104743958
+Seed: 6
+RMSE for X: 2.0596136872448176
+RMSE for X flipped: 0.5175562624817303
+Re-iterating because of flip
+RMSE for X: 0.2391187534574545
+RMSE for X flipped: 0.5175562624817303
+L value for path: 6554.17805983942
+L value for X: 6508.124605750462
+Time for one iteration: 23.47577929496765
+Seed: 8
+RMSE for X: 0.4180241777651441
+RMSE for X flipped: 0.26133791003888834
+L value for path: 6482.07908704072
+L value for X: 6414.940573150899
+L value for previous X: 8541.064856381898
+Time for one iteration: 154.43976879119873
+
+
+New flipping regime: 
+##############################
+Lambda strength: 8
+Seed: 5
+RMSE for X: 2.000361249666058
+RMSE for X with flipstart: 0.7621501051176602
+Comparing L values, setting F_estimate to true F
+L value for path: 8005.422829962662
+L value for X: 13883.96852137041
+L value for X with flipstart: 13810.3239693414
+Time for one iteration: 63.12100887298584
+Seed: 6
+RMSE for X: 2.0596136872448176
+RMSE for X with flipstart: 0.24589981784721887
+Comparing L values, setting F_estimate to true F
+L value for path: 7833.596953810112
+L value for X: 7616.131392448836
+L value for X with flipstart: 7631.840703670283
+Time for one iteration: 42.692402362823486
+Seed: 8
+RMSE for X: 3.005939845783482
+RMSE for X with flipstart: 0.2741920654942813
+Comparing L values, setting F_estimate to true F
+L value for path: -2087.97177590144
+L value for X: -34.143720114132364
+L value for X with flipstart: -83.78201820775726
+Time for one iteration: 282.0005621910095
+
+Averaged over these three, the older version seems better in RMSE.
+
+
+
+See the abomination that is partly upside down? This can happen. Fortunately, the ones with better RMSE usually have better loglikelihood scores as well, so we can just choose the estimate with the best loglikelihood value.
+rmse from indexing: 
+[0.1436712  0.14436951 0.14432622 0.14840053 0.12341689 0.14436426
+ 0.15332464 0.14737077 0.1146582  1.26986762 0.11476183 0.14436408
+ 0.14664441 0.14432997 0.1451634  0.14395113 0.1397909  0.14981116
+ 0.1233547  0.14439709]
+L values with corresponding F estimate 
+[ 5319.52987402  6519.46143327  6519.46304017  6519.46352601
+  5019.6842911   6519.46165313 -9950.97827048  6519.46008073
+  4120.0972603   6711.77682715  4120.09504089  6519.4607539
+  6519.47156508  6519.46088204  6519.5128145   6219.30029929
+  6219.30529595  6519.46691403  5019.71796545  6519.46055077]
+L values with true F 
+[ 8096.60180873  9158.52973905  9158.51221731  9158.24053934
+  7827.97982071  9158.34971051   547.42634028  9158.19965167
+  7015.41976746 10522.36920996  7015.4253867   9158.34782001
+  9159.05330574  9158.43887206  9157.05285068  8891.30554163
+  8891.4643102   9158.24812486  7828.30491924  9158.54737181]
+
+Very bad results when x_grid_induce follows the estimate.
+
+From mail: 
+The covariance function of a stationary process can be represented as theFourier transform of a positive finite measure.
+In the case that the spectral density S(s) exists, the covariance function andthe spectral density are Fourier duals of each other as shown in eq. (4.6).
+http://www.gaussianprocess.org/gpml/chapters/RW.pdf pg 82.
+
+\subsection{06.06}
+The inference is super bad for T=1000 (!)
+Initial positioning may have more significance for higher T??
+Y E S .
+2pirandom starts horrible for high T.
