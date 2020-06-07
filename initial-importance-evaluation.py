@@ -30,7 +30,7 @@ lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 GRADIENT_FLAG = True # Set True to use analytic gradient
 SPEEDCHECK = False
-TOLERANCE = 1e-2 #5
+TOLERANCE = 1e-5
 NOISE_REGULARIZATION = False
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 10
@@ -398,6 +398,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         plt.xlabel("Time")
         plt.ylabel("x")
         plt.tight_layout()
+        plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-T-" + str(T) + "-path.png")
     ## Generate spike data. True tuning curves are defined here
     if TUNINGCURVE_DEFINITION == "triangles":
@@ -450,11 +451,13 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     ######################
     np.random.seed(seedindex)
     print("Initializing X using seed", starting_seed_array[seedindex])
-    #X_initial = 2*np.pi*np.random.random(T)
-    X_initial = 3*np.ones(T)
-    X_initial += 0.2*np.random.random(T)
+    #X_initial = 1 * np.ones(T)
+    X_initial = path
     X_estimate = np.copy(X_initial)
-    F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
+    #epsilon_fstart = 1e-3
+    #F_initial = np.log(y_spikes + epsilon_fstart)
+    #F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
+    F_initial = true_f
     F_estimate = np.copy(F_initial)
     if GIVEN_TRUE_F:
         F_estimate = true_f
@@ -462,24 +465,44 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     # Covariance matrix Kgg_plain #
     ###############################
     # Inducing points based on the actual range of X    
-    #x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
-    x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) 
-    K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+    x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
+    #x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) 
+    K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)    
     #############################
     # Iterate with EM algorithm #
     #############################
     if PLOTTING:
-        plt.figure()
-        plt.title("X Estimate") # as we go
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
+        plt.title("Initial estimate") # as we go
+        plt.xlabel("Time")
+        plt.ylabel("x")
         plt.plot(path, color="black", label='True X')
-        #plt.plot(X_initial, label='Initial')
+        plt.plot(X_initial, label='Initial')
+        plt.legend(loc="upper right")
+        plt.tight_layout()
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(starting_seed_array[seedindex]) + ".png")
+    if PLOTTING:
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
+        plt.title("X estimate") # as we go
+        plt.xlabel("Time")
+        plt.ylabel("x")
+        plt.plot(path, color="black", label='True X')
+        plt.plot(X_initial, label='Initial')
+        plt.legend(loc="upper right")
+        plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(starting_seed_array[seedindex]) + ".png")
     prev_X_estimate = np.Inf
     sigma_n = np.copy(global_initial_sigma_n)
     for iteration in range(N_iterations):
         if iteration > 0:
             sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
-        x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) 
+        #x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) 
         K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
         K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
         K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
@@ -506,6 +529,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         X_estimate = optimization_result.x
         if PLOTTING:
             plt.plot(X_estimate, label='Estimate')
+            plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(starting_seed_array[seedindex]) + ".png")
         if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
             # Flipping estimate after iteration 1 has been plotted
@@ -528,10 +552,17 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         X_estimate = np.copy(X_flipped)
         F_estimate = np.copy(F_initial)
         if PLOTTING:
-            plt.figure()
-            plt.title("After flipping") # as we go
+            if T == 1000:
+                plt.figure(figsize=(10,3))
+            else:
+                plt.figure()
+            plt.title("X estimate")
+            plt.xlabel("Time")
+            plt.ylabel("x")
             plt.plot(path, color="black", label='True X')
             plt.plot(X_initial_2, label='Initial')
+            plt.legend(loc="upper right")
+            plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(starting_seed_array[seedindex]) + "-flipped.png")
         prev_X_estimate = np.Inf
         for iteration in range(N_iterations):
@@ -560,7 +591,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", options = {'disp':False})
             X_estimate = optimization_result.x
             if PLOTTING:
-                plt.plot(X_estimate, label='Estimate (after flip)')
+                plt.plot(X_estimate, label='Estimate') #after flip
+                plt.tight_layout()
                 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(starting_seed_array[seedindex]) + "-flipped.png")
             if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
                 # Flipping estimate after iteration 1 has been plotted
@@ -570,6 +602,20 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             prev_X_estimate = X_estimate
         # Rootmeansquarederror for X
         X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
+    if PLOTTING:
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
+        plt.title("Final estimate") # as we go
+        plt.xlabel("Time")
+        plt.ylabel("x")
+        plt.plot(path, color="black", label='True X')
+        plt.plot(X_initial, label='Initial')
+        plt.plot(X_estimate, label='Estimate')
+        plt.legend(loc="upper right")
+        plt.tight_layout()
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(starting_seed_array[seedindex]) + "-final.png")
     print("Seed", starting_seed_array[seedindex], "finished. RMSE for X:", X_rmse)
     L_value = x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
     F_estimate = true_f
@@ -577,7 +623,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     return [X_initial, X_estimate, X_rmse, L_value, L_value_true_f, seedindex]
 
 if __name__ == "__main__": 
-    starting_seed_array = [0,1,2,3,4,5,6] #range(7)
+    starting_seed_array = [0] #range(7)
     # We gather initials, finals, rmse values and L values
     initial_array = np.zeros((N,T))
     final_array = np.zeros((N,T))
@@ -591,7 +637,7 @@ if __name__ == "__main__":
 
         # Pool computing
         starttime = time.time()
-        myPool = Pool(processes=len(starting_seed_array))
+        myPool = Pool(processes=8) #len(starting_seed_array))
         result_array = myPool.map(find_rmse_for_this_lambda_this_seed, [i for i in range(len(starting_seed_array))])
         myPool.close()
         endtime = time.time()
@@ -613,16 +659,30 @@ if __name__ == "__main__":
 
         np.random.seed(seeds[0])
         path = np.pi + numpy.random.multivariate_normal(np.zeros(T), K_t_generate)
-        plt.figure()
-        plt.title("Initial") 
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
+        plt.xlabel("Time")
+        plt.ylabel("x")
+        plt.title("Initial estimates") 
         plt.plot(path, color="black", label='True X')
         for i in range(len(starting_seed_array)):
             plt.plot(initial_array[i])
+        plt.legend(loc="upper right")
+        plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-initial.png")
-        plt.figure()
-        plt.title("Final estimate") 
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
+        plt.xlabel("Time")
+        plt.ylabel("x")
+        plt.title("Final estimates") 
         plt.plot(path, color="black", label='True X')
         for i in range(len(starting_seed_array)):
             plt.plot(final_array[i])
+        plt.legend(loc="upper right")
+        plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-final.png")
 
