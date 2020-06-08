@@ -24,9 +24,9 @@ from multiprocessing import Pool
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 100 #2000 # Max time 85504
+T = 1000 #2000 # Max time 85504
 N = 100
-N_iterations = 200
+N_iterations = 30
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
@@ -39,7 +39,7 @@ FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 10
 GIVEN_TRUE_F = False
 OPTIMIZE_HYPERPARAMETERS = False
-PLOTTING = True
+PLOTTING = False #False
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
@@ -48,8 +48,8 @@ TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = True
 tuning_width = 1.2 # 0.1
 baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
-lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-seeds = [0,1,3,5,11] # 1 may actually be unfortunate!! #[0,1,3,5,7,9,11,12,13,15,16,17,18,19,21,23,25,26,27 good #      2,6,8,10,14,20 bad
+lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
+seeds = [0,11,12,13,17] # [17,18,19,21,23,25,26,27     # [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
@@ -512,6 +512,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             # Flipping estimate after iteration 1 has been plotted
             X_estimate = 2*mean(X_estimate) - X_estimate
         if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
+            print("Seed", seeds[seedindex], "Iterations:", iteration)
             break
         prev_X_estimate = X_estimate
     # Flipped 
@@ -569,6 +570,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 # Flipping estimate after iteration 1 has been plotted
                 X_estimate = 2*mean(X_estimate) - X_estimate
             if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
+                print("Seed", seeds[seedindex], "Iterations after flip:", iteration)
                 break
             prev_X_estimate = X_estimate
         # Rootmeansquarederror for X

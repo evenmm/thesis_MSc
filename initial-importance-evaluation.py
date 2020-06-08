@@ -23,7 +23,7 @@ from multiprocessing import Pool
 ################################################
 T = 1000 #2000 # Max time 85504
 N = 100
-N_iterations = 200
+N_iterations = 30
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration

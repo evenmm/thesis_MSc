@@ -768,7 +768,7 @@ For true start: 0.2890430891684393
 
 Attempt for cluster: 
 5 different path seeds, 1 starting (1*np.ones(T)), 4 processors each to maybe speed up times 4? 
-Also inrease tolerance, from 1e-5 to 1e-3, and remove Plotting
+Also inrease tolerance, from 1e-5 to 1e-3, decrease N_iterations from 200, and remove Plotting
 
 First, try 5 different seeds for T = 1000 locally to see if rmse is any good with flat start: Flat start, no problem, found 5 good seeds for path.
 Then run T = 1000 on cluster: 
@@ -797,8 +797,9 @@ Old time uses T=1000, from high to low tuning strrength
 2194.7684655189514
 352.05941796302795 0.01
 
-Check if overflow still exists?:
-
+Check if overflow still exists?: Nope
 And that's a good day for a good boy.
 
-Seed 1 may actually be unfortunate!!!!!! for T=100
+\subsection{08.06}
+What is the bin size for these simulated experiments? Does not matter, all that matters is the expected # spikes in a bin.
+Trying 5 tasks per node to see if we get 20 processors with that and OMP_NUM_THREADS = 4

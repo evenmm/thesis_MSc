@@ -1,9 +1,9 @@
 #!/bin/sh
 #SBATCH --partition=CPUQ
 #SBATCH --account=share-ie-imf
-#SBATCH --time=70:00:00
+#SBATCH --time=50:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=20
+#SBATCH --ntasks-per-node=5
 #SBATCH --mem=12000
 #SBATCH --job-name="parallel_test"
 #SBATCH --output=output-parallel-test.out

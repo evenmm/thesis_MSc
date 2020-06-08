@@ -27,7 +27,8 @@ numpy.random.seed(13)
 lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
 T_10 = np.load("mean_rmse_values-T-10-up-to-lambda-15.npy")
 T_100 = np.load("mean_rmse_values-T-100-up-to-lambda-15.npy")
-T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-0.7.npy")
+#T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-3.npy")
+T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-3-seeds013511.npy")
 
 plt.figure()
 plt.xlabel("Tuning strength")
