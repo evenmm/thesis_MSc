@@ -13,6 +13,7 @@ plt.rc('image', cmap='viridis')
 from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
+from sklearn.decomposition import PCA
 
 # This bad boi branched off from em-algorithm on 11.05.2020
 # and from robust-sim-data on 28.05.2020
@@ -21,17 +22,16 @@ from multiprocessing import Pool
 ## For every lambda strength: Run 10 seeds and average RMS
 
 
-################################################
-# Parameters for inference, not for generating #
-################################################
+############################
+# Parameters for inference #
+############################
 T = 1000 #2000 # Max time 85504
-N = 100
 N_iterations = 30
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
-GRADIENT_FLAG = True # Set True to use analytic gradient
+GRADIENT_FLAG = True # True # Set True to use analytic gradient
 SPEEDCHECK = False
 TOLERANCE = 1e-3
 NOISE_REGULARIZATION = False
@@ -39,23 +39,32 @@ FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 10
 GIVEN_TRUE_F = False
 OPTIMIZE_HYPERPARAMETERS = False
-PLOTTING = False #False
+PLOTTING = True #False
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
 TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
-UNIFORM_BUMPS = True
+UNIFORM_BUMPS = False
 tuning_width = 1.2 # 0.1
 baseline_f_value = -10 # -2.3 means 10 per cent chance of spiking when outside tuning area.
-lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
-seeds = [0,11,12,13,17] # [17,18,19,21,23,25,26,27     # [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
+lambda_strength_array = [8] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
+seeds = [11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
-sigma_x = 5 #1 #5 # Variance of X for K_t
-delta_x = 100 #50 # Scale of X for K_t
+# Define max and min of neural tuning 
+min_inducing_point = 0
+max_inducing_point = 10 #max(10, np.log10(T))
+min_neural_tuning_X = min_inducing_point
+max_neural_tuning_X = max_inducing_point
+# Neural density:
+N = 200 #3*int(max_neural_tuning_X - min_neural_tuning_X) 
+LIMIT_X_RANGE = True # Stop path from going outside
+LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False # If False, they stay at (min_inducing_point, max_inducing_point)
+sigma_x = (max_neural_tuning_X - min_neural_tuning_X) #5 # Variance of X for K_t
+delta_x = 100 # Scale of X for K_t
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
@@ -352,20 +361,20 @@ def x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce):
 ######################################
 ## Data generation                  ##
 ######################################
-bins = np.linspace(-0.000001, 2.*np.pi+0.0000001, num=N_plotgridpoints + 1)
-x_grid = 0.5*(bins[:(-1)]+bins[1:])
+bins_for_plotting = np.linspace(min_neural_tuning_X, max_neural_tuning_X, num=N_plotgridpoints + 1)
+x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
 # Generative parameters for X path:
-sigma_path = 5 # Variance
-delta_path = 100 # Scale 
-K_t_generate = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_path, delta_path)
+sigma_x_generate_path = 20 # Variance
+delta_x_generate_path = 100 # Scale 
+K_t_generate = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x_generate_path, delta_x_generate_path)
 if UNIFORM_BUMPS:
     # Uniform positioning and width:'
-    bumplocations = [(i+0.5)*2.*pi/N for i in range(N)]
+    bumplocations = [min_neural_tuning_X + (i+0.5)/N*(max_neural_tuning_X - min_neural_tuning_X) for i in range(N)]
     bumpwidths = tuning_width * np.ones(N)
 else:
     # Random placement and width:
-    bumplocations = 2*np.pi*np.random.random(N)
-    bumpwidths = 0.01 + 0.5*np.random.random(N)
+    bumplocations = min_neural_tuning_X + (max_neural_tuning_X - min_neural_tuning_X) * np.random.random(N)
+    bumpwidths = tuning_width + tuning_width/4*np.random.random(N)
 def bumptuningfunction(x, i, tuning_strength): 
     x1 = x
     x2 = bumplocations[i]
@@ -377,30 +386,41 @@ def bumptuningfunction(x, i, tuning_strength):
     return baseline_f_value + tuning_strength * exp(-distancesquared/(2*delta_x_generate))
 
 ######################################
-## RMSE function                  ##
+## RMSE function                    ##
 ######################################
 def find_rmse_for_this_lambda_this_seed(seedindex):
     print("Seed", seeds[seedindex], "started.")
     tuning_strength = np.log(lambda_strength) - baseline_f_value # f_strength - baseline_f_value # 12 #tuning strength at bump centre
+    # Option: tuning_strength = baseline_f_value + log_additional_value
     np.random.seed(seeds[seedindex])
-    path = np.pi + numpy.random.multivariate_normal(np.zeros(T), K_t_generate)
-    # Use boolean masks to keep X within (0, 2pi)
-    modulo_two_pi_values = path // (2*np.pi)
-    oddmodulos = (modulo_two_pi_values % 2).astype(bool)
-    evenmodulos = np.invert(oddmodulos)
-    # Even modulos: Adjust for being outside
-    path[evenmodulos] -= 2*np.pi*modulo_two_pi_values[evenmodulos]
-    # Odd modulos: Adjust for being outside and flip for continuity
-    path[oddmodulos] -= 2*np.pi*(modulo_two_pi_values[oddmodulos])
-    differences = 2*np.pi - path[oddmodulos]
-    path[oddmodulos] = differences
+    # Generate path
+    path = (max_neural_tuning_X-min_neural_tuning_X)/2 + numpy.random.multivariate_normal(np.zeros(T), K_t_generate)
+    #path = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T)
+    if LIMIT_X_RANGE:
+        # Use boolean masks to keep X within min and max of tuning 
+        path -= min_neural_tuning_X # bring path to 0
+        modulo_two_pi_values = path // (max_neural_tuning_X)
+        oddmodulos = (modulo_two_pi_values % 2).astype(bool)
+        evenmodulos = np.invert(oddmodulos)
+        # Even modulos: Adjust for being outside
+        path[evenmodulos] -= max_neural_tuning_X*modulo_two_pi_values[evenmodulos]
+        # Odd modulos: Adjust for being outside and flip for continuity
+        path[oddmodulos] -= max_neural_tuning_X*(modulo_two_pi_values[oddmodulos])
+        differences = max_neural_tuning_X - path[oddmodulos]
+        path[oddmodulos] = differences
+        path += min_neural_tuning_X # bring path back to min value for tuning
     if PLOTTING:
         ## plot path 
-        plt.figure(figsize=(5,2))
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
         plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
         #plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
         plt.xlabel("Time")
         plt.ylabel("x")
+        plt.title("Path of X")
+        plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
         plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-path.png")
     ## Generate spike data. True tuning curves are defined here
@@ -408,7 +428,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         tuningwidth = 1 # width of tuning (in radians)
         biasterm = -2 # Average H outside tuningwidth -4
         tuningcovariatestrength = np.linspace(0.5*tuningwidth,10.*tuningwidth, N) # H value at centre of tuningwidth 6*tuningwidth
-        neuronpeak = [(i+0.5)*2.*pi/N for i in range(N)]
+        neuronpeak = [min_neural_tuning_X + (i+0.5)/N*(max_neural_tuning_X - min_neural_tuning_X) for i in range(N)]
         true_f = np.zeros((N, T))
         y_spikes = np.zeros((N, T))
         for i in range(N):
@@ -442,27 +462,62 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 elif LIKELIHOOD_MODEL == "poisson":
                     spike_rate = exp(true_f[i,t])
                     y_spikes[i,t] = np.random.poisson(spike_rate)
+    if PLOTTING:
+        ## Plot true f in time
+        plt.figure()
+        plt.xlabel("X")
+        color_idx = np.linspace(0, 1, N)
+        plt.ylabel("f value")
+        x_space_grid = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T)
+        for i in range(N):
+            plt.plot(x_space_grid, true_f[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-true-f.png")
+        #plt.show()
     ## Find observed firing rate
     observed_mean_spikes_in_bins = zeros((N, N_plotgridpoints))
     for i in range(N):
         for x in range(N_plotgridpoints):
-            timesinbin = (path>bins[x])*(path<bins[x+1])
+            timesinbin = (path>bins_for_plotting[x])*(path<bins_for_plotting[x+1])
             if(sum(timesinbin)>0):
                 observed_mean_spikes_in_bins[i,x] = mean( y_spikes[i, timesinbin] )
     ###############################
     # Covariance matrix Kgg_plain #
     ###############################
     # Inducing points based on the actual range of X
-    x_grid_induce = np.linspace(min(path), max(path), N_inducing_points) 
-    #print("Min and max of path:", min(path), max(path))
+    x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points) #np.linspace(min(path), max(path), N_inducing_points)
+    print("Min and max of path:", min(path), max(path))
+    print("Min and max of grid:", min(x_grid_induce), max(x_grid_induce))
     K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     ######################
     # Initialize X and F #
     ######################
+    # PCA initialization: 
+    print("Performing Principal Component Analysis")
+    smoothingwindow = 50
+    celldata = zeros(shape(y_spikes))
+    for i in range(N):
+        celldata[i,:] = scipy.ndimage.filters.gaussian_filter1d(y_spikes[i,:], smoothingwindow) # smooth
+        #celldata[i,:] = (celldata[i,:]-mean(celldata[i,:]))/std(celldata[i,:])                 # standardization requires at least one spike
+    X_pca_initial = PCA(n_components=1, svd_solver='full').fit_transform(transpose(celldata))
+    plt.figure()
+    plt.xlabel("Time")
+    plt.ylabel("x")
+    plt.title("PCA initial of X")
+    plt.plot(X_pca_initial)
+    plt.tight_layout()
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-PCA-initial.png")
+    print("Finished PCA")
+    # Scale PCA initialization to fit domain:
+    X_pca_initial -= min(X_pca_initial)
+    X_pca_initial += min_inducing_point
+    X_pca_initial /= max(X_pca_initial)
+    X_pca_initial *= max_inducing_point
+
     np.random.seed(0)
-    X_initial = np.ones(T)
+    X_initial = X_pca_initial #np.ones(T) #np.linspace(min_neural_tuning_X, max_neural_tuning_X, T) #path
     X_estimate = np.copy(X_initial)
-    F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.sqrt(y_spikes) - 2
+
+    F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.log(y_spikes + 0.0008)
     F_estimate = np.copy(F_initial)
     if GIVEN_TRUE_F:
         F_estimate = true_f
@@ -470,18 +525,27 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     # Iterate with EM algorithm #
     #############################
     if PLOTTING:
-        plt.figure()
-        #plt.title("X Estimate") # as we go
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
+        #plt.title("Path of X")
+        plt.title("X estimate")
         plt.xlabel("Time")
-        plt.ylabel("X")
+        plt.ylabel("x")
         plt.plot(path, color="black", label='True X')
         plt.plot(X_initial, label='Initial')
+        #plt.legend(loc="upper right")
+        #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+        plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + ".png")
     prev_X_estimate = np.Inf
     sigma_n = np.copy(global_initial_sigma_n)
     for iteration in range(N_iterations):
         if iteration > 0:
             sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
+        if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
+            x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
         K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
         K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
         # Find F estimate only if we're not at the first iteration
@@ -507,6 +571,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         X_estimate = optimization_result.x
         if PLOTTING:
             plt.plot(X_estimate, label='Estimate')
+            #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+            plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + ".png")
         if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
             # Flipping estimate after iteration 1 has been plotted
@@ -530,12 +596,17 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         X_estimate = np.copy(X_flipped)
         F_estimate = np.copy(F_initial)
         if PLOTTING:
-            plt.figure()
+            if T == 1000:
+                plt.figure(figsize=(10,3))
+            else:
+                plt.figure()
             #plt.title("After flipping") # as we go
             plt.xlabel("Time")
-            plt.ylabel("X")
+            plt.ylabel("x")
             plt.plot(path, color="black", label='True X')
             plt.plot(X_initial_2, label='Initial')
+            #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+            plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
         prev_X_estimate = np.Inf
         for iteration in range(N_iterations):
@@ -565,6 +636,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             X_estimate = optimization_result.x
             if PLOTTING:
                 plt.plot(X_estimate, label='Estimate (after flip)')
+                #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+                plt.tight_layout()
                 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
             if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
                 # Flipping estimate after iteration 1 has been plotted
@@ -588,6 +661,21 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     #if LIKELIHOOD_MODEL == "poisson":
     #    h_estimate = np.exp(F_estimate)
     #F_rmse = np.sqrt(sum((h_estimate-true_f)**2) / (T*N))
+    if PLOTTING:
+        if T == 1000:
+            plt.figure(figsize=(10,3))
+        else:
+            plt.figure()
+        plt.title("Final estimate") # as we go
+        plt.xlabel("Time")
+        plt.ylabel("x")
+        plt.plot(path, color="black", label='True X')
+        plt.plot(X_initial, label='Initial')
+        plt.plot(X_estimate, label='Estimate')
+        plt.legend(loc="upper right")
+        #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+        plt.tight_layout()
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-T-" + str(T) + "-lambda-" + str(lambda_strength) + "-seed-" + str(seeds[seedindex]) + "-final.png")
     return X_rmse
 
 if __name__ == "__main__": 
