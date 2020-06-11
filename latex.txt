@@ -711,6 +711,10 @@ Y E S .
 \subsection{07.06}
 
 HOW TO PLOT: 
+if T == 1000:
+    plt.figure(figsize=(10,3))
+else:
+    plt.figure()
 plt.figure()
 plt.title("Final estimates") 
 plt.xlabel("Time")
@@ -803,3 +807,60 @@ And that's a good day for a good boy.
 \subsection{08.06}
 What is the bin size for these simulated experiments? Does not matter, all that matters is the expected # spikes in a bin.
 Trying 5 tasks per node to see if we get 20 processors with that and OMP_NUM_THREADS = 4
+
+We can't confine the X estimate to a fixed interval. 
+So we must allow for a big safe margin on both sides instead. 
+The inducing grid must be placed on this wide range, and the neurons too. 
+Then we find offset after convergence and calculate rmse.
+To do: 
+- Rescale inducing grid, tuning curve definition etc to [0,10]
+- Let path start around 5 and let it wonder truly freely. 
+
+\subsection{09.06}
+Okaaaay, I decoupled the inducing points and neuron selectivity from the actual path, and now the inference is bad.
+- Tried changing the inducing grid to the right place - did not work.
+- tried starting in the right region - nope
+- Maybe the neurons being outside and inactive hampers it? - nope
+
+What was the problem earlier when we had bad inference for T=1000? - fixed by initialization better
+- Found bug in max neuron place definition
+Also changed the mean of true path to not depend on the induce grid limits.
+
+What have we learned today? 
+Having inactive neurons outside the range of X is not dangerous.
+
+\subsection{10.06}
+Before changing from [0,2pi] and inducing grid in the right place, accuracy was good.
+See effect of changes:
+ - Then we must also increase the sigma for the X. Did not improve.
+ --> bad result is due to placement of inducing grid
+What we CAN do, is let the inducing grid be placed according to the x estimate!!
+
+ - - Do PCA Staart!!!!! Just leave out the neurons that are not part
+The scale of X is related to the variance parameter in the prior. 
+
+----- Meeting with Ben: 
+*PCA, get starting done, see if better
+*Choose X or F start and write about it
+----- For 11.06.2020:
+Add F plot for partly upside down starts, write about it and say "sorry, we can't do better if initial is bad" :))))
+"This is the type of thing that makes you scratch your head and come up with a better model"
+Finish all the talk about starting and convergence and optimization problems
+Start robustness plot with PCA
+While running, explore boons of different ensemble startings to see if worth it
+Then: 
+Try out periodic, does it work quickly? 
+Apply to Peyrache data as nice result
+Fit nonperiodic to Peyrache data
+Compare the two and make comments about ways to do model evaluation
+Not obvious if we will get multiple bumps or stay inside range and suffer when fitting nonperiodic to problem with periodic geometry
+(Possibly compare to Bernoulli)
+
+PCA:
+FIt X first based on F, starting from PCA: Maybe better but still has problems with partly flipping
+Fit F first based on PCA X: 
+- When X did not reach the entire range, it was bad
+- But when it did reach the entire range, it was good
+
+- No need for PCA length to be exactly equal to delta x
+
