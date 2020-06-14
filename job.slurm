@@ -30,7 +30,7 @@ module load Python/3.6.6
 #virtualenv pythonhome
 source pythonhome/bin/activate
 #pip install scipy numpy matplotlib
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=1
 
 /usr/bin/time -v python parallel-robustness-evaluation.py
 

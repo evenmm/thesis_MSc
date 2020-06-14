@@ -862,5 +862,50 @@ Fit F first based on PCA X:
 - When X did not reach the entire range, it was bad
 - But when it did reach the entire range, it was good
 
-- No need for PCA length to be exactly equal to delta x
+No need for PCA length to be exactly equal to delta x
+
+\subsection{11.06}
+Increased number of inducing points to 50
+Momentarily turned on uniform tunings to watch double peak problem
+- Trying with no iterations and path in the right place to see if our starting F makes us want two peaks? (The question is: How does starting F influence X?)
+Not Section: Double peak trouble (but then it was only due to periodic kernel). How we fall into a local minima where F estimates wrnogly has more than one peak because we fit F based on a wrong X... 
+
+Today's conclusion: log initial F is good for ts that is not crazy big.
+Saving intuitive plot of how the initial estimates of \matrF imply different posteriors. 
+
+\subsection{12.06}
+USE_OFFSET = False # Check if we need it
+N_inducing_points = 50
+baseline_f_value = -5
+lambda_strength_array = [4]
+seeds = [1]
+N = 100
+LIMIT_X_RANGE = True # Stop path from going outside in test case
+LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = True # We initialize based on limited range, then update
+min_inducing_point = 0
+max_inducing_point = 1 #max(10, np.log10(T))
+min_neural_tuning_X = min_inducing_point
+max_neural_tuning_X = max_inducing_point
+X_initial = X_pca_initial
+F_initial = np.log(y_spikes + 0.0008)
+
+Try varying the number of plotgridpionts
+Trying different PCA lengths to see if we can use them as ensemble: Flat start is better!!!!!!
+Final F estimates are bad due to final X.
+
+PCA is cool but flat start is better. 
+We could improve by scaling and offsetting
+
+Write brief example showing PCA estimate is already entrenched in local minimums no matter its good intentions.
+Then show that flat start better, but scaled. 
+Proceed with offset and scaling to hustle the jam <star star star>
+((P.S.: The plot that runs now started at a flat start and it would be great is the posterior estimate of \matr(F) is actually worthwile. That will tell us if a scaling helps! )
+
+Plot gradient: 
+
+Too wide inducing grid: Entirely different results and probably very bad F estimate, as X estimate is shit after 1st iteration...
+Unexpected results: Expected too wide estimate but in fact it is very narrow... Maybe because of matrix inversion badness.... vooodooo. 
+
+Changing the setup for background tuning to defining E(# spikes).
+
 
