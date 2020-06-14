@@ -13,29 +13,34 @@ plt.rc('image', cmap='viridis')
 from scipy import optimize
 numpy.random.seed(13)
 
-# These were averaged over seeds 10 to 21 only:
-#lambda_strength_array = [0.1,0.5,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
-#rmse_T_100 = [1.3516777428732878, 1.374103612311344, 0.9979873504618402, 0.664476669684567, 0.5052838534861236, 0.39196103999443493, 0.31258698110538047, 0.3064841110552651, 0.2819506804468758, 0.23152420936810028, 0.23715513438121905, 0.35147284672781914, 0.42241686551823004, 0.4336790771343397, 0.3153930706565663, 0.22196219143972665, 0.2810792376898676, 0.4]
-#plt.plot(lambda_strength_array, rmse_T_100, ".")
-
-##a = np.load("mean_rmse_values-T-10-lambda-0.1.npy") # Stores lambdas up to this value
-#a# = np.load("mean_rmse_values-T-10-up-to-lambda-15.npy") # Stores lambdas up to this value
-#print(a)
-#plt.plot(lambda_strength_array, a, ".")
-
 #lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
-lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-T_10 = np.load("mean_rmse_values-T-10-up-to-lambda-15.npy")
-T_100 = np.load("mean_rmse_values-T-100-up-to-lambda-15.npy")
-#T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-3.npy")
-T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-3-seeds013511.npy")
+#lambda_strength_array = [0.01,0.1,0.3,0.5,0.7,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+#T_10 = np.load("mean_rmse_values-T-10-up-to-lambda-15.npy")
+#T_100 = np.load("mean_rmse_values-T-100-up-to-lambda-15.npy")
+##T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-3.npy")
+#T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-3-seeds013511.npy")
+
+#lambda_strength_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.5,3,4,5,6]
+#T_100 = np.load("mean_rmse_values-T-100-up-to-lambda-6.npy")
+#T_1000 = np.load("mean_rmse_values-T-1000-up-to-lambda-6.npy")
+
+N_seeds = 20
+lambda_strength_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10]
+T_100 = np.load("mean_rmse_values-T-100-up-to-lambda-10.npy")
+std_100_array = np.load("std_values-T-100-up-to-lambda-10.npy")
+
+colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, 4)]
 
 plt.figure()
-plt.xlabel("Tuning strength")
+plt.title("Average RMSE with background noise 0.5")
+plt.xlabel("Expected number of spikes in a bin")
 plt.ylabel("RMSE")
-plt.plot(lambda_strength_array, T_10, ".", label="T=10")
-plt.plot(lambda_strength_array, T_100, ".", label="T=100")
-plt.plot(lambda_strength_array, T_1000, ".", label="T=1000")
+#plt.plot(lambda_strength_array, T_10, ".", label="T=10", color = colors[0])
+plt.errorbar(x=lambda_strength_array, y=T_100, yerr=(1.96*std_100_array/np.sqrt(N_seeds)), fmt="_", label="T=100", color = colors[1])
+#plt.plot(lambda_strength_array, T_100, ".", label="T=100", color = colors[1])
+#plt.plot(lambda_strength_array, T_100 - 1.96*std_100_array/np.sqrt(N_seeds), "_", label="T=100", color = colors[1])
+#plt.plot(lambda_strength_array, T_100 + 1.96*std_100_array/np.sqrt(N_seeds), "_", label="T=100", color = colors[1])
+#plt.plot(lambda_strength_array, T_1000, ".", label="T=1000", color = colors[2])
 plt.legend(loc="upper right")
 plt.ylim(ymin=0)
 plt.tight_layout()

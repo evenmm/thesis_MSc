@@ -25,7 +25,7 @@ from sklearn.decomposition import PCA
 ############################
 # Parameters for inference #
 ############################
-T = 100 # Max time 85504
+T = 10000 # Max time 85504
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -44,7 +44,7 @@ FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 1
 GIVEN_TRUE_F = False
 OPTIMIZE_HYPERPARAMETERS = False
-PLOTTING = False
+PLOTTING = True
 N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
@@ -63,7 +63,7 @@ sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
 # Define max and min of neural tuning 
 min_inducing_point = 0
-if T == 1000:
+if T > 100:
     max_inducing_point = 10
 elif T == 100:
     max_inducing_point = 4
@@ -486,7 +486,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         path += min_neural_tuning_X # bring path back to min value for tuning
     if PLOTTING:
         ## plot path 
-        if T == 1000:
+        if T > 100:
             plt.figure(figsize=(10,3))
         else:
             plt.figure()
@@ -574,7 +574,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     X_pca_initial += min_inducing_point
     X_pca_initial /= max(X_pca_initial)
     X_pca_initial *= max_inducing_point
-    if T == 1000:
+    if T > 100:
         plt.figure(figsize=(10,3))
     else:
         plt.figure()
@@ -608,7 +608,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     if GIVEN_TRUE_F:
         F_estimate = true_f
     if PLOTTING:
-        if T == 1000:
+        if T > 100:
             plt.figure(figsize=(10,3))
         else:
             plt.figure()
@@ -626,7 +626,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         sigma_n = np.copy(global_initial_sigma_n)
         K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
         X_gradient = x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
-        if T == 1000:
+        if T > 100:
             plt.figure(figsize=(10,3))
         else:
             plt.figure()
@@ -752,7 +752,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         X_estimate = np.copy(X_flipped)
         F_estimate = np.copy(F_initial)
         if PLOTTING:
-            if T == 1000:
+            if T > 100:
                 plt.figure(figsize=(10,3))
             else:
                 plt.figure()
@@ -818,7 +818,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     #    h_estimate = np.exp(F_estimate)
     #F_rmse = np.sqrt(sum((h_estimate-true_f)**2) / (T*N))
     if PLOTTING:
-        if T == 1000:
+        if T > 100:
             plt.figure(figsize=(10,3))
         else:
             plt.figure()

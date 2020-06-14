@@ -3,7 +3,7 @@
 #SBATCH --account=share-ie-imf
 #SBATCH --time=50:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=5
+#SBATCH --ntasks-per-node=20
 #SBATCH --mem=12000
 #SBATCH --job-name="parallel_test"
 #SBATCH --output=output-parallel-test.out
@@ -29,7 +29,7 @@ module load Python/3.6.6
 
 #virtualenv pythonhome
 source pythonhome/bin/activate
-#pip install scipy numpy matplotlib
+#pip install scipy numpy matplotlib sklearn
 export OMP_NUM_THREADS=1
 
 /usr/bin/time -v python parallel-robustness-evaluation.py
