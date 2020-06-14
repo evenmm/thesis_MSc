@@ -25,7 +25,7 @@ from sklearn.decomposition import PCA
 ############################
 # Parameters for inference #
 ############################
-T = 1000 # Max time 85504
+T = 100 # Max time 85504
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -55,7 +55,7 @@ tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
 baseline_lambda_value = 1
 baseline_f_value = np.log(baseline_lambda_value)
-peak_lambda_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.5,3,4,5,6] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
+peak_lambda_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
 seeds = range(20) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
@@ -842,11 +842,13 @@ path_array = np.zeros((len(seeds), T))
 if __name__ == "__main__": 
     # We gather the mean rmse values for each tuning strength in this array:
     mean_rmse_values = np.zeros(len(peak_lambda_array))
+    std_values = np.zeros(len(peak_lambda_array))
     for lambda_index in range(len(peak_lambda_array)):
         global peak_lambda_global
         peak_lambda_global = peak_lambda_array[lambda_index]
 
         # Pool computing
+        print("Time to make a pool")
         starttime = time.time()
         myPool = Pool(processes=len(seeds))
         result_array = myPool.map(find_rmse_for_this_lambda_this_seed, [i for i in range(len(seeds))])
@@ -861,12 +863,15 @@ if __name__ == "__main__":
             Y_array[i] = result_array[i][3]
             path_array[i] = result_array[i][4]
         mean_rmse_values[lambda_index] = np.mean(seed_rmse_array)
+        std_values[lambda_index] = np.std(seed_rmse_array)
         np.save("mean_rmse_values-T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), mean_rmse_values)
+        np.save("std_values-T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), std_values)
 
         print("\n")
         print("Lambda strength:", peak_lambda_global)
         #print("Array of rmse for seeds:", seed_rmse_array)
         print("RMSE for X, Averaged across seeds:", mean_rmse_values[lambda_index])
+        print("STD for RMSE:", std_values[lambda_index])
         print("Time use:", endtime - starttime)
         print("\n")
 
