@@ -4,7 +4,7 @@
 #SBATCH --time=50:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=20
-#SBATCH --mem=12000
+#SBATCH --mem=128000
 #SBATCH --job-name="parallel_test"
 #SBATCH --output=output-parallel-test.out
 #SBATCH --mail-user=evenmm@stud.ntnu.no

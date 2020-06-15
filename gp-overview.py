@@ -48,6 +48,7 @@ Kx_grid_inverse = np.linalg.inv(Kx_grid)
 fig, ax = plt.subplots()
 kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
 fig.colorbar(kxmat, ax=ax)
+plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-kx_grid.png")
 #plt.show()
 # Draw tuning curves with zero mean and covariance prior
@@ -62,7 +63,9 @@ plt.figure()#(figsize=(10,8))
 for i in range(N):
     plt.plot(x_grid, h_tuning_curve[i,:], color=colors[i])
 plt.xlabel("x")
+plt.ylabel("f")
 plt.ylabel("Spike rate")
+plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-tuning-h.png")
 # Plot f realizations with 95 % confidence interval
 plt.figure()#(figsize=(10,8))
@@ -73,7 +76,9 @@ for i in range(N):
     plt.plot(x_grid, f_tuning_curve[i,:], "-", color=colors[i])
 #    plt.plot(x_grid, f_tuning_curve[i,:], ".", color=colors[i])
 plt.xlabel("x")
+plt.ylabel("f")
 #plt.ylabel("Spike rate")
+plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-tuning-f.png")
 # Plot prior
 mu_prior = np.zeros(X_dim)
@@ -85,8 +90,9 @@ plt.plot(x_grid, mu_prior, "-", color="grey")
 plt.plot(x_grid, mu_prior + 1.96*np.sqrt(np.diag(sigma_prior)), "--", color="grey")
 plt.plot(x_grid, mu_prior - 1.96*np.sqrt(np.diag(sigma_prior)), "--", color="grey")
 plt.ylim(-3,3)
-plt.xlabel("X")
-plt.ylabel("f(X)")
+plt.xlabel("x")
+plt.ylabel("f")
+plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-prior.png")
 
 ## Observations
@@ -123,8 +129,9 @@ for N_observations in range(1,N_observations_total+1):
     plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
     plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10) # Plot observed data points
     plt.ylim(-3,3)
-    plt.xlabel("X")
-    plt.ylabel("f(X)")
+    plt.xlabel("x")
+    plt.ylabel("f")
+    plt.tight_layout()
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-posterior-%s.png" % int(N_observations))
 
     ## Noisy observations
@@ -140,9 +147,10 @@ for N_observations in range(1,N_observations_total+1):
     plt.plot(x_grid, noisy_mu_posterior - 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
     plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
     plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10)
-    plt.xlabel("X")
-    plt.ylabel("f(X)")
+    plt.xlabel("x")
+    plt.ylabel("f")
     plt.ylim(-3,3)
+    plt.tight_layout()
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-noisy-posterior-%s.png" % int(N_observations))
 
 ## Latent variable GP
@@ -161,6 +169,7 @@ for t1 in range(T):
 fig, ax = plt.subplots()
 ktmat = ax.matshow(Kt, cmap=plt.cm.Blues) #plt.cm.viridis
 fig.colorbar(ktmat, ax=ax)
+plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-kt.pdf",format="pdf")
 
 path = numpy.random.multivariate_normal(np.zeros(T), Kt)
@@ -170,6 +179,7 @@ plt.figure()#(figsize=(10,2))
 plt.plot(path, '.', color='black', markersize=1.)
 plt.xlabel("Time")
 plt.ylabel("x value")
+plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-path.pdf",format="pdf")
 
 plt.show()

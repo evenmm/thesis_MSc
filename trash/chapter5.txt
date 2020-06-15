@@ -1,0 +1,387 @@
+%===================================== CHAP 5 =================================
+\section{One dimensional limited domain examples to highlight convergence problems and robustness}
+To evaluate the robustness and some problems with the convergence of the algorithm, we turn to a simple example of simulated data where a one-dimensional variable is controlling the response of the neurons, whose tuning is defined as Gaussian bumps placed randomly along the domain of \matr{X}. 
+The domain of \vect{x} is defined as $\vect{x} \in [0,10] \subset \R^1$. 
+An example of a real world situation with this geometry is a box for a rodent that is narrow, where the neurons are place cells positioned along the corridor (is it ok to assume Gaussian bumps for place cells? Find an article about place cells to cite.)
+The ''path'' of \vect{x} is sampled from a generative Gaussian process identical to the prior of \matr{X}, but with the option of changing the hyperparameters. 
+These hyperparameters influence the smoothness and scaling of the generated path, and it is desirable to have a path that stretches across the entire domain of \vect{x} in order to infer the tuning correctly for each neuron. 
+To make sure that the simulated path stays within the alloted domain, one alteration is added to the Gaussian process prior: Whenever the simulated path strays outside the domain, it is folded back by mirroring the path about the limit. 
+
+Figure \ref{example} shows the tuning curves and an example path in the domain.
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/tuningcurvesindomainofX.png}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/generatedpaththatissentbackfromtheborder.png}
+    \end{minipage}
+    \caption{Tuning curves and an example of a generated path for the latent variable. Notice the point in ... where it is folded back after the simulation went outside the border.}
+    \label{example}
+\end{figure}
+
+\subsection{Placement of the inducing grid}
+Good positioning of the inducing grid requires knowledge of the domain and range of \matr{X}. 
+For these test examples: 
+We assume that we know the domain of \matr{X}, and place the inducing points on a uniform grid there. 
+
+Grid is placed too widely across the range vs placed spot on and kept spot on:
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/40-PCA-doingitsjobwhenthereisactivityacrossthewholerange.png}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/41-indgridtoowide.png}
+    \end{minipage}
+    \caption{Good and to wide placement of inducing grid. First is spot on (with PCA), second too wide.}
+    \label{inducingplacement}
+\end{figure}
+
+
+\subsection{Finding the right offset for \matr{X}}
+Translation invariant. Having the grid points for \matr{X} is not necessarily enough!
+
+Without the inducing points, there is nothing to guide the estimate of \matr{X} towards the correct offset for \matr{X}. 
+Only the quadratic term has any relation to the tuning curves through \matr{F}, and the covariance matrix $K_x$ is unchanged under translations of \matr{X}: $K(\matr{X}) = K(\matr{X} + c)$. 
+This begs the question of how we can find the true offset for X.
+
+With the introduction of inducing points, a fixed grid in the domain of \matr{X} is introduced. 
+We will show that if the range of the grid is aligned with the min and max estimates of the true \matr{X}, then the algorithm is able to infer the offset of \matr{X} correctly.
+Figure \ref{offset} shows two convergence plots. The grid of inducing points is evenly spaced in both examples, but in the first one the range is between the minimum and maximum value of the true path, while for the second, the range is from 0 to $2\pi$.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{2020-06-08-paral-robust-T-100-lambda-8-seed-11.png}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{2020-06-08-paral-robust-T-100-lambda-8-seed-11 (1).png}
+    \end{minipage}
+    \caption{}
+    \label{offset}
+\end{figure}
+
+If the grid is placed outside of the actual range of the true \matr{X} path, then the correct shape can still be inferred: 
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/gridbetweenpi2pi.png}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/gridbetweenpi2pi.png}
+    \end{minipage}
+    \caption{}
+    \label{offset}
+\end{figure}
+
+Then by comparing with the actual path we can find the right offset.
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/convergedtowrongoffset.png}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/afteroffsetbycomparingtopath.png}
+    \end{minipage}
+    \caption{}
+    \label{offset}
+\end{figure}
+For this simulated example where a one-dimensional variable controls the neural activity by definition, one should not be surprised that the match is good, but for a real situation with recorded neurons, only part of the activity should be explained by the one-dimensional variable. Being able to infer a one-dimensional variable (say, place cells in a narrow corridor) well, is not guaranteed and depends largely on the selectivity of the neurons. 
+
+\subsection{Handling of flipped estimates}
+We wish to investigate what can safely be said about the convergence properties of the log posterior of \matr{X}.
+Since the log posterior of \matr{X} is not convex, the initial estimate of \matr{X} may determine how good the final estimate is since there is no guarantee that it will reach a global minimum. 
+Here we will make some remarks on the effects of the different terms in $L(\matr{X})$ in the convergence.
+Note that this is not an exhaustive list of the problems local minima may lead to. %The values of \matr{F} and \matr{X} may for example converge to local minima where the estimate of \matr{X} has minSince the log posterior of \matr{X} is not convex, the starting point of X may determine how good the final estimate is.
+%We know that a quadratic form of a symmetric matrix is maximized by the eigenvector corresponding to the largest eigenvalue of the symmetric matrix representing the quadratic form \citep{hardle2007appliedp63}. However, here we optimize over $K_x$, and the maximizer is not obvious. 
+Firstly, observe that the log posterior of \matr{X} is an even function: 
+\begin{equation}
+\begin{aligned}
+    L(-\matr{X}) 
+    &= - {\frac{N}{2}} \log |K_{(-x)}| -\frac{1}{2} \sum_{i=1}^N
+    \Big( \vect{f}_i^TK_{(-x)}^{-1}\vect{f}_i \Big) -\frac{1}{2} \sum_{j=1}^P \Big( (-\vect{x}_j^T)K_t^{-1}(-\vect{x}_j) \Big)
+    \Bigg] \\
+    &= - {\frac{N}{2}} \log |K_x| -\frac{1}{2} \sum_{i=1}^N
+    \Big( \vect{f}_i^TK_x^{-1}\vect{f}_i \Big) -\frac{1}{2} \sum_{j=1}^P \Big( \vect{x}_j^TK_t^{-1}\vect{x}_j \Big)
+    \Bigg] \\
+    &= L(\matr{X})
+\end{aligned}
+\end{equation}
+$K_{(-x)} = K_x$ because the squared exponential covariance function is isotropic and hence only depends on the distance $|\vect{x}_{t_i} - \vect{x}_{t_j}|$.
+
+Secondly, the xprior term has no connection to the tuning curves and only acts as a scaling and smoothness prior for \matr{X}. In fact, it is maximized by the zero vector since $K_t^{-1}$ is a symmetric positive semidefinite matrix and therefore only has positive eigenvalues.
+
+This has some unfortunate consequences for the convergence of the MAP estimation algorithm.
+Firstly, since $L(\matr{X})$ is even, any local minimum $\hat{\matr{X}}$ will be repeated for $-\hat{\matr{X}}$. 
+(Also, we observe that the algorithm often converges to a solution that has the correct mean value, or offset, but is upside down.) 
+
+Figure \ref{upsidedown1} shows how different random initial positions may lead to estimates that are either upside down or correctly aligned. 
+This is actually not a problem in cases where the true \matr{X} is known, since the estimate of \matr{X} can be rotated after convergence if it is upside down. 
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/2020-06-07-ii-initial-stopped.png}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/2020-06-07-ii-final-stopped.png}
+    \end{minipage}
+    \caption{Left: 7 Initial random initial estimates, where the value at every time point $\vect{x}_t$ is sampled independently from a uniform distribution in the range from 0 to $2\pi$. Right: Final estimates. }
+    \label{upsidedown1}
+\end{figure}
+
+
+\subsection{Dealing with flipping}
+Initial convergence
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/06-2020-06-07-ii-T-1000-lambda-8-seed-0.png}
+    \caption{Convergence for a starting position that is uniform random between 0 and $2\pi$, plotted with one color per iteration step. }
+    \label{k1}
+\end{figure}
+
+Convergence after flipping
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/06-2020-06-07-ii-T-1000-lambda-8-seed-0-flipped.png}
+    \caption{Convergence for a starting position that is uniform random between 0 and $2\pi$, plotted with one color per iteration step. }
+    \label{k1}
+\end{figure}
+
+Final estimate
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/06-2020-06-07-ii-T-1000-lambda-8-seed-0-final.png}
+    \caption{Convergence for a starting position that is uniform random between 0 and $2\pi$, plotted with one color per iteration step. }
+    \label{k1}
+\end{figure}
+
+\subsection{Partly flipped estimates}
+However, another possibility is that parts of the estimate converges to an estimate that is ''correctly aligned'' while other parts are upside down. 
+In figure \ref{upsidedown2}, the number of initial estimates has been increased from 7 to 20, and estimates that ended up upside down have been flipped if their $L(\matr{X})$ value improved when the estimate was flipped (Flipping X based on L value: best L value also has best RMSE score it seems!!! We should not be able to check this from L values!!!!!!). This solves the problem of entirely flipped estimats. 
+But one of the random initial starts has converged to an estimate that appears to be partly upside down (blue line). From an entirely random intial position, it has become trapped in a local minimum from which it did not escape. 
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/2020-06-07-ii-initial.png}
+        %\label{kt1}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/2020-06-07-ii-final.png}
+    \end{minipage}
+    \caption{Left: 20 Initial starting points for the \matr{X} estimate. Right: Final estimates corrected for flipping. }
+    \label{upsidedown2}
+\end{figure}
+
+The extent of this problem increases with the length $T$ of the dataset, since there are more chances to flip around parts of the estimate. Figure \ref{k1} shows an example with $T=1000$ and a uniform random initial estimate for \matr{X}.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/04-2.png} %fig/2020-06-06-ii-T-1000-lambda-8-seed-0.png}%{fig/01.png}
+    \caption{Convergence for a starting position that is uniform random between 0 and $2\pi$, plotted with one color per iteration step. }
+    \label{k1}
+\end{figure}
+It appears as if the flipping is correct for higher \matr{X} values than about 4, and flipped whenever the X values are lower. 
+
+One iteration from an entirely flat start at $\vect{x}=1$: 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/06.png}
+    \caption{Convergence for a starting position that is uniform random between 0 and $2\pi$, plotted with one color per iteration step. }
+    \label{k1}
+\end{figure}
+
+Flat start around $\vect{x}=1$, with random noise: 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/08.png}
+    \caption{Convergence for a starting position that is uniform random between 0 and $2\pi$, plotted with one color per iteration step. }
+    \label{k1}
+\end{figure}
+
+Flat start around $\vect{x}=3$: 
+
+Flat start around $\vect{x}=5$: 
+
+Linspace start: 
+
+Start at path and true F values for comparison: 
+RMSE for X: 0.2890430891684393 compared to 0.17342200792078588 for flat start!!
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/09-true-start.png}
+    \caption{} %tolerance = 1e-5
+    \label{k1}
+\end{figure}
+
+\subsection{Consequences of flipped estimates for tuning curves}
+-- This is interesting.
+If a path is consistently upside down everywhere, the F estimates should be shifted so that instead of having a bump for low value, we have it for high value. 
+If however the path is partly upside down, we would then have tuning curves with two equal bumps. 
+%If we know that the neurons are selective, this can be limited by imposing some penalty for having more high values than average?
+
+-- Plot tuning curves for X estimate that is normal, upside down and partly upside down --
+
+\section{Conclusion and commentary about convergence and segue to initial positions for F and X}
+Discussion of ensemble starting:
+Drawback: Uses resources that could be spent adding timesteps.
+
+\section{Importance of initial position}
+\subsection{Initial estimate for \matr{F}}
+Since the posterior loglikelihood $p(\matr{F} | \matr{X})$ is convex, the initial estimate for \matr{F} does not matter for the sake of inferring \matr{F}. 
+It is nevertheless important to choose a good initial \matr{F} since the log posterior of \matr{X} is not convex. Therefore, if we start with a bad guess for \matr{F} we may end up in a local minimum for \matr{X}, where the estimate of \matr{F} will most likely also not be optimal.
+To find a good starting pont for \matr{F}, the information in \matr{Y} can be used. 
+
+For the Bernoulli likelihood model, one option is to set 
+\begin{equation}
+\begin{aligned}
+    \matr{F}_{\text{initial}} = \matr{Y}.
+\end{aligned}
+\end{equation}
+
+With a Poisson likelihood model, $f_{i,t} = \log \lambda_{i,t} = \log E[y_{i,t}]$. Based on this, a sensible initial \matr{F} would be 
+\begin{equation}
+\begin{aligned}
+    \matr{F}_{\text{initial}} = \log{\matr{Y} + \epsilon}
+\end{aligned}
+\end{equation}
+where some $\epsilon < 0$ is introduced to take the logarithm when $y_{i,t} = 0$. 
+
+However, some trial and error showed that the following initialization gave better results:
+\begin{equation}
+\begin{aligned}
+    \matr{F}_{\text{initial}} = \sqrt{\matr{Y}} - \frac{\text{max}(\sqrt{\matr{Y}})}{2} 
+\end{aligned}
+\end{equation}
+
+\subsection{Initial estimate for \matr{X}}
+Still, since the log posterior of \matr{X} is not convex, even though we base it on good estimates for \matr{F}, we must provide a good initial guess of \matr{X} for its optimization. 
+The starting point determines which local minimum it ends up in. 
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{randomstartbadconvergence.png}
+        %\label{kt1}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{startatpathgoodconvergence.png}
+    \end{minipage}
+    \caption{}
+    \label{upsidedown2}
+\end{figure}
+
+Important: Since the initial \matr{F} estimate is based on observed spikes, it is a pretty darn good guess.
+In fact, sincce the log posterior of \matr{F} is a convex funtion, that starting point is not important for its own sake. But it greatly influences what \matr{X} we converge to. Since there is an obvious link between \matr{F} and \matr{Y}, it is essential to start by inferring \matr{X}, since it is less obvious to find a good estimate of \matr{X}, especially if the selecitvity of the neurons is not known. 
+
+Example to show that starting with X given F is better than F given some shitty X. 
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/skip-F-infirstestimate.png}
+        %\label{kt1}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/startbyinferringFbasedonshittyXandshowthehorror.png}
+    \end{minipage}
+    \caption{Left: 20 Initial starting points for the \matr{X} estimate. Right: Final estimates corrected for flipping. }
+    \label{upsidedown2}
+\end{figure}
+We still need a good starting point for the above to start optimizing $p(\matr{X} | \matr{F})$. One obvious option is to use another dimensionality reduction tool, like PCA (Wu uses PLDS too, for extra power). 
+Perform PCA on the matrix of spikes. 
+But we want to smooth it out to reduce the variance (math?)
+This parameter can for some definition of meaningful be assigned meaningfully as equal to the length scale parameter of the prior of \matr{X}. (One less parameter to infer!
+PCA {...}
+Not smoothing, or use some smoothing width. 
+Parameters to fix for PCA: Smoothing? Standardization? 
+
+
+Comparing PCA start with a flat start to see which is better. 
+My sort of claim: With PCA or a path generated from prior, we start further down some local minimum. Most of the convergence happens in that first iteration. 
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/43-lookslikePCAisbetter.png}
+        %\label{kt1}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.98\linewidth]{fig/40-PCA-doingitsjobwhenthereisactivityacrossthewholerange.png}
+    \end{minipage}
+    \caption{Convergence with PCA start and flat start, (both a bit partly flippped.)}
+    \label{upsidedown2}
+\end{figure}
+
+Also, a hyperparameter that can be tuned is the smoothing of the PCA.
+
+Any way: We are always exposed to falling into local minima. 
+What can we do? 
+Ensemble of starting points like global optimization.
+Genetic algorithm that checks Likelihood value of local sections for ensemble solvings and takes final estimate as combination of parts (bonus bonus bonus mission).
+
+To iprove the initial \matr{X} estimate, other dimensionality reduction tools like PCA or PLDS could be ussed (see for example Wu et al.) 
+Here we wish to explore how well the PLGPLVM performs alone so we limit our study to different versions of random starts. 
+Anyway, important, in the first iteration the \matr{F} estimate is good and the \matr{X} estimate is bad, so we start by updating \matr{X}, not \matr{F}. Then F, X, F, X, ....
+
+\section{Robustness evaluation}
+-- examples of different fits for diffreent tuning strengths to show that it's a thing. --
+
+The number of time bins and the tuning strength relative to the background firing rate of the neurons are two parameters that greatly influence the performance of the algorithm. 
+To quentify how important they are, we construct a set of 5 test paths for each number of time bins $T = (10,100,1000)$. 
+We choose an array of tuning strengths, and for each tuning strength and choice of T we let the algorithm converge on the five test cases, and we find the root mean square error between the estimate and the true path, which we average over the 5 test cases.
+Figure \ref{robplot} shows the average RMSE values for each combination of $T$ and tuning strength. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{fig/09-true-start.png}
+    \caption{Robustness evalutaion.}
+    \label{roobplot}
+\end{figure}
+
+Importance of tuning strength and number of time bins.
+4 seeds for initial start, take best L value. Average performance over 5 different paths generated from the Gaussian process prior of \matr{X}. 
+
+\section{Periodic covariance kernel}
+Remember to make sure the x grid induce stays on 0 to 2pi.
+11.05: ''Very seasick with regards to up and down.''
+
+\section{Application to head direction data by Peyrache}
+Naive approach: Disregard continuity at the edges, just wrap around
+Then periodic kernel and remember $\text{x\_grid\_induce}$.
+
+\section{Difference between Poisson and Bernoulli performance}
+
+\subsection{Confidence intervals etc}
+For standard errors, bootstrap the data?
+
+\subsubsection{Parameters that we choose: Bin width, tuning width, tuning strength, tuning background noise, number of neurons, number of timebins. }
+Appendix food for nerds: Values of all these for examples shown. 
+
+\section{Add Lasso penalty for good measure}
+
+
+\section{To do:}
+
+\begin{itemize}
+    \item Argue why upside down estimates are as good as regular!?
+\end{itemize}
