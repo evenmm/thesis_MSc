@@ -25,7 +25,7 @@ from sklearn.decomposition import PCA
 ############################
 # Parameters for inference #
 ############################
-T = 10000 # Max time 85504
+T = 1000 # Max time 85504
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -55,8 +55,8 @@ tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
 baseline_lambda_value = 1
 baseline_f_value = np.log(baseline_lambda_value)
-peak_lambda_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
-seeds = range(20) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
+peak_lambda_array = [4] #[1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
+seeds = [11] #range(8) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
@@ -928,17 +928,17 @@ plt.title("K_plotgrid_plotgrid")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-K_plotgrid_plotgrid.png")
 
-Q_gx = np.matmul(np.matmul(K_plotgrid_g, K_gg_inverse), K_gx)
-Q_xg = Q_gx.T
+Q_plotgrid_x = np.matmul(np.matmul(K_plotgrid_g, K_gg_inverse), K_gx)
+Q_x_plotgrid = Q_plotgrid_x.T
 
 # Infer mean on the grid
 smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
 Q_xx_plus_sigma_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_gx)
 Kxx_times_F = np.matmul(Q_xx_plus_sigma_inverse, F_estimate.T)
-mu_posterior = np.matmul(Q_gx, Kxx_times_F) # Here we have Kx crossover. Check what happens if swapped with Q = KKK
+mu_posterior = np.matmul(Q_plotgrid_x, Kxx_times_F) # Here we have Kx crossover. Check what happens if swapped with Q = KKK
 
 # Calculate standard deviations
-sigma_posterior = K_plotgrid_plotgrid - np.matmul(Q_gx, np.matmul(Q_xx_plus_sigma_inverse, Q_xg))
+sigma_posterior = K_plotgrid_plotgrid - np.matmul(Q_plotgrid_x, np.matmul(Q_xx_plus_sigma_inverse, Q_x_plotgrid))
 
 # Plot posterior covariance matrix
 fig, ax = plt.subplots()
@@ -985,23 +985,26 @@ for i in range(N):
     plt.figure()
     plt.plot(x_grid_for_plotting, observed_mean_spikes_in_bins[i,:], color=plt.cm.viridis(0.1), label="Observed average")
     plt.plot(x_grid_for_plotting, h_estimate[i,:], color=plt.cm.viridis(0.5), label="Estimated expectation") 
+    plt.plot(x_grid_for_plotting, h_lower_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
+    plt.plot(x_grid_for_plotting, h_upper_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
 #    plt.plot(x_grid_for_plotting, mu_posterior[i,:], color=plt.cm.viridis(0.5)) 
     plt.title("Expected and average number of spikes, neuron "+str(i)) #spikes
 #    plt.title("Neuron "+str(i)+" with "+str(sum(y_spikes[i,:]))+" spikes")
     plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))
     plt.yticks(range(0,math.floor(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))))
-    plt.xlabel("X")
+    plt.xlabel("x")
     plt.ylabel("Number of spikes")
     plt.legend()
     plt.tight_layout()
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-tuning-"+str(i)+".png")
 
+# Plot observed tuning for all neurons together
 colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
 plt.figure()
 for i in range(N):
     plt.plot(x_grid_for_plotting, observed_mean_spikes_in_bins[i,:], color=colors[i])
 #    plt.plot(x_grid_for_plotting, h_estimate[neuron[i,j],:], color=plt.cm.viridis(0.5)) 
-    plt.xlabel("X")
+    plt.xlabel("x")
     plt.ylabel("Average number of spikes")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-tuning-collected.png")
