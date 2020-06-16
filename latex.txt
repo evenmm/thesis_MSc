@@ -907,5 +907,13 @@ Too wide inducing grid: Entirely different results and probably very bad F estim
 Unexpected results: Expected too wide estimate but in fact it is very narrow... Maybe because of matrix inversion badness.... vooodooo. 
 
 Changing the setup for background tuning to defining E(# spikes).
+Kind run overnight looks at lambda=2 in each bin instead to see if we can make do with less :)
 
+\subsection{16.06}
+Scale only at end: Very well
+Keep inducing points fixed at (0,10): Still no problem! It seems the only bad thing is to have inactive neurons  
+BUT: It looks like when grid follows estimate that we are less able to find the extremities: Therefore FIX inducing grid. Also easier, and fewer iterations.
+To save time: Compare PCA estimate to path with rmse, and flip if it's upside down. (We're already comparing to true path to decide flipping, so.)
+OBSERVATION: It seems like T=2000 is harder to infer than T=1000. 
+DECISION: We scale up the path so that it covers the entire interval
 

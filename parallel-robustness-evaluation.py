@@ -25,63 +25,60 @@ from sklearn.decomposition import PCA
 ############################
 # Parameters for inference #
 ############################
-T = 1000 # Max time 85504
+T = 100 # Max time 85504
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 INFER_F_POSTERIORS = False
-PLOT_GRADIENT_CHECK = False
 GRADIENT_FLAG = True # Set True to use analytic gradient
-USE_OFFSET_AND_SCALING = True
-SPEEDCHECK = False
-TOLERANCE = 1e-3
-NOISE_REGULARIZATION = False
-SMOOTHING_REGULARIZATION = False
+USE_OFFSET_AND_SCALING_AT_EVERY_ITERATION = False
+USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE = True
+TOLERANCE = 1e-5
 X_initialization = "pca" #"true" "ones" "pca" "randomrandom" "randomprior" "linspace"
+# Using ensemble of PCA values
+ensemble_smoothingwidths = [1,2,3,5,10,15,20,25,30,40,50,60,70] #
+LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False # If False, they stay at (min_inducing_point, max_inducing_point)
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 1
+NOISE_REGULARIZATION = False
+SMOOTHING_REGULARIZATION = False
 GIVEN_TRUE_F = False
+SPEEDCHECK = False
 OPTIMIZE_HYPERPARAMETERS = False
 PLOTTING = True
-N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
-N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
 TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
 UNIFORM_BUMPS = False
+PLOT_GRADIENT_CHECK = False
+N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per dim in 2D
+N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
 baseline_lambda_value = 1
 baseline_f_value = np.log(baseline_lambda_value)
 peak_lambda_array = [4] #[1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
-seeds = [11] #range(8) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
+seeds = range(7) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
 # Define max and min of neural tuning 
 min_inducing_point = 0
-if T > 100:
-    max_inducing_point = 10
-elif T == 100:
-    max_inducing_point = 4
-elif T == 10:
-    max_inducing_point = 1
+max_inducing_point = 10
 min_neural_tuning_X = min_inducing_point
 max_neural_tuning_X = max_inducing_point
 # Neural density:
 N = 100 #3*int(max_neural_tuning_X - min_neural_tuning_X) 
-LIMIT_X_RANGE = True # Stop path from going outside
-LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = True # If False, they stay at (min_inducing_point, max_inducing_point)
 # For inference:
-sigma_x = 20 # Variance of X for K_t. Set so that you are certain the path reaches max and min of tuing area.
-delta_x = 100 # Scale of X for K_t
+sigma_x = 20 # Variance of X for inference matrix K_t 
+delta_x = 100 # Scale of X for inference matrix K_t
 # Generative parameters for X path:
-sigma_x_generate_path = 30 #2*(max_neural_tuning_X - min_neural_tuning_X) # Variance
-delta_x_generate_path = 100 # Scale 
-smoothingwindow_for_PCA = 0.015 * T
+LIMIT_X_RANGE_AND_SCALE_TO_COVER_DOMAIN = True # Stop path from going outside defined domain with neurons
+sigma_x_generate_path = 30 # Variance for path generation. Set high enough so the path reaches max and min of tuning area
+delta_x_generate_path = 100 # Scale for path generation.
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
@@ -471,7 +468,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     # Generate path
     path = (max_neural_tuning_X-min_neural_tuning_X)/2 + numpy.random.multivariate_normal(np.zeros(T), K_t_generate)
     #path = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T)
-    if LIMIT_X_RANGE:
+    if LIMIT_X_RANGE_AND_SCALE_TO_COVER_DOMAIN:
         # Use boolean masks to keep X within min and max of tuning 
         path -= min_neural_tuning_X # bring path to 0
         modulo_two_pi_values = path // (max_neural_tuning_X)
@@ -484,6 +481,11 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         differences = max_neural_tuning_X - path[oddmodulos]
         path[oddmodulos] = differences
         path += min_neural_tuning_X # bring path back to min value for tuning
+        # Now scale to cover the domain:
+        path -= min(path)
+        path /= max(path)
+        path *= (max_inducing_point-min_inducing_point)
+        path += min_inducing_point
     if PLOTTING:
         ## plot path 
         if T > 100:
@@ -554,284 +556,346 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     ###############################
     # Inducing points based on the actual range of X
     x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points) #np.linspace(min(path), max(path), N_inducing_points)
-    print("Min and max of path:", min(path), max(path))
-    print("Min and max of grid:", min(x_grid_induce), max(x_grid_induce))
+    #print("Min and max of path:", min(path), max(path))
+    #print("Min and max of grid:", min(x_grid_induce), max(x_grid_induce))
     K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     ######################
     # Initialize X and F #
     ######################
-    # PCA initialization: 
-    celldata = zeros(shape(y_spikes))
-    for i in range(N):
-        celldata[i,:] = scipy.ndimage.filters.gaussian_filter1d(y_spikes[i,:], smoothingwindow_for_PCA) # smooth
-        #celldata[i,:] = (celldata[i,:]-mean(celldata[i,:]))/std(celldata[i,:])                 # standardization requires at least one spike
-    X_pca_result = PCA(n_components=1, svd_solver='full').fit_transform(transpose(celldata))
-    X_pca_initial = np.zeros(T)
-    for i in range(T):
-        X_pca_initial[i] = X_pca_result[i]
-    # Scale PCA initialization to fit domain:
-    X_pca_initial -= min(X_pca_initial)
-    X_pca_initial += min_inducing_point
-    X_pca_initial /= max(X_pca_initial)
-    X_pca_initial *= max_inducing_point
-    if T > 100:
-        plt.figure(figsize=(10,3))
-    else:
-        plt.figure()
-    plt.xlabel("Time")
-    plt.ylabel("x")
-    plt.title("PCA initial of X")
-    plt.plot(path, color="black", label='True X')
-    plt.plot(X_pca_initial, label="Initial")
-    plt.legend(loc="upper right")
-    plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-PCA-initial.png")
-
-    # Initialize X
-    np.random.seed(0)
-    if X_initialization == "true":
-        X_initial = path
-    if X_initialization == "ones":
-        X_initial = np.ones(T)
-    if X_initialization == "pca":
-        X_initial = X_pca_initial
-    if X_initialization == "randomrandom":
-        X_initial = (max_neural_tuning_X - min_neural_tuning_X)*np.random.random(T)
-    if X_initialization == "randomprior":
-        X_initial = (max_neural_tuning_X - min_neural_tuning_X)*np.random.multivariate_normal(np.zeros(T), K_t_generate)
-    if X_initialization == "linspace":
-        X_initial = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T) 
-    X_estimate = np.copy(X_initial)
-    # Initialize F
-    F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.log(y_spikes + 0.0008)
-    F_estimate = np.copy(F_initial)
-    if GIVEN_TRUE_F:
-        F_estimate = true_f
-    if PLOTTING:
-        if T > 100:
-            plt.figure(figsize=(10,3))
-        else:
-            plt.figure()
-        #plt.title("Path of X")
-        plt.title("X estimate")
-        plt.xlabel("Time")
-        plt.ylabel("x")
-        plt.plot(path, color="black", label='True X')
-        plt.plot(X_initial, label='Initial')
-        #plt.legend(loc="upper right")
-        #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
-        plt.tight_layout()
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
-    if PLOT_GRADIENT_CHECK:
-        sigma_n = np.copy(global_initial_sigma_n)
-        K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
-        X_gradient = x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
+    # Here the PCA ensemble comes into play:
+    ensemble_array_X_rmse = np.zeros(len(ensemble_smoothingwidths))
+    ensemble_array_X_estimate = np.zeros((len(ensemble_smoothingwidths), T))
+    ensemble_array_F_estimate = np.zeros((len(ensemble_smoothingwidths), N, T))
+    ensemble_array_y_spikes = np.zeros((len(ensemble_smoothingwidths), N, T))
+    ensemble_array_path = np.zeros((len(ensemble_smoothingwidths), T))
+    for smoothingwindow_index in range(len(ensemble_smoothingwidths)):
+        smoothingwindow_for_PCA = ensemble_smoothingwidths[smoothingwindow_index]
+        # PCA initialization: 
+        celldata = zeros(shape(y_spikes))
+        for i in range(N):
+            celldata[i,:] = scipy.ndimage.filters.gaussian_filter1d(y_spikes[i,:], smoothingwindow_for_PCA) # smooth
+            #celldata[i,:] = (celldata[i,:]-mean(celldata[i,:]))/std(celldata[i,:])                 # standardization requires at least one spike
+        X_pca_result = PCA(n_components=1, svd_solver='full').fit_transform(transpose(celldata))
+        X_pca_initial = np.zeros(T)
+        for i in range(T):
+            X_pca_initial[i] = X_pca_result[i]
+        # Scale PCA initialization to fit domain:
+        X_pca_initial -= min(X_pca_initial)
+        X_pca_initial /= max(X_pca_initial)
+        X_pca_initial *= (max_inducing_point-min_inducing_point)
+        X_pca_initial += min_inducing_point
+        # Flip PCA initialization correctly by comparing to true path
+        X_pca_initial_flipped = 2*mean(X_pca_initial) - X_pca_initial
+        X_pca_initial_rmse = np.sqrt(sum((X_pca_initial-path)**2) / T)
+        X_pca_initial_flipped_rmse = np.sqrt(sum((X_pca_initial_flipped-path)**2) / T)
+        if X_pca_initial_flipped_rmse < X_pca_initial_rmse:
+            X_pca_initial = X_pca_initial_flipped
+        # Plot PCA initialization
         if T > 100:
             plt.figure(figsize=(10,3))
         else:
             plt.figure()
         plt.xlabel("Time")
         plt.ylabel("x")
-        plt.title("Gradient at initial X")
+        plt.title("PCA initial of X")
         plt.plot(path, color="black", label='True X')
-        plt.plot(X_initial, label="Initial")
-        #plt.plot(X_gradient, label="Gradient")
-        plt.plot(X_estimate + 2*X_gradient/max(X_gradient), label="Gradient plus offset")
+        plt.plot(X_pca_initial, label="Initial")
         plt.legend(loc="upper right")
         plt.tight_layout()
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-Gradient.png")
-        exit()
-        """
-        print("Testing gradient...")
-        #X_estimate = path
-        #F_estimate = true_f
-        print("Gradient difference using check_grad:",scipy.optimize.check_grad(func=x_posterior_no_la, grad=x_jacobian_no_la, x0=path, args=(sigma_n, F_estimate, K_gg, x_grid_induce)))
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-PCA-initial.png")
 
-        #optim_gradient = optimization_result.jac
-        print("Epsilon:", np.sqrt(np.finfo(float).eps))
-        optim_gradient1 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=1*np.sqrt(np.finfo(float).eps), args=(sigma_n, F_estimate, K_gg, x_grid_induce))
-        optim_gradient2 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=x_posterior_no_la, 1e-4, args=(sigma_n, F_estimate, K_gg, x_grid_induce))
-        optim_gradient3 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=x_posterior_no_la, 1e-2, args=(sigma_n, F_estimate, K_gg, x_grid_induce))
-        optim_gradient4 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=x_posterior_no_la, 1e-2, args=(sigma_n, F_estimate, K_gg, x_grid_induce))
-        calculated_gradient = x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
-        difference_approx_fprime_1 = optim_gradient1 - calculated_gradient
-        difference_approx_fprime_2 = optim_gradient2 - calculated_gradient
-        difference_approx_fprime_3 = optim_gradient3 - calculated_gradient
-        difference_approx_fprime_4 = optim_gradient4 - calculated_gradient
-        difference_norm1 = np.linalg.norm(difference_approx_fprime_1)
-        difference_norm2 = np.linalg.norm(difference_approx_fprime_2)
-        difference_norm3 = np.linalg.norm(difference_approx_fprime_3)
-        difference_norm4 = np.linalg.norm(difference_approx_fprime_4)
-        print("Gradient difference using approx f prime, epsilon 1e-8:", difference_norm1)
-        print("Gradient difference using approx f prime, epsilon 1e-4:", difference_norm2)
-        print("Gradient difference using approx f prime, epsilon 1e-2:", difference_norm3)
-        print("Gradient difference using approx f prime, epsilon 1e-2:", difference_norm4)
-        plt.figure()
-        plt.title("Gradient compared to numerical gradient")
-        plt.plot(calculated_gradient, label="Analytic")
-        #plt.plot(optim_gradient1, label="Numerical 1")
-        plt.plot(optim_gradient2, label="Numerical 2")
-        plt.plot(optim_gradient3, label="Numerical 3")
-        plt.plot(optim_gradient4, label="Numerical 4")
-        plt.legend()
-        plt.figure()
-        #plt.plot(difference_approx_fprime_1, label="difference 1")
-        plt.plot(difference_approx_fprime_2, label="difference 2")
-        plt.plot(difference_approx_fprime_3, label="difference 3")
-        plt.plot(difference_approx_fprime_4, label="difference 4")
-        plt.legend()
-        plt.show()
-        exit()
-        """
-    #############################
-    # Iterate with EM algorithm #
-    #############################
-    prev_X_estimate = np.Inf
-    sigma_n = np.copy(global_initial_sigma_n)
-    for iteration in range(N_iterations):
-        if iteration > 0:
-            sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
-            if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
-                x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
-        K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
-        K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-        # Find F estimate only if we're not at the first iteration
-        if iteration > 0:
-            if LIKELIHOOD_MODEL == "bernoulli":
-                for i in range(N):
-                    y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(fun=f_loglikelihood_bernoulli, x0=F_estimate[i], jac=f_jacobian_bernoulli, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
-                    F_estimate[i] = optimization_result.x
-            elif LIKELIHOOD_MODEL == "poisson":
-                for i in range(N):
-                    y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
-                    F_estimate[i] = optimization_result.x 
-        # Find next X estimate, that can be outside (0,2pi)
-        if GIVEN_TRUE_F: 
-            print("NB! NB! We're setting the f value to the optimal F given the path.")
-            F_estimate = np.copy(true_f)
-        if NOISE_REGULARIZATION:
-            X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t_generate) - 1
-        if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
-            X_estimate = scipy.ndimage.filters.gaussian_filter1d(X_estimate, 4)
-        if GRADIENT_FLAG: 
-            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
-        else:
-            optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", options = {'disp':False})
-        X_estimate = optimization_result.x
-        if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
-            # Flipping estimate after iteration 1 has been plotted
-            X_estimate = 2*mean(X_estimate) - X_estimate
-        if USE_OFFSET_AND_SCALING:
-            X_estimate -= min(X_estimate) #set offset of min to 0
-            X_estimate /= max(X_estimate) #scale length to 1
-            X_estimate *= (max(path)-min(path)) #scale length to length of path
-            X_estimate += min(path) #set offset to offset of path
-        if PLOTTING:
-            plt.plot(X_estimate, label='Estimate')
-            #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
-            plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
-        if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
-            print("Seed", seeds[seedindex], "Iterations:", iteration)
-            break
-        prev_X_estimate = X_estimate
-    # Flipped 
-    X_flipped = - X_estimate + 2*mean(X_estimate)
-    # Rootmeansquarederror for X
-    X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
-    X_flipped_rmse = np.sqrt(sum((X_flipped-path)**2) / T)
-    ##### Check if flipped and maybe iterate again with flipped estimate
-    if X_flipped_rmse < X_rmse:
-        #print("RMSE for X:", X_rmse)
-        #print("RMSE for X flipped:", X_flipped_rmse)
-        #print("Re-iterating because of flip")
-        sigma_n = np.copy(global_initial_sigma_n)
-        X_initial_2 = np.copy(X_flipped)
-        X_estimate = np.copy(X_flipped)
+        # Initialize X
+        np.random.seed(0)
+        if X_initialization == "true":
+            X_initial = path
+        if X_initialization == "ones":
+            X_initial = np.ones(T)
+        if X_initialization == "pca":
+            X_initial = X_pca_initial
+        if X_initialization == "randomrandom":
+            X_initial = (max_neural_tuning_X - min_neural_tuning_X)*np.random.random(T)
+        if X_initialization == "randomprior":
+            X_initial = (max_neural_tuning_X - min_neural_tuning_X)*np.random.multivariate_normal(np.zeros(T), K_t_generate)
+        if X_initialization == "linspace":
+            X_initial = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T) 
+        X_estimate = np.copy(X_initial)
+        # Initialize F
+        F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.log(y_spikes + 0.0008)
         F_estimate = np.copy(F_initial)
+        if GIVEN_TRUE_F:
+            F_estimate = true_f
         if PLOTTING:
             if T > 100:
                 plt.figure(figsize=(10,3))
             else:
                 plt.figure()
-            #plt.title("After flipping") # as we go
+            #plt.title("Path of X")
+            plt.title("X estimate")
             plt.xlabel("Time")
             plt.ylabel("x")
             plt.plot(path, color="black", label='True X')
-            plt.plot(X_initial_2, label='Initial')
+            plt.plot(X_initial, label='Initial')
+            #plt.legend(loc="upper right")
             #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
             plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
+        if PLOT_GRADIENT_CHECK:
+            sigma_n = np.copy(global_initial_sigma_n)
+            K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+            X_gradient = x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
+            if T > 100:
+                plt.figure(figsize=(10,3))
+            else:
+                plt.figure()
+            plt.xlabel("Time")
+            plt.ylabel("x")
+            plt.title("Gradient at initial X")
+            plt.plot(path, color="black", label='True X')
+            plt.plot(X_initial, label="Initial")
+            #plt.plot(X_gradient, label="Gradient")
+            plt.plot(X_estimate + 2*X_gradient/max(X_gradient), label="Gradient plus offset")
+            plt.legend(loc="upper right")
+            plt.tight_layout()
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-Gradient.png")
+            exit()
+            """
+            print("Testing gradient...")
+            #X_estimate = path
+            #F_estimate = true_f
+            print("Gradient difference using check_grad:",scipy.optimize.check_grad(func=x_posterior_no_la, grad=x_jacobian_no_la, x0=path, args=(sigma_n, F_estimate, K_gg, x_grid_induce)))
+
+            #optim_gradient = optimization_result.jac
+            print("Epsilon:", np.sqrt(np.finfo(float).eps))
+            optim_gradient1 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=1*np.sqrt(np.finfo(float).eps), args=(sigma_n, F_estimate, K_gg, x_grid_induce))
+            optim_gradient2 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=x_posterior_no_la, 1e-4, args=(sigma_n, F_estimate, K_gg, x_grid_induce))
+            optim_gradient3 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=x_posterior_no_la, 1e-2, args=(sigma_n, F_estimate, K_gg, x_grid_induce))
+            optim_gradient4 = scipy.optimize.approx_fprime(xk=X_estimate, f=x_posterior_no_la, epsilon=x_posterior_no_la, 1e-2, args=(sigma_n, F_estimate, K_gg, x_grid_induce))
+            calculated_gradient = x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
+            difference_approx_fprime_1 = optim_gradient1 - calculated_gradient
+            difference_approx_fprime_2 = optim_gradient2 - calculated_gradient
+            difference_approx_fprime_3 = optim_gradient3 - calculated_gradient
+            difference_approx_fprime_4 = optim_gradient4 - calculated_gradient
+            difference_norm1 = np.linalg.norm(difference_approx_fprime_1)
+            difference_norm2 = np.linalg.norm(difference_approx_fprime_2)
+            difference_norm3 = np.linalg.norm(difference_approx_fprime_3)
+            difference_norm4 = np.linalg.norm(difference_approx_fprime_4)
+            print("Gradient difference using approx f prime, epsilon 1e-8:", difference_norm1)
+            print("Gradient difference using approx f prime, epsilon 1e-4:", difference_norm2)
+            print("Gradient difference using approx f prime, epsilon 1e-2:", difference_norm3)
+            print("Gradient difference using approx f prime, epsilon 1e-2:", difference_norm4)
+            plt.figure()
+            plt.title("Gradient compared to numerical gradient")
+            plt.plot(calculated_gradient, label="Analytic")
+            #plt.plot(optim_gradient1, label="Numerical 1")
+            plt.plot(optim_gradient2, label="Numerical 2")
+            plt.plot(optim_gradient3, label="Numerical 3")
+            plt.plot(optim_gradient4, label="Numerical 4")
+            plt.legend()
+            plt.figure()
+            #plt.plot(difference_approx_fprime_1, label="difference 1")
+            plt.plot(difference_approx_fprime_2, label="difference 2")
+            plt.plot(difference_approx_fprime_3, label="difference 3")
+            plt.plot(difference_approx_fprime_4, label="difference 4")
+            plt.legend()
+            plt.show()
+            exit()
+            """
+        #############################
+        # Iterate with EM algorithm #
+        #############################
         prev_X_estimate = np.Inf
+        sigma_n = np.copy(global_initial_sigma_n)
         for iteration in range(N_iterations):
             if iteration > 0:
                 sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
+                if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
+                    x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
             K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
             K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-            # Here we want to find a new F estimate regardless
-            if LIKELIHOOD_MODEL == "bernoulli":
-                for i in range(N):
-                    y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(fun=f_loglikelihood_bernoulli, x0=F_estimate[i], jac=f_jacobian_bernoulli, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
-                    F_estimate[i] = optimization_result.x
-            elif LIKELIHOOD_MODEL == "poisson":
-                for i in range(N):
-                    y_i = y_spikes[i]
-                    optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
-                    F_estimate[i] = optimization_result.x 
+            # Find F estimate only if we're not at the first iteration
+            if iteration > 0:
+                if LIKELIHOOD_MODEL == "bernoulli":
+                    for i in range(N):
+                        y_i = y_spikes[i]
+                        optimization_result = optimize.minimize(fun=f_loglikelihood_bernoulli, x0=F_estimate[i], jac=f_jacobian_bernoulli, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+                        F_estimate[i] = optimization_result.x
+                elif LIKELIHOOD_MODEL == "poisson":
+                    for i in range(N):
+                        y_i = y_spikes[i]
+                        optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+                        F_estimate[i] = optimization_result.x 
             # Find next X estimate, that can be outside (0,2pi)
             if GIVEN_TRUE_F: 
                 print("NB! NB! We're setting the f value to the optimal F given the path.")
                 F_estimate = np.copy(true_f)
+            if NOISE_REGULARIZATION:
+                X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t_generate) - 1
+            if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
+                X_estimate = scipy.ndimage.filters.gaussian_filter1d(X_estimate, 4)
             if GRADIENT_FLAG: 
                 optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
             else:
                 optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", options = {'disp':False})
             X_estimate = optimization_result.x
-            if PLOTTING:
-                plt.plot(X_estimate, label='Estimate (after flip)')
-                #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
-                plt.tight_layout()
-                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
             if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
                 # Flipping estimate after iteration 1 has been plotted
                 X_estimate = 2*mean(X_estimate) - X_estimate
+            if USE_OFFSET_AND_SCALING_AT_EVERY_ITERATION:
+                X_estimate -= min(X_estimate) #set offset of min to 0
+                X_estimate /= max(X_estimate) #scale length to 1
+                X_estimate *= (max(path)-min(path)) #scale length to length of path
+                X_estimate += min(path) #set offset to offset of path
+            if PLOTTING:
+                plt.plot(X_estimate, label='Estimate')
+                #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+                plt.tight_layout()
+                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
             if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
-                print("Seed", seeds[seedindex], "Iterations after flip:", iteration)
+                print("Seed", seeds[seedindex], "Iterations:", iteration+1, "Change in X smaller than TOL")
                 break
+            if iteration == N_iterations-1:
+                print("Seed", seeds[seedindex], "Iterations:", iteration+1, "N_iterations reached")
             prev_X_estimate = X_estimate
+        if USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE:
+            X_estimate -= min(X_estimate) #set offset of min to 0
+            X_estimate /= max(X_estimate) #scale length to 1
+            X_estimate *= (max(path)-min(path)) #scale length to length of path
+            X_estimate += min(path) #set offset to offset of path
+        # Flipped 
+        X_flipped = - X_estimate + 2*mean(X_estimate)
         # Rootmeansquarederror for X
         X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
-    print("Seed", seeds[seedindex], "finished. RMSE for X:", X_rmse)
-    #SStot = sum((path - mean(path))**2)
-    #SSdev = sum((X_estimate-path)**2)
-    #Rsquared = 1 - SSdev / SStot
-    #Rsquared_values[seed] = Rsquared
-    #print("R squared value of X estimate:", Rsquared, "\n")
-    #####
-    # Rootmeansquarederror for F
-    #if LIKELIHOOD_MODEL == "bernoulli":
-    #    h_estimate = np.divide( np.exp(F_estimate), (1 + np.exp(F_estimate)))
-    #if LIKELIHOOD_MODEL == "poisson":
-    #    h_estimate = np.exp(F_estimate)
-    #F_rmse = np.sqrt(sum((h_estimate-true_f)**2) / (T*N))
-    if PLOTTING:
-        if T > 100:
-            plt.figure(figsize=(10,3))
-        else:
-            plt.figure()
-        plt.title("Final estimate") # as we go
-        plt.xlabel("Time")
-        plt.ylabel("x")
-        plt.plot(path, color="black", label='True X')
-        plt.plot(X_initial, label='Initial')
-        plt.plot(X_estimate, label='Estimate')
-        plt.legend(loc="upper right")
-        #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
-        plt.tight_layout()
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
+        X_flipped_rmse = np.sqrt(sum((X_flipped-path)**2) / T)
+        ##### Check if flipped and maybe iterate again with flipped estimate
+        if X_flipped_rmse < X_rmse:
+            #print("RMSE for X:", X_rmse)
+            #print("RMSE for X flipped:", X_flipped_rmse)
+            #print("Re-iterating because of flip")
+            x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points) #np.linspace(min(path), max(path), N_inducing_points)
+            K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+            X_initial_2 = np.copy(X_flipped)
+            X_estimate = np.copy(X_flipped)
+            F_estimate = np.copy(F_initial)
+            if GIVEN_TRUE_F:
+                F_estimate = true_f
+            if PLOTTING:
+                if T > 100:
+                    plt.figure(figsize=(10,3))
+                else:
+                    plt.figure()
+                #plt.title("After flipping") # as we go
+                plt.xlabel("Time")
+                plt.ylabel("x")
+                plt.plot(path, color="black", label='True X')
+                plt.plot(X_initial_2, label='Initial')
+                #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+                plt.tight_layout()
+                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
+            #############################
+            # EM after flipped          #
+            #############################
+            prev_X_estimate = np.Inf
+            sigma_n = np.copy(global_initial_sigma_n)
+            for iteration in range(N_iterations):
+                if iteration > 0:
+                    sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
+                    if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
+                        x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
+                K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+                K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+                # Find F estimate only if we're not at the first iteration
+                if iteration > 0:
+                    if LIKELIHOOD_MODEL == "bernoulli":
+                        for i in range(N):
+                            y_i = y_spikes[i]
+                            optimization_result = optimize.minimize(fun=f_loglikelihood_bernoulli, x0=F_estimate[i], jac=f_jacobian_bernoulli, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+                            F_estimate[i] = optimization_result.x
+                    elif LIKELIHOOD_MODEL == "poisson":
+                        for i in range(N):
+                            y_i = y_spikes[i]
+                            optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+                            F_estimate[i] = optimization_result.x 
+                # Find next X estimate, that can be outside (0,2pi)
+                if GIVEN_TRUE_F: 
+                    print("NB! NB! We're setting the f value to the optimal F given the path.")
+                    F_estimate = np.copy(true_f)
+                if NOISE_REGULARIZATION:
+                    X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t_generate) - 1
+                if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
+                    X_estimate = scipy.ndimage.filters.gaussian_filter1d(X_estimate, 4)
+                if GRADIENT_FLAG: 
+                    optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", jac=x_jacobian_no_la, options = {'disp':False})
+                else:
+                    optimization_result = optimize.minimize(fun=x_posterior_no_la, x0=X_estimate, args=(sigma_n, F_estimate, K_gg, x_grid_induce), method = "L-BFGS-B", options = {'disp':False})
+                X_estimate = optimization_result.x
+                if (iteration == (FLIP_AFTER_HOW_MANY - 1)) and FLIP_AFTER_SOME_ITERATION:
+                    # Flipping estimate after iteration 1 has been plotted
+                    X_estimate = 2*mean(X_estimate) - X_estimate
+                if USE_OFFSET_AND_SCALING_AT_EVERY_ITERATION:
+                    X_estimate -= min(X_estimate) #set offset of min to 0
+                    X_estimate /= max(X_estimate) #scale length to 1
+                    X_estimate *= (max(path)-min(path)) #scale length to length of path
+                    X_estimate += min(path) #set offset to offset of path
+                if PLOTTING:
+                    plt.plot(X_estimate, label='Estimate (after flip)')
+                    #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+                    plt.tight_layout()
+                    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
+                if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
+                    print("Seed", seeds[seedindex], "Iterations after flip:", iteration+1, "Change in X smaller than TOL")
+                    break
+                if iteration == N_iterations-1:
+                    print("Seed", seeds[seedindex], "Iterations after flip:", iteration+1, "N_iterations reached")
+                prev_X_estimate = X_estimate
+            if USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE:
+                X_estimate -= min(X_estimate) #set offset of min to 0
+                X_estimate /= max(X_estimate) #scale length to 1
+                X_estimate *= (max(path)-min(path)) #scale length to length of path
+                X_estimate += min(path) #set offset to offset of path
+            # Rootmeansquarederror for X
+            X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
+        print("Seed", seeds[seedindex], "smoothingwindow", smoothingwindow_for_PCA, "finished. RMSE for X:", X_rmse)
+        #SStot = sum((path - mean(path))**2)
+        #SSdev = sum((X_estimate-path)**2)
+        #Rsquared = 1 - SSdev / SStot
+        #Rsquared_values[seed] = Rsquared
+        #print("R squared value of X estimate:", Rsquared, "\n")
+        #####
+        # Rootmeansquarederror for F
+        #if LIKELIHOOD_MODEL == "bernoulli":
+        #    h_estimate = np.divide( np.exp(F_estimate), (1 + np.exp(F_estimate)))
+        #if LIKELIHOOD_MODEL == "poisson":
+        #    h_estimate = np.exp(F_estimate)
+        #F_rmse = np.sqrt(sum((h_estimate-true_f)**2) / (T*N))
+        if PLOTTING:
+            if T > 100:
+                plt.figure(figsize=(10,3))
+            else:
+                plt.figure()
+            plt.title("Final estimate") # as we go
+            plt.xlabel("Time")
+            plt.ylabel("x")
+            plt.plot(path, color="black", label='True X')
+            plt.plot(X_initial, label='Initial')
+            plt.plot(X_estimate, label='Estimate')
+            plt.legend(loc="upper right")
+            #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+            plt.tight_layout()
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
+        ensemble_array_X_rmse[smoothingwindow_index] = X_rmse
+        ensemble_array_X_estimate[smoothingwindow_index] = X_estimate
+        ensemble_array_F_estimate[smoothingwindow_index] = F_estimate
+        ensemble_array_y_spikes[smoothingwindow_index] = y_spikes
+        ensemble_array_path[smoothingwindow_index] = path
+        # Finish loop for one smoothingwidth
+    # Find best rmse across smoothingwindows for PCA start:
+    best_rmse_index = np.argmin(ensemble_array_X_rmse)
+    X_rmse = ensemble_array_X_rmse[best_rmse_index]
+    X_estimate = ensemble_array_X_estimate[best_rmse_index]
+    F_estimate = ensemble_array_F_estimate[best_rmse_index]
+    y_spikes = ensemble_array_y_spikes[best_rmse_index]
+    path = ensemble_array_path[best_rmse_index]
+    print("Seed", seeds[seedindex], "Best smoothing window:", ensemble_smoothingwidths[best_rmse_index], "RMSE:", X_rmse)
     return [X_rmse, X_estimate, F_estimate, y_spikes, path]
 
 seed_rmse_array = np.zeros(len(seeds))
