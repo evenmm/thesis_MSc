@@ -57,7 +57,7 @@ N_inducing_points = 30 # Number of inducing points. Wu uses 25 in 1D and 10 per 
 N_plotgridpoints = 40 # Number of grid points for plotting f posterior only 
 tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
-baseline_lambda_value = 1
+baseline_lambda_value = 0.5
 baseline_f_value = np.log(baseline_lambda_value)
 peak_lambda_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
 seeds = range(20) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
@@ -929,8 +929,8 @@ if __name__ == "__main__":
             path_array[i] = result_array[i][4]
         mean_rmse_values[lambda_index] = np.mean(seed_rmse_array)
         sum_of_squared_deviation_values[lambda_index] = sum((seed_rmse_array - np.mean(seed_rmse_array))**2)
-        np.save("mean_rmse_values-T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), mean_rmse_values)
-        np.save("sum_of_squared_deviation_values-T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), sum_of_squared_deviation_values)
+        np.save("mean_rmse_values-base-lambda-" + baseline_lambda_value + "T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), mean_rmse_values)
+        np.save("sum_of_squared_deviation_values-base-lambda-" + baseline_lambda_value + "T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), sum_of_squared_deviation_values)
 
         print("\n")
         print("Lambda strength:", peak_lambda_global)
