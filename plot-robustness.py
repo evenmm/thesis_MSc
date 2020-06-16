@@ -64,6 +64,8 @@ plt.errorbar(x=lambda_strength_array, y=T_2000, yerr=(1.96*std_2000_array/np.sqr
 
 plt.legend(loc="upper right")
 plt.ylim(ymin=0)
+plt.xlim(xmin=0)
+plt.xticks(range(11))
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-plot-robustness.png")
 plt.show()

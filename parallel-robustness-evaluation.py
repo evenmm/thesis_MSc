@@ -47,7 +47,7 @@ SMOOTHING_REGULARIZATION = False
 GIVEN_TRUE_F = False
 SPEEDCHECK = False
 OPTIMIZE_HYPERPARAMETERS = False
-PLOTTING = True
+PLOTTING = False
 LIKELIHOOD_MODEL = "poisson" # "bernoulli" "poisson"
 COVARIANCE_KERNEL_KX = "nonperiodic" # "periodic" "nonperiodic"
 TUNINGCURVE_DEFINITION = "bumps" # "triangles" "bumps"
@@ -88,6 +88,7 @@ print("Initial sigma_n:", global_initial_sigma_n)
 print("Learning rate:", lr)
 print("T:", T)
 print("N:", N)
+print("Smoothingwidths:", ensemble_smoothingwidths)
 if FLIP_AFTER_SOME_ITERATION:
     print("NBBBB!!! We're flipping the estimate in line 600.")
 print("\n")
@@ -751,10 +752,10 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 plt.tight_layout()
                 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
             if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
-                print("Seed", seeds[seedindex], "Iterations:", iteration+1, "Change in X smaller than TOL")
+                #print("Seed", seeds[seedindex], "Iterations:", iteration+1, "Change in X smaller than TOL")
                 break
-            if iteration == N_iterations-1:
-                print("Seed", seeds[seedindex], "Iterations:", iteration+1, "N_iterations reached")
+            #if iteration == N_iterations-1:
+            #    print("Seed", seeds[seedindex], "Iterations:", iteration+1, "N_iterations reached")
             prev_X_estimate = X_estimate
         if USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE:
             X_estimate -= min(X_estimate) #set offset of min to 0
@@ -842,10 +843,10 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                     plt.tight_layout()
                     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
                 if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
-                    print("Seed", seeds[seedindex], "Iterations after flip:", iteration+1, "Change in X smaller than TOL")
+                    #print("Seed", seeds[seedindex], "Iterations after flip:", iteration+1, "Change in X smaller than TOL")
                     break
-                if iteration == N_iterations-1:
-                    print("Seed", seeds[seedindex], "Iterations after flip:", iteration+1, "N_iterations reached")
+                #if iteration == N_iterations-1:
+                #    print("Seed", seeds[seedindex], "Iterations after flip:", iteration+1, "N_iterations reached")
                 prev_X_estimate = X_estimate
             if USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE:
                 X_estimate -= min(X_estimate) #set offset of min to 0
@@ -854,7 +855,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 X_estimate += min(path) #set offset to offset of path
             # Rootmeansquarederror for X
             X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
-        print("Seed", seeds[seedindex], "smoothingwindow", smoothingwindow_for_PCA, "finished. RMSE for X:", X_rmse)
+        #print("Seed", seeds[seedindex], "smoothingwindow", smoothingwindow_for_PCA, "finished. RMSE for X:", X_rmse)
         #SStot = sum((path - mean(path))**2)
         #SSdev = sum((X_estimate-path)**2)
         #Rsquared = 1 - SSdev / SStot
@@ -895,7 +896,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     F_estimate = ensemble_array_F_estimate[best_rmse_index]
     y_spikes = ensemble_array_y_spikes[best_rmse_index]
     path = ensemble_array_path[best_rmse_index]
-    print("Seed", seeds[seedindex], "Best smoothing window:", ensemble_smoothingwidths[best_rmse_index], "RMSE:", X_rmse)
+    print("Seed", seeds[seedindex], "RMSEs", ensemble_array_X_rmse, "\nBest smoothing window:", ensemble_smoothingwidths[best_rmse_index], "RMSE:", X_rmse)
     return [X_rmse, X_estimate, F_estimate, y_spikes, path]
 
 seed_rmse_array = np.zeros(len(seeds))
