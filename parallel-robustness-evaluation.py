@@ -25,7 +25,7 @@ from sklearn.decomposition import PCA
 ############################
 # Parameters for inference #
 ############################
-T = 100 # Max time 85504
+T = 1000 # Max time 85504
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -38,7 +38,7 @@ USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE = True
 TOLERANCE = 1e-5
 X_initialization = "pca" #"true" "ones" "pca" "randomrandom" "randomprior" "linspace"
 # Using ensemble of PCA values
-ensemble_smoothingwidths = [1,2,3,5,10,15,20,25,30,40,50,60,70] #
+ensemble_smoothingwidths = [2,3,5,10,15] # [1,2,3,5,10,15,20,25,30,40,50,60,70]
 LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False # If False, they stay at (min_inducing_point, max_inducing_point)
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 1
@@ -59,8 +59,8 @@ tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
 baseline_lambda_value = 1
 baseline_f_value = np.log(baseline_lambda_value)
-peak_lambda_array = [4] #[1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
-seeds = range(7) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
+peak_lambda_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
+seeds = range(20) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
@@ -896,7 +896,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     F_estimate = ensemble_array_F_estimate[best_rmse_index]
     y_spikes = ensemble_array_y_spikes[best_rmse_index]
     path = ensemble_array_path[best_rmse_index]
-    print("Seed", seeds[seedindex], "RMSEs", ensemble_array_X_rmse, "\nBest smoothing window:", ensemble_smoothingwidths[best_rmse_index], "RMSE:", X_rmse)
+    print("Seed", seeds[seedindex], "RMSEs", ensemble_array_X_rmse, "\nBest smoothing window:", ensemble_smoothingwidths[best_rmse_index], "with RMSE:", X_rmse)
     return [X_rmse, X_estimate, F_estimate, y_spikes, path]
 
 seed_rmse_array = np.zeros(len(seeds))
@@ -907,7 +907,7 @@ path_array = np.zeros((len(seeds), T))
 if __name__ == "__main__": 
     # We gather the mean rmse values for each tuning strength in this array:
     mean_rmse_values = np.zeros(len(peak_lambda_array))
-    std_values = np.zeros(len(peak_lambda_array))
+    sum_of_squared_deviation_values = np.zeros(len(peak_lambda_array))
     for lambda_index in range(len(peak_lambda_array)):
         global peak_lambda_global
         peak_lambda_global = peak_lambda_array[lambda_index]
@@ -928,15 +928,15 @@ if __name__ == "__main__":
             Y_array[i] = result_array[i][3]
             path_array[i] = result_array[i][4]
         mean_rmse_values[lambda_index] = np.mean(seed_rmse_array)
-        std_values[lambda_index] = np.std(seed_rmse_array)
+        sum_of_squared_deviation_values[lambda_index] = sum((seed_rmse_array - np.mean(seed_rmse_array))**2)
         np.save("mean_rmse_values-T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), mean_rmse_values)
-        np.save("std_values-T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), std_values)
+        np.save("sum_of_squared_deviation_values-T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), sum_of_squared_deviation_values)
 
         print("\n")
         print("Lambda strength:", peak_lambda_global)
         #print("Array of rmse for seeds:", seed_rmse_array)
         print("RMSE for X, Averaged across seeds:", mean_rmse_values[lambda_index])
-        print("STD for RMSE:", std_values[lambda_index])
+        print("STD for RMSE:", sum_of_squared_deviation_values[lambda_index])
         print("Time use:", endtime - starttime)
         print("\n")
 
