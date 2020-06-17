@@ -14,8 +14,6 @@ from scipy import optimize
 numpy.random.seed(13)
 
 N_seeds = 20 # that we average over
-lambda_strength_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10]
-
 # Mean values 
 #T_10 = np.load("mean_rmse_values-T-10-up-to-lambda-10.npy")
 #T_100 = np.load("mean_rmse_values-T-100-up-to-lambda-10.npy")
@@ -45,25 +43,27 @@ colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, 6)]
 # t_alpha/2 = 2.093
 # S = np.sqrt(SoSqDev/(N_seeds - 1))
 
+baseline_lambda_value = 0.5
+peak_lambda_array = baseline_lambda_value + [0.01,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4,5,6,7,8,9] # [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10]
+
 plt.figure()
 plt.title("Average RMSE with background noise 1.0")
 plt.xlabel("Expected number of spikes in a bin at peak of tuning")
 plt.ylabel("RMSE")
 #### Errorbar
-#plt.errorbar(x=lambda_strength_array, y=T_10, yerr=(2.093*(np.sqrt(soSqDev_10_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=10", color = colors[0])
-#plt.errorbar(x=lambda_strength_array, y=T_100, yerr=(2.093*(np.sqrt(soSqDev_100_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=100", color = colors[1])
-plt.errorbar(x=lambda_strength_array, y=T_1000, yerr=(2.093*(np.sqrt(soSqDev_1000_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=1000", color = colors[2])
-plt.errorbar(x=lambda_strength_array, y=T_2000, yerr=(2.093*(np.sqrt(soSqDev_2000_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=2000", color = colors[3])
-#plt.errorbar(x=lambda_strength_array, y=T_3162, yerr=(2.093*(np.sqrt(soSqDev_3162_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=3162", color = colors[4])
-#plt.errorbar(x=lambda_strength_array, y=T_5000, yerr=(2.093*(np.sqrt(soSqDev_5000_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=5000", color = colors[5])
+#plt.errorbar(x=peak_lambda_array, y=T_10, yerr=(2.093*(np.sqrt(soSqDev_10_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=10", color = colors[0])
+#plt.errorbar(x=peak_lambda_array, y=T_100, yerr=(2.093*(np.sqrt(soSqDev_100_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=100", color = colors[1])
+plt.errorbar(x=peak_lambda_array, y=T_1000, yerr=(2.093*(np.sqrt(soSqDev_1000_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=1000", color = colors[2])
+plt.errorbar(x=peak_lambda_array, y=T_2000, yerr=(2.093*(np.sqrt(soSqDev_2000_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=2000", color = colors[3])
+#plt.errorbar(x=peak_lambda_array, y=T_3162, yerr=(2.093*(np.sqrt(soSqDev_3162_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=3162", color = colors[4])
+#plt.errorbar(x=peak_lambda_array, y=T_5000, yerr=(2.093*(np.sqrt(soSqDev_5000_array/(N_seeds-1)))/np.sqrt(N_seeds)), fmt="-", label="T=5000", color = colors[5])
 #### Just mean
-#plt.plot(lambda_strength_array, T_10, "-", label="T=10", color = colors[0])
-#plt.plot(lambda_strength_array, T_100, "-", label="T=100", color = colors[1])
-#plt.plot(lambda_strength_array, T_1000, "-", label="T=1000", color = colors[2])
-#plt.plot(lambda_strength_array, T_2000, "-", label="T=2000", color = colors[3])
-##plt.plot(lambda_strength_array, T_3162, "-", label="T=3162", color = colors[4])
-##plt.plot(lambda_strength_array, T_5000, "-", label="T=5000", color = colors[5])
-
+#plt.plot(peak_lambda_array, T_10, "-", label="T=10", color = colors[0])
+#plt.plot(peak_lambda_array, T_100, "-", label="T=100", color = colors[1])
+#plt.plot(peak_lambda_array, T_1000, "-", label="T=1000", color = colors[2])
+#plt.plot(peak_lambda_array, T_2000, "-", label="T=2000", color = colors[3])
+##plt.plot(peak_lambda_array, T_3162, "-", label="T=3162", color = colors[4])
+##plt.plot(peak_lambda_array, T_5000, "-", label="T=5000", color = colors[5])
 plt.ylim(ymin=0)
 plt.xlim(xmin=0)
 plt.xticks(range(11))
@@ -77,5 +77,5 @@ plt.show()
 
 
 
-#plt.plot(lambda_strength_array, T_100 - 2.093*(np.sqrt(soSqDev_100_array/(N_seeds-1)))/np.sqrt(N_seeds), "_", label="T=100", color = colors[1])
-#plt.plot(lambda_strength_array, T_100 + 2.093*(np.sqrt(soSqDev_100_array/(N_seeds-1)))/np.sqrt(N_seeds), "_", label="T=100", color = colors[1])
+#plt.plot(peak_lambda_array, T_100 - 2.093*(np.sqrt(soSqDev_100_array/(N_seeds-1)))/np.sqrt(N_seeds), "_", label="T=100", color = colors[1])
+#plt.plot(peak_lambda_array, T_100 + 2.093*(np.sqrt(soSqDev_100_array/(N_seeds-1)))/np.sqrt(N_seeds), "_", label="T=100", color = colors[1])

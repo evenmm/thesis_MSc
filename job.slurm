@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=20
 #SBATCH --mem=128000
-#SBATCH --job-name="1k-parallel"
-#SBATCH --output=output-parallel-1k.out
+#SBATCH --job-name="b.5-200-parallel"
+#SBATCH --output=output-parallel-b.5-200.out
 #SBATCH --mail-user=evenmm@stud.ntnu.no
 #SBATCH --mail-type=NONE
 
