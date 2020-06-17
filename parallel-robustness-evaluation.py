@@ -62,7 +62,8 @@ tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
 baseline_lambda_value = 0.5
 baseline_f_value = np.log(baseline_lambda_value)
-peak_lambda_array = baseline_lambda_value + [0.01,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4,5,6,7,8,9] 
+tuning_difference_array = [0.01,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4,5,6,7,8,9]
+peak_lambda_array = [baseline_lambda_value + tuning_difference_array[i] for i in range(len(tuning_difference_array))]
 seeds = [0,2,3,4,5,6,8,9,11,12,16,17,18,19,21,22,25,26,28,29] # chosen only so that they cover the entire domain of X for T>=200 and sigma_x=40
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
