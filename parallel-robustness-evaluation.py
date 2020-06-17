@@ -15,17 +15,20 @@ numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
 
+##### Robustness evaluation #####
+## Set T and choose an array of lambda peak strengths
+## For each lambda peak strength: Run 20 seeds
+## For each seed, the best RMSE is taken from an ensemble of 5 initializations with different wmoothingwindow in the PCA
+
 # This bad boi branched off from em-algorithm on 11.05.2020
 # and from robust-sim-data on 28.05.2020
 # then from robust-efficient-script on 30.05.2020
-## Set T
-## For every lambda strength: Run 10 seeds and average RMS
 
 
 ############################
 # Parameters for inference #
 ############################
-T = 1000 # Max time 85504
+T = 200 
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -35,11 +38,11 @@ INFER_F_POSTERIORS = False
 GRADIENT_FLAG = True # Set True to use analytic gradient
 USE_OFFSET_AND_SCALING_AT_EVERY_ITERATION = False
 USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE = True
-TOLERANCE = 1e-5
+TOLERANCE = 1e-6
 X_initialization = "pca" #"true" "ones" "pca" "randomrandom" "randomprior" "linspace"
 # Using ensemble of PCA values
-ensemble_smoothingwidths = [2,3,5,10,15] # [1,2,3,5,10,15,20,25,30,40,50,60,70]
-LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False # If False, they stay at (min_inducing_point, max_inducing_point)
+ensemble_smoothingwidths = [3,5,10] # [1,2,3,5,10,15,20,25,30,40,50,60,70]
+LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 1
 NOISE_REGULARIZATION = False
@@ -59,26 +62,31 @@ tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
 baseline_lambda_value = 0.5
 baseline_f_value = np.log(baseline_lambda_value)
-peak_lambda_array = [1.01,1.1,1.2,1.3,1.4,1.5,1.75,2,2.25,2.5,2.75,3,3.5,4,4.5,5,6,7,8,9,10] #[2]#[4] #[0.01,0.1,0.3,0.5,0.7,1,1.5,2,2.5,3,4,5,6,7,8,9,10]
-seeds = range(20) #[11] #[0,11,12,13,17] ## [0,3,5,9,11,12,13,15,19,21] good, 17 mediocre for T=100  [0,11,12,13,17] good for T=1000    1,2,6,8,10,14,20 bad      7,16 mediocre
+peak_lambda_array = baseline_f_value + [0.01,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4,5,6,7,8,9] 
+seeds = [0,2,3,4,5,6,8,9,11,12,16,17,18,19,21,22,25,26,28,29] # chosen only so that they cover the entire domain of X for T>=200 and sigma_x=40
 NUMBER_OF_SEEDS = len(seeds)
 print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
 # Define max and min of neural tuning 
-min_inducing_point = 0
-max_inducing_point = 10
-min_neural_tuning_X = min_inducing_point
-max_neural_tuning_X = max_inducing_point
+lower_domain_limit = 0
+upper_domain_limit = 10
+how_many_added_neurons_outside_factor = 0.0 # Just makes it worse. If you must, use 0.1
+min_neural_tuning_X = lower_domain_limit - how_many_added_neurons_outside_factor*(upper_domain_limit - lower_domain_limit)
+max_neural_tuning_X = upper_domain_limit + how_many_added_neurons_outside_factor*(upper_domain_limit - lower_domain_limit)
+min_inducing_point = lower_domain_limit
+max_inducing_point = upper_domain_limit
 # Neural density:
-N = 100 #3*int(max_neural_tuning_X - min_neural_tuning_X) 
+N = int((1+2*how_many_added_neurons_outside_factor)*100) # 100 with peaks in tuning area and 40 with tails coming in from each side
 # For inference:
-sigma_x = 20 # Variance of X for inference matrix K_t 
+sigma_x = 40 # Variance of X for inference matrix K_t 
 delta_x = 100 # Scale of X for inference matrix K_t
 # Generative parameters for X path:
-LIMIT_X_RANGE_AND_SCALE_TO_COVER_DOMAIN = True # Stop path from going outside defined domain with neurons
-sigma_x_generate_path = 30 # Variance for path generation. Set high enough so the path reaches max and min of tuning area
+KEEP_PATH_INSIDE_DOMAIN_BY_FOLDING = True # Stop path from going outside defined domain with neurons
+SCALE_UP_PATH_TO_COVER_DOMAIN = False # If True, the generated path is scaled up after being generated
+sigma_x_generate_path = 40 # Variance for path generation. Set high enough so the path reaches max and min of tuning area
 delta_x_generate_path = 100 # Scale for path generation.
+jitter_term = 1e-5
 
 print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
@@ -110,24 +118,11 @@ def squared_exponential_covariance(xvector1, xvector2, sigma, delta):
         distancesquared_3 = scipy.spatial.distance.cdist(xvector1-2*np.pi, xvector2, 'sqeuclidean')
         min_1 = np.minimum(distancesquared_1, distancesquared_2)
         distancesquared = np.minimum(min_1, distancesquared_3)
-        #distancesquared = np.amin( [distancesquared_1, distancesquared_2, distancesquared_3] )
     return sigma * exp(-distancesquared/(2*delta))
 
 def exponential_covariance(tvector1, tvector2, sigma, delta):
     absolutedistance = scipy.spatial.distance.cdist(tvector1, tvector2, 'euclidean')
     return sigma * exp(-absolutedistance/delta)
-
-def f_exponential_covariance(t1,t2, sigma, delta):
-    distance = abs(t1-t2)
-    return sigma * exp(-distance/delta)
-
-def f_gaussian_periodic_covariance(x1,x2, sigma, delta):
-    distancesquared = min([(x1-x2)**2, (x1+2*pi-x2)**2, (x1-2*pi-x2)**2])
-    return sigma * exp(-distancesquared/(2*delta))
-
-def f_gaussian_NONPERIODIC_covariance(x1,x2, sigma, delta):
-    distancesquared = (x1-x2)**2
-    return sigma * exp(-distancesquared/(2*delta))
 
 ########################
 # Covariance matrices  #
@@ -425,8 +420,6 @@ def just_fprior_term(X_estimate):
 ######################################
 ## Data generation                  ##
 ######################################
-bins_for_plotting = np.linspace(min_neural_tuning_X, max_neural_tuning_X, num=N_plotgridpoints + 1)
-x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
 K_t_generate = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x_generate_path, delta_x_generate_path)
 if UNIFORM_BUMPS:
     # Uniform positioning and width:'
@@ -467,26 +460,27 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     peak_f_offset = np.log(peak_lambda_global) - baseline_f_value
     np.random.seed(seeds[seedindex])
     # Generate path
-    path = (max_neural_tuning_X-min_neural_tuning_X)/2 + numpy.random.multivariate_normal(np.zeros(T), K_t_generate)
-    #path = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T)
-    if LIMIT_X_RANGE_AND_SCALE_TO_COVER_DOMAIN:
+    path = (upper_domain_limit-lower_domain_limit)/2 + numpy.random.multivariate_normal(np.zeros(T), K_t_generate)
+    #path = np.linspace(lower_domain_limit, upper_domain_limit, T)
+    if KEEP_PATH_INSIDE_DOMAIN_BY_FOLDING:
         # Use boolean masks to keep X within min and max of tuning 
-        path -= min_neural_tuning_X # bring path to 0
-        modulo_two_pi_values = path // (max_neural_tuning_X)
+        path -= lower_domain_limit # bring path to 0
+        modulo_two_pi_values = path // (upper_domain_limit)
         oddmodulos = (modulo_two_pi_values % 2).astype(bool)
         evenmodulos = np.invert(oddmodulos)
         # Even modulos: Adjust for being outside
-        path[evenmodulos] -= max_neural_tuning_X*modulo_two_pi_values[evenmodulos]
+        path[evenmodulos] -= upper_domain_limit*modulo_two_pi_values[evenmodulos]
         # Odd modulos: Adjust for being outside and flip for continuity
-        path[oddmodulos] -= max_neural_tuning_X*(modulo_two_pi_values[oddmodulos])
-        differences = max_neural_tuning_X - path[oddmodulos]
+        path[oddmodulos] -= upper_domain_limit*(modulo_two_pi_values[oddmodulos])
+        differences = upper_domain_limit - path[oddmodulos]
         path[oddmodulos] = differences
-        path += min_neural_tuning_X # bring path back to min value for tuning
-        # Now scale to cover the domain:
+        path += lower_domain_limit # bring path back to min value for tuning
+    if SCALE_UP_PATH_TO_COVER_DOMAIN:
+        # scale to cover the domain:
         path -= min(path)
         path /= max(path)
-        path *= (max_inducing_point-min_inducing_point)
-        path += min_inducing_point
+        path *= (upper_domain_limit-lower_domain_limit)
+        path += lower_domain_limit
     if PLOTTING:
         ## plot path 
         if T > 100:
@@ -498,7 +492,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         plt.xlabel("Time")
         plt.ylabel("x")
         plt.title("True path of X")
-        plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+        plt.ylim((lower_domain_limit, upper_domain_limit))
         plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T)  + "-seed-" + str(seeds[seedindex]) + "-path.png")
     ## Generate spike data. True tuning curves are defined here
@@ -547,7 +541,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         plt.title("True F")
         plt.xlabel("x")
         plt.ylabel("f value")
-        x_space_grid = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T)
+        x_space_grid = np.linspace(lower_domain_limit, upper_domain_limit, T)
         for i in range(N):
             plt.plot(x_space_grid, true_f[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-true-f.png")
@@ -555,7 +549,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     ###############################
     # Covariance matrix Kgg_plain #
     ###############################
-    # Inducing points based on the actual range of X
+    # Inducing points based on a predetermined range
     x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points) #np.linspace(min(path), max(path), N_inducing_points)
     #print("Min and max of path:", min(path), max(path))
     #print("Min and max of grid:", min(x_grid_induce), max(x_grid_induce))
@@ -583,14 +577,19 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         # Scale PCA initialization to fit domain:
         X_pca_initial -= min(X_pca_initial)
         X_pca_initial /= max(X_pca_initial)
-        X_pca_initial *= (max_inducing_point-min_inducing_point)
-        X_pca_initial += min_inducing_point
+        X_pca_initial *= (upper_domain_limit-lower_domain_limit)
+        X_pca_initial += lower_domain_limit
         # Flip PCA initialization correctly by comparing to true path
         X_pca_initial_flipped = 2*mean(X_pca_initial) - X_pca_initial
         X_pca_initial_rmse = np.sqrt(sum((X_pca_initial-path)**2) / T)
         X_pca_initial_flipped_rmse = np.sqrt(sum((X_pca_initial_flipped-path)**2) / T)
         if X_pca_initial_flipped_rmse < X_pca_initial_rmse:
             X_pca_initial = X_pca_initial_flipped
+        # Scale PCA initialization to fit domain:
+        X_pca_initial -= min(X_pca_initial)
+        X_pca_initial /= max(X_pca_initial)
+        X_pca_initial *= (upper_domain_limit-lower_domain_limit)
+        X_pca_initial += lower_domain_limit
         # Plot PCA initialization
         if T > 100:
             plt.figure(figsize=(10,3))
@@ -614,11 +613,11 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         if X_initialization == "pca":
             X_initial = X_pca_initial
         if X_initialization == "randomrandom":
-            X_initial = (max_neural_tuning_X - min_neural_tuning_X)*np.random.random(T)
+            X_initial = (upper_domain_limit - lower_domain_limit)*np.random.random(T)
         if X_initialization == "randomprior":
-            X_initial = (max_neural_tuning_X - min_neural_tuning_X)*np.random.multivariate_normal(np.zeros(T), K_t_generate)
+            X_initial = (upper_domain_limit - lower_domain_limit)*np.random.multivariate_normal(np.zeros(T), K_t_generate)
         if X_initialization == "linspace":
-            X_initial = np.linspace(min_neural_tuning_X, max_neural_tuning_X, T) 
+            X_initial = np.linspace(lower_domain_limit, upper_domain_limit, T) 
         X_estimate = np.copy(X_initial)
         # Initialize F
         F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.log(y_spikes + 0.0008)
@@ -637,12 +636,13 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.plot(path, color="black", label='True X')
             plt.plot(X_initial, label='Initial')
             #plt.legend(loc="upper right")
-            #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+            #plt.ylim((lower_domain_limit, upper_domain_limit))
             plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
         if PLOT_GRADIENT_CHECK:
             sigma_n = np.copy(global_initial_sigma_n)
-            K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+            # Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
+            K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points) ##K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
             X_gradient = x_jacobian_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
             if T > 100:
                 plt.figure(figsize=(10,3))
@@ -711,7 +711,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
                 if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
                     x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
-            K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+            # Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
+            K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points) ##K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
             K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
             # Find F estimate only if we're not at the first iteration
             if iteration > 0:
@@ -748,7 +749,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 X_estimate += min(path) #set offset to offset of path
             if PLOTTING:
                 plt.plot(X_estimate, label='Estimate')
-                #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+                #plt.ylim((lower_domain_limit, upper_domain_limit))
                 plt.tight_layout()
                 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
             if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
@@ -789,7 +790,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 plt.ylabel("x")
                 plt.plot(path, color="black", label='True X')
                 plt.plot(X_initial_2, label='Initial')
-                #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+                #plt.ylim((lower_domain_limit, upper_domain_limit))
                 plt.tight_layout()
                 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
             #############################
@@ -802,7 +803,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                     sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
                     if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
                         x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
-                K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+                # Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
+                K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points) ##K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
                 K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
                 # Find F estimate only if we're not at the first iteration
                 if iteration > 0:
@@ -839,7 +841,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                     X_estimate += min(path) #set offset to offset of path
                 if PLOTTING:
                     plt.plot(X_estimate, label='Estimate (after flip)')
-                    #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+                    #plt.ylim((lower_domain_limit, upper_domain_limit))
                     plt.tight_layout()
                     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
                 if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
@@ -853,6 +855,14 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 X_estimate /= max(X_estimate) #scale length to 1
                 X_estimate *= (max(path)-min(path)) #scale length to length of path
                 X_estimate += min(path) #set offset to offset of path
+                # Check if flipped is better even after flipped convergence:
+                X_flipped = - X_estimate + 2*mean(X_estimate)
+                # Rootmeansquarederror for X
+                X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
+                X_flipped_rmse = np.sqrt(sum((X_flipped-path)**2) / T)
+                ##### Check if flipped and maybe iterate again with flipped estimate
+                if X_flipped_rmse < X_rmse:
+                    X_estimate = X_flipped
             # Rootmeansquarederror for X
             X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
         #print("Seed", seeds[seedindex], "smoothingwindow", smoothingwindow_for_PCA, "finished. RMSE for X:", X_rmse)
@@ -880,7 +890,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.plot(X_initial, label='Initial')
             plt.plot(X_estimate, label='Estimate')
             plt.legend(loc="upper right")
-            #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+            #plt.ylim((lower_domain_limit, upper_domain_limit))
             plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
         ensemble_array_X_rmse[smoothingwindow_index] = X_rmse
@@ -929,8 +939,8 @@ if __name__ == "__main__":
             path_array[i] = result_array[i][4]
         mean_rmse_values[lambda_index] = np.mean(seed_rmse_array)
         sum_of_squared_deviation_values[lambda_index] = sum((seed_rmse_array - np.mean(seed_rmse_array))**2)
-        np.save("mean_rmse_values-base-lambda-" + baseline_lambda_value + "T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), mean_rmse_values)
-        np.save("sum_of_squared_deviation_values-base-lambda-" + baseline_lambda_value + "T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), sum_of_squared_deviation_values)
+        np.save("mean_rmse_values-base-lambda-" + str(baseline_lambda_value) + "T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), mean_rmse_values)
+        np.save("sum_of_squared_deviation_values-base-lambda-" + str(baseline_lambda_value) + "T-" + str(T) + "-up-to-lambda-" + str(peak_lambda_global), sum_of_squared_deviation_values)
 
         print("\n")
         print("Lambda strength:", peak_lambda_global)
@@ -961,13 +971,18 @@ X_estimate = X_array[0]
 # Inducing points (g efers to inducing points. Originally u did.)
 x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points)
 
+# Grid for plotting
+bins_for_plotting = np.linspace(lower_domain_limit, upper_domain_limit, num=N_plotgridpoints + 1)
+x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
+
 # K_xg = K_fu
 K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
 K_gx = K_xg.T
 
-# K_gg = K_uu and means inducing points
+# K_gg = K_uu and stands for inducing points
 K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+# Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
+K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points)
 K_gg_inverse = np.linalg.inv(K_gg)
 
 # Connect x to plotgrid through inducing points
@@ -1036,7 +1051,18 @@ h_estimate = h_estimate.T
 h_upper_confidence_limit = h_upper_confidence_limit.T
 h_lower_confidence_limit = h_lower_confidence_limit.T
 
-## Find observed firing rate
+## Find true rate on plotgrid
+if len(peak_lambda_array) > 1:
+    print("NBNB! Take care which peak_lambda posterior F are found for!!!")
+peak_lambda_global = peak_lambda_array[-1] 
+peak_f_offset = np.log(peak_lambda_global) - baseline_f_value
+true_plot_f = np.zeros((N, N_plotgridpoints))
+for i in range(N):
+    for t in range(N_plotgridpoints):
+        true_plot_f[i,t] = bumptuningfunction(x_grid_for_plotting[t], i, peak_f_offset)
+
+true_expectation = np.exp(true_plot_f) #poisson
+
 ## Find observed firing rate
 observed_mean_spikes_in_bins = zeros((N, N_plotgridpoints))
 for i in range(N):
@@ -1048,7 +1074,8 @@ for i in range(N):
             print("No observations of X between",bins_for_plotting[x],"and",bins_for_plotting[x+1],".")
 for i in range(N):
     plt.figure()
-    plt.plot(x_grid_for_plotting, observed_mean_spikes_in_bins[i,:], color=plt.cm.viridis(0.1), label="Observed average")
+    #plt.plot(x_grid_for_plotting, observed_mean_spikes_in_bins[i,:], color=plt.cm.viridis(0.1), label="Observed average")
+    plt.plot(x_grid_for_plotting, true_expectation[i,:], color=plt.cm.viridis(0.3), label="True expectation")
     plt.plot(x_grid_for_plotting, h_estimate[i,:], color=plt.cm.viridis(0.5), label="Estimated expectation") 
     plt.plot(x_grid_for_plotting, h_lower_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
     plt.plot(x_grid_for_plotting, h_upper_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
