@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1    ### Number of tasks (MPI processes)
 #SBATCH --cpus-per-task=2      ### Number of threads per task (OMP threads)
-#SBATCH --mem=128000
+#SBATCH --mem=12000
 #SBATCH --job-name="b.5-200-parallel"
 #SBATCH --output=out-b.5-T-200-lambda-index-%a.out
 #SBATCH --mail-user=evenmm@stud.ntnu.no
@@ -38,8 +38,8 @@ module load CUDA/9.2.88
 module load OpenMPI/3.1.1
 module load Python/3.6.6
 
-#virtualenv pythonhome-$SLURM_ARRAY_TASK_ID
-source pythonhome-$SLURM_ARRAY_TASK_ID/bin/activate
+#virtualenv pythonhome
+source pythonhome
 #pip install scipy numpy matplotlib sklearn
 #export OMP_NUM_THREADS=5 # This is set by cpus-per-task
 
