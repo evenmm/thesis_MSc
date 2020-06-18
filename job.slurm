@@ -2,9 +2,9 @@
 #SBATCH --partition=CPUQ
 #SBATCH --account=share-ie-imf
 #SBATCH --time=90:00:00
-# #SBATCH --nodes=1
-# #SBATCH --ntasks-per-node= 20 // cpus-per-task
-#SBATCH --cpus-per-task=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1    ### Number of tasks (MPI processes)
+#SBATCH --cpus-per-task=5      ### Number of threads per task (OMP threads)
 #SBATCH --mem=128000
 #SBATCH --job-name="b.5-200-parallel"
 #SBATCH --output=out-b.5-T-200-lambda-index-%a.out
@@ -13,6 +13,10 @@
 #SBATCH --array=0-20 
 
 # 21 different lambdas. Array id is lambda index
+# Hver job i arrayet er en egen jobb.
+# Hver jobb får 1 node, kjører 1 OMP task (pythonskript)
+# OMP_NUM_THREADS = # cpu-per-task = 4 eller 5
+
 # Other version:
 # 420 = 21 lambdas times 21 seeds
 # _%A_%a gives Master job id and array task id
