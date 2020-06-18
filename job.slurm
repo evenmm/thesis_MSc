@@ -4,7 +4,7 @@
 #SBATCH --time=90:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1    ### Number of tasks (MPI processes)
-#SBATCH --cpus-per-task=5      ### Number of threads per task (OMP threads)
+#SBATCH --cpus-per-task=2      ### Number of threads per task (OMP threads)
 #SBATCH --mem=128000
 #SBATCH --job-name="b.5-200-parallel"
 #SBATCH --output=out-b.5-T-200-lambda-index-%a.out
@@ -43,6 +43,7 @@ source pythonhome/bin/activate
 #pip install scipy numpy matplotlib sklearn
 #export OMP_NUM_THREADS=5 # This is set by cpus-per-task
 
+echo "Run /usr/bin/time -v python cluster-parallel-robustness-evaluation.py 'task_ID'"
 /usr/bin/time -v python cluster-parallel-robustness-evaluation.py $SLURM_ARRAY_TASK_ID
 
 uname -a

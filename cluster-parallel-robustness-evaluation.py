@@ -1,3 +1,4 @@
+print("Python running")
 from scipy import *
 import scipy.io
 import scipy.ndimage
