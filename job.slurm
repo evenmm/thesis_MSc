@@ -38,9 +38,9 @@ module load CUDA/9.2.88
 module load OpenMPI/3.1.1
 module load Python/3.6.6
 
-#virtualenv pythonhome
-source pythonhome/bin/activate
-#pip install scipy numpy matplotlib sklearn
+virtualenv pythonhome-$SLURM_ARRAY_TASK_ID
+source pythonhome-$SLURM_ARRAY_TASK_ID/bin/activate
+pip install scipy numpy matplotlib sklearn
 #export OMP_NUM_THREADS=5 # This is set by cpus-per-task
 
 echo "Run /usr/bin/time -v python cluster-parallel-robustness-evaluation.py 'task_ID'"
