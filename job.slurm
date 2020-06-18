@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1    ### Number of tasks (MPI processes)
 #SBATCH --cpus-per-task=2      ### Number of threads per task (OMP threads)
-#SBATCH --mem=12000
+#SBATCH --mem=12000 # Do not set to 128.000 even if that's the limit because then it is too big
 #SBATCH --job-name="b.5-200-parallel"
 #SBATCH --output=out-b.5-T-200-lambda-index-%a.out
 #SBATCH --mail-user=evenmm@stud.ntnu.no
@@ -25,7 +25,7 @@ WORKDIR=${SLURM_SUBMIT_DIR}
 cd ${WORKDIR}
 echo "we are running from this directory: $SLURM_SUBMIT_DIR"
 echo " the name of the job is: $SLURM_JOB_NAME"
-echo "Th job ID is $SLURM_JOB_ID"
+echo "The job ID is $SLURM_JOB_ID"
 echo "The job was run on these nodes: $SLURM_JOB_NODELIST"
 echo "Number of nodes: $SLURM_JOB_NUM_NODES"
 echo "We are using $SLURM_CPUS_ON_NODE cores"
@@ -39,11 +39,11 @@ module load OpenMPI/3.1.1
 module load Python/3.6.6
 
 #virtualenv pythonhome
-source pythonhome
+source pythonhome/bin/activate
 #pip install scipy numpy matplotlib sklearn
 #export OMP_NUM_THREADS=5 # This is set by cpus-per-task
 
-echo "Run /usr/bin/time -v python cluster-parallel-robustness-evaluation.py $SLURM_ARRAY_TASK_ID"
+echo "Running and timing the code parallelly, but no printing until it's done..."
 /usr/bin/time -v python cluster-parallel-robustness-evaluation.py $SLURM_ARRAY_TASK_ID
 
 uname -a
