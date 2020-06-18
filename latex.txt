@@ -971,3 +971,10 @@ job_array_length = n_rows*n_cols
 lambda_index = int( int(sys.argv[1]) // n_cols )
 seed = int( int(sys.argv[1]) % n_cols )
 
+we are running from this directory: /lustre1/home/evenmm/Master/thesis
+ the name of the job is: b.5-200-parallel
+Th job ID is 856430
+The job was run on these nodes: compute-2-0-6
+Number of nodes: 1
+We are using 5 cores
+We are using 5 cores per node

@@ -3,8 +3,8 @@
 #SBATCH --account=share-ie-imf
 #SBATCH --time=90:00:00
 # #SBATCH --nodes=1
-# #SBATCH --ntasks-per-node=4
-#SBATCH --cpus-per-task=5
+# #SBATCH --ntasks-per-node= 20 // cpus-per-task
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=128000
 #SBATCH --job-name="b.5-200-parallel"
 #SBATCH --output=out-b.5-T-200-lambda-index-%a.out
@@ -26,7 +26,7 @@ echo "The job was run on these nodes: $SLURM_JOB_NODELIST"
 echo "Number of nodes: $SLURM_JOB_NUM_NODES"
 echo "We are using $SLURM_CPUS_ON_NODE cores"
 echo "We are using $SLURM_CPUS_ON_NODE cores per node"
-echo "Total of $SLURM_NTASKS cores"
+#echo "Total of $SLURM_NTASKS cores"
 
 module purge
 module load GCC/7.3.0-2.30

@@ -29,7 +29,7 @@ from sklearn.decomposition import PCA
 ############################
 # Parameters for inference #
 ############################
-T = 1000 
+T = 200
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -67,7 +67,6 @@ tuning_difference_array = [0.01,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3
 peak_lambda_array = [baseline_lambda_value + tuning_difference_array[i] for i in range(len(tuning_difference_array))]
 seeds = [0,2,3,4,5,6,8,9,11,12,16,17,18,19,21,22,25,26,28,29] # chosen only so that they cover the entire domain of X for T>=200 and sigma_x=40
 NUMBER_OF_SEEDS = len(seeds)
-print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.7 #0.5 # Scale for the tuning curve GP that is fitted. 0.3
 # Define max and min of neural tuning 
@@ -94,11 +93,16 @@ print("Likelihood model:",LIKELIHOOD_MODEL)
 print("Covariance kernel for Kx:", COVARIANCE_KERNEL_KX)
 print("Using gradient?", GRADIENT_FLAG)
 print("Noise regulation:",NOISE_REGULARIZATION)
+print("Tuning curve definition:", TUNINGCURVE_DEFINITION)
+print("Uniform bumps:", UNIFORM_BUMPS)
+print("Plotting:", PLOTTING)
+print("Infer F posteriors:", INFER_F_POSTERIORS)
 print("Initial sigma_n:", global_initial_sigma_n)
 print("Learning rate:", lr)
 print("T:", T)
 print("N:", N)
 print("Smoothingwidths:", ensemble_smoothingwidths)
+print("Number of seeds we average over:", NUMBER_OF_SEEDS)
 if FLIP_AFTER_SOME_ITERATION:
     print("NBBBB!!! We're flipping the estimate in line 600.")
 print("\n")
@@ -920,7 +924,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     y_spikes = ensemble_array_y_spikes[best_rmse_index]
     path = ensemble_array_path[best_rmse_index]
     endtime = time.time()
-    print("Lambda", peak_lambda_global, "Seed", seeds[seedindex], "RMSEs", ensemble_array_X_rmse, "\nBest smoothing window:", ensemble_smoothingwidths[best_rmse_index], "with RMSE:", X_rmse, "Time use:", endtime - starttime)
+    print("Seed", seeds[seedindex], "RMSEs:", ensemble_array_X_rmse, "Best smoothing window:", ensemble_smoothingwidths[best_rmse_index], "\n Best RMSE:", X_rmse, "Time use:", endtime - starttime)
     return [X_rmse, X_estimate, F_estimate, y_spikes, path]
 
 if __name__ == "__main__": 
@@ -938,6 +942,7 @@ if __name__ == "__main__":
     global peak_lambda_global
     peak_lambda_global = peak_lambda_array[lambda_index]
 
+    print("Lambda", peak_lambda_global, "started!")
     seed_rmse_array = np.zeros(len(seeds))
     X_array = np.zeros((len(seeds), T))
     F_array = np.zeros((len(seeds), N, T))
