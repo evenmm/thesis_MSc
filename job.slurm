@@ -2,11 +2,12 @@
 #SBATCH --partition=CPUQ
 #SBATCH --account=share-ie-imf
 #SBATCH --time=90:00:00
-####SBATCH --nodes=1
-####SBATCH --ntasks-per-node=20
+# #SBATCH --nodes=1
+# #SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=5
 #SBATCH --mem=128000
 #SBATCH --job-name="b.5-200-parallel"
-#SBATCH --output=out-b.5-T-200-lambda-index-_%a.out
+#SBATCH --output=out-b.5-T-200-lambda-index-%a.out
 #SBATCH --mail-user=evenmm@stud.ntnu.no
 #SBATCH --mail-type=NONE
 #SBATCH --array=0-20 
@@ -36,7 +37,7 @@ module load Python/3.6.6
 #virtualenv pythonhome
 source pythonhome/bin/activate
 #pip install scipy numpy matplotlib sklearn
-#export OMP_NUM_THREADS=4 # just let it be what it wants
+#export OMP_NUM_THREADS=5 # This is set by cpus-per-task
 
 /usr/bin/time -v python cluster-parallel-robustness-evaluation.py $SLURM_ARRAY_TASK_ID
 
