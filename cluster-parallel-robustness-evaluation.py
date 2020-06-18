@@ -16,14 +16,15 @@ from multiprocessing import Pool
 from sklearn.decomposition import PCA
 
 ##### Robustness evaluation #####
-## Set T and choose an array of lambda peak strengths
-## For each lambda peak strength: Run 20 seeds
-## For each seed, the best RMSE is taken from an ensemble of 5 initializations with different wmoothingwindow in the PCA
+## Set T and background noise level
+## Array of 21 lambda peak strengths is done in parallel using job-array
+## For each lambda peak strength: Run 20 seeds sequentially
+## For each seed, the best RMSE is taken from an ensemble of 3-5 initializations with different wmoothingwindow in the PCA (run sequentially)
 
 # This bad boi branched off from em-algorithm on 11.05.2020
 # and from robust-sim-data on 28.05.2020
 # then from robust-efficient-script on 30.05.2020
-
+# then from parallel-robustness-evaluation.py on 18.06.2020
 
 ############################
 # Parameters for inference #
@@ -457,7 +458,8 @@ def scale_and_offset_function(scale_offset, X_estimate, sigma_n, F_estimate, K_g
 ## RMSE function                    ##
 ######################################
 def find_rmse_for_this_lambda_this_seed(seedindex):
-    print("Seed", seeds[seedindex], "started.")
+    starttime = time.time()
+    #print("Seed", seeds[seedindex], "started.")
     peak_f_offset = np.log(peak_lambda_global) - baseline_f_value
     np.random.seed(seeds[seedindex])
     # Generate path
@@ -917,7 +919,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     F_estimate = ensemble_array_F_estimate[best_rmse_index]
     y_spikes = ensemble_array_y_spikes[best_rmse_index]
     path = ensemble_array_path[best_rmse_index]
-    print("Seed", seeds[seedindex], "RMSEs", ensemble_array_X_rmse, "\nBest smoothing window:", ensemble_smoothingwidths[best_rmse_index], "with RMSE:", X_rmse)
+    endtime = time.time()
+    print("Lambda", peak_lambda_global, "Seed", seeds[seedindex], "RMSEs", ensemble_array_X_rmse, "\nBest smoothing window:", ensemble_smoothingwidths[best_rmse_index], "with RMSE:", X_rmse, "Time use:", endtime - starttime)
     return [X_rmse, X_estimate, F_estimate, y_spikes, path]
 
 if __name__ == "__main__": 
@@ -942,15 +945,12 @@ if __name__ == "__main__":
     path_array = np.zeros((len(seeds), T))
 
     for i in range(len(seeds)):
-        starttime = time.time()
         result_array = find_rmse_for_this_lambda_this_seed(i) # i = seedindex
         seed_rmse_array[i] = result_array[0]
         X_array[i] = result_array[1]
         F_array[i] = result_array[2]
         Y_array[i] = result_array[3]
         path_array[i] = result_array[4]
-        endtime = time.time()
-        print("Lambda", peak_lambda_global, "Seed", str(seeds[i]), "Time use:", endtime - starttime)
     
     # mean_rmse_values[lambda_index] = np.mean(seed_rmse_array)
     #sum_of_squared_deviation_values[lambda_index] = sum((seed_rmse_array - np.mean(seed_rmse_array))**2)
@@ -963,6 +963,7 @@ if __name__ == "__main__":
     print("RMSE for X, Averaged across seeds:", np.mean(seed_rmse_array))
     print("Sum of squared errors for RMSE:", sum((seed_rmse_array - np.mean(seed_rmse_array))**2))
     print("\n")
+    # Finished all seeds for this lambda
 
 if not INFER_F_POSTERIORS:
     exit()

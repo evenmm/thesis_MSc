@@ -1,14 +1,20 @@
 #!/bin/sh
 #SBATCH --partition=CPUQ
 #SBATCH --account=share-ie-imf
-#SBATCH --time=50:00:00
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=20
+#SBATCH --time=90:00:00
+####SBATCH --nodes=1
+####SBATCH --ntasks-per-node=20
 #SBATCH --mem=128000
 #SBATCH --job-name="b.5-200-parallel"
-#SBATCH --output=output-parallel-b.5-200.out
+#SBATCH --output=out-b.5-T-200-lambda-index-_%a.out
 #SBATCH --mail-user=evenmm@stud.ntnu.no
 #SBATCH --mail-type=NONE
+#SBATCH --array=0-20 
+
+# 21 different lambdas. Array id is lambda index
+# Other version:
+# 420 = 21 lambdas times 21 seeds
+# _%A_%a gives Master job id and array task id
 
 WORKDIR=${SLURM_SUBMIT_DIR}
 cd ${WORKDIR}
@@ -30,9 +36,9 @@ module load Python/3.6.6
 #virtualenv pythonhome
 source pythonhome/bin/activate
 #pip install scipy numpy matplotlib sklearn
-export OMP_NUM_THREADS=1
+#export OMP_NUM_THREADS=4 # just let it be what it wants
 
-/usr/bin/time -v python parallel-robustness-evaluation.py
+/usr/bin/time -v python cluster-parallel-robustness-evaluation.py $SLURM_ARRAY_TASK_ID
 
 uname -a
 

@@ -961,3 +961,13 @@ Best smoothing window: 20 with RMSE: 0.4392750816579063
 Best smoothing window: 5 with RMSE: 0.43996626067758815
 Best smoothing window: 3 with RMSE: 0.4145670783300495
 
+\subsection{18.06}
+Biggest paralellization scheme:
+Array where column name equals seed and row name equals lambda index
+n_rows = len(lambda_strength_array)
+n_cols = len(seeds)
+job_array_length = n_rows*n_cols
+
+lambda_index = int( int(sys.argv[1]) // n_cols )
+seed = int( int(sys.argv[1]) % n_cols )
+
