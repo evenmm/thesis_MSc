@@ -14,8 +14,8 @@ from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
-#from parameter_file_robustness import * # where all the parameters are set for Robustness evaluation
-from parameter_file_peyrache import * # where all the parameters are set for Peyrache head direction cells inference
+from parameter_file_robustness import * # where all the parameters are set for Robustness evaluation
+#from parameter_file_peyrache import * # where all the parameters are set for Peyrache head direction cells inference
 
 
 ######################

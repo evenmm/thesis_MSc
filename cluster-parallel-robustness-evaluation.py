@@ -14,9 +14,9 @@ from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
-from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions
 #from parameter_file import * # where all the parameters are set (Not needed because importing in function library)
-from posterior_f_inference import *
+#from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions
+from posterior_f_inference import * 
 
 ###########################################
 ##### Cluster - Robustness evaluation #####
@@ -116,7 +116,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         plt.title("True path of X")
         plt.ylim((lower_domain_limit, upper_domain_limit))
         plt.tight_layout()
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T)  + "-seed-" + str(seeds[seedindex]) + "-path.png")
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T)  + "-seed-" + str(seeds[seedindex]) + "-path.png")
     ## Generate spike data. True tuning curves are defined here
     if TUNINGCURVE_DEFINITION == "triangles":
         tuningwidth = 1 # width of tuning (in radians)
@@ -166,7 +166,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         x_space_grid = np.linspace(lower_domain_limit, upper_domain_limit, T)
         for i in range(N):
             plt.plot(x_space_grid, true_f[i], linestyle='-', color=plt.cm.viridis(color_idx[i]))
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-true-f.png")
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-true-f.png")
     if PLOTTING:
         ## Plot firing rate h in time
         plt.figure()
@@ -177,7 +177,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         x_space_grid = np.linspace(lower_domain_limit, upper_domain_limit, T)
         for i in range(N):
             plt.plot(x_space_grid, np.exp(true_f[i]), linestyle='-', color=plt.cm.viridis(color_idx[i]))
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-true-h.png")
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-true-h.png")
     ###############################
     # Covariance matrix Kgg_plain #
     ###############################
@@ -235,7 +235,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.plot(X_pca_initial, label="Initial")
             plt.legend(loc="upper right")
             plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-PCA-initial.png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-PCA-initial.png")
         # Initialize X
         np.random.seed(0)
         if X_initialization == "true":
@@ -270,7 +270,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             #plt.legend(loc="upper right")
             #plt.ylim((lower_domain_limit, upper_domain_limit))
             plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
         if PLOT_GRADIENT_CHECK:
             sigma_n = np.copy(global_initial_sigma_n)
             # Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
@@ -289,7 +289,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.plot(X_estimate + 2*X_gradient/max(X_gradient), label="Gradient plus offset")
             plt.legend(loc="upper right")
             plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-Gradient.png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-Gradient.png")
             exit()
             """
             print("Testing gradient...")
@@ -383,7 +383,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 plt.plot(X_estimate, label='Estimate')
                 #plt.ylim((lower_domain_limit, upper_domain_limit))
                 plt.tight_layout()
-                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
+                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + ".png")
             if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
                 #print("Seed", seeds[seedindex], "Iterations:", iteration+1, "Change in X smaller than TOL")
                 break
@@ -424,7 +424,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                 plt.plot(X_initial_2, label='Initial')
                 #plt.ylim((lower_domain_limit, upper_domain_limit))
                 plt.tight_layout()
-                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
+                plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
             #############################
             # EM after flipped          #
             #############################
@@ -475,7 +475,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                     plt.plot(X_estimate, label='Estimate (after flip)')
                     #plt.ylim((lower_domain_limit, upper_domain_limit))
                     plt.tight_layout()
-                    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
+                    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-flipped.png")
                 if np.linalg.norm(X_estimate - prev_X_estimate) < TOLERANCE:
                     #print("Seed", seeds[seedindex], "Iterations after flip:", iteration+1, "Change in X smaller than TOL")
                     break
@@ -524,7 +524,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.legend(loc="upper right")
             #plt.ylim((lower_domain_limit, upper_domain_limit))
             plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
         ensemble_array_X_rmse[smoothingwindow_index] = X_rmse
         ensemble_array_X_estimate[smoothingwindow_index] = X_estimate
         ensemble_array_F_estimate[smoothingwindow_index] = F_estimate
