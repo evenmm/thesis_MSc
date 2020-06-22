@@ -978,3 +978,10 @@ The job was run on these nodes: compute-2-0-6
 Number of nodes: 1
 We are using 5 cores
 We are using 5 cores per node
+
+
+Antall CPU-er jeg okkuperer totalt telles. 
+Det begrenser hvor mange jge får kjøre samtidig. 
+Kanskje derfro verdt det å kjøre bare 2-3-4 cpu per lambda-job
+
+They are all running in the same virtual environment...

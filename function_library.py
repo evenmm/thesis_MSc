@@ -14,7 +14,8 @@ from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
-from parameter_file import * # where all the parameters are set
+#from parameter_file_robustness import * # where all the parameters are set for Robustness evaluation
+from parameter_file_peyrache import * # where all the parameters are set for Peyrache head direction cells inference
 
 
 ######################
@@ -46,47 +47,6 @@ def exponential_covariance(tvector1, tvector2, sigma, delta):
 ########################
 K_t = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x, delta_x)
 K_t_inverse = np.linalg.inv(K_t)
-
-######################################
-## Data generation                  ##
-######################################
-K_t_generate = exponential_covariance(np.linspace(1,T,T).reshape((T,1)),np.linspace(1,T,T).reshape((T,1)), sigma_x_generate_path, delta_x_generate_path)
-
-############################
-# Tuning curve definitions #
-############################
-
-if UNIFORM_BUMPS:
-    # Uniform positioning and width:'
-    bumplocations = [min_neural_tuning_X + (i+0.5)/N*(max_neural_tuning_X - min_neural_tuning_X) for i in range(N)]
-    bump_delta_distances = tuning_width_delta * np.ones(N)
-else:
-    # Random placement and width:
-    bumplocations = min_neural_tuning_X + (max_neural_tuning_X - min_neural_tuning_X) * np.random.random(N)
-    bump_delta_distances = tuning_width_delta + tuning_width_delta/4*np.random.random(N)
-
-def bumptuningfunction(x, i, peak_f_offset): 
-    x1 = x
-    x2 = bumplocations[i]
-    delta_bumptuning = bump_delta_distances[i]
-    if COVARIANCE_KERNEL_KX == "periodic":
-        distancesquared = min([(x1-x2)**2, (x1+2*pi-x2)**2, (x1-2*pi-x2)**2])
-    elif COVARIANCE_KERNEL_KX == "nonperiodic":
-        distancesquared = (x1-x2)**2
-    return baseline_f_value + peak_f_offset * exp(-distancesquared/(2*delta_bumptuning))
-
-def offset_function(offset_for_estimate, X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce):
-    offset_estimate = X_estimate + offset_for_estimate
-    return x_posterior_no_la(offset_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
-
-def scaling_function(scaling_factor, X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce):
-    scaled_estimate = scaling_factor*X_estimate
-    return x_posterior_no_la(scaled_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
-
-def scale_and_offset_function(scale_offset, X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce):
-    scaled_estimate = scale_offset[0] * X_estimate + scale_offset[1]
-    return x_posterior_no_la(scaled_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
-    #return just_fprior_term(scaled_estimate)
 
 #########################
 ## Likelihood functions #

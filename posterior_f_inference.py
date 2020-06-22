@@ -20,8 +20,6 @@ from function_library import * # loglikelihoods, gradients, covariance functions
 ##### Posterior inference of tuning curves on a grid ######
 ###########################################################
 
-
-
 def posterior_f_inference(F_estimate, sigma_n, y_spikes, path, X_estimate):
     #X_estimate = path
     #print("Setting X_estimate = path for posterior F")
@@ -34,10 +32,6 @@ def posterior_f_inference(F_estimate, sigma_n, y_spikes, path, X_estimate):
 
     # Inducing points (g efers to inducing points. Originally u did.)
     x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points)
-
-    # Grid for plotting
-    bins_for_plotting = np.linspace(lower_domain_limit, upper_domain_limit, num=N_plotgridpoints + 1)
-    x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
 
     # K_xg = K_fu
     K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
@@ -59,7 +53,7 @@ def posterior_f_inference(F_estimate, sigma_n, y_spikes, path, X_estimate):
     fig.colorbar(kx_cross_mat, ax=ax)
     plt.title("K_g_plotgrid")
     plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-K_g_plotgrid.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_g_plotgrid.png")
     print("Making spatial covariance matrice: Kx grid")
 
     K_plotgrid_plotgrid = squared_exponential_covariance(x_grid_for_plotting.reshape((N_plotgridpoints,1)),x_grid_for_plotting.reshape((N_plotgridpoints,1)), sigma_f_fit, delta_f_fit)
@@ -70,7 +64,7 @@ def posterior_f_inference(F_estimate, sigma_n, y_spikes, path, X_estimate):
     fig.colorbar(kxmat, ax=ax)
     plt.title("K_plotgrid_plotgrid")
     plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-K_plotgrid_plotgrid.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_plotgrid_plotgrid.png")
 
     Q_plotgrid_x = np.matmul(np.matmul(K_plotgrid_g, K_gg_inverse), K_gx)
     Q_x_plotgrid = Q_plotgrid_x.T
@@ -90,7 +84,7 @@ def posterior_f_inference(F_estimate, sigma_n, y_spikes, path, X_estimate):
     fig.colorbar(sigma_posteriormat, ax=ax)
     plt.title("Posterior covariance matrix")
     plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-sigma_posterior.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-sigma_posterior.png")
 
     ###############################################
     # Plot tuning curve with confidence intervals #
@@ -145,14 +139,14 @@ def posterior_f_inference(F_estimate, sigma_n, y_spikes, path, X_estimate):
         plt.plot(x_grid_for_plotting, h_upper_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
     #    plt.plot(x_grid_for_plotting, mu_posterior[i,:], color=plt.cm.viridis(0.5)) 
         plt.title("Expected and average number of spikes, neuron "+str(i)) #spikes
-    #    plt.title("Neuron "+str(i)+" with "+str(sum(y_spikes[i,:]))+" spikes")
+    #    plt.title("Neuron "+str(i)+" with "+str(int(sum(y_spikes[i,:])))+" spikes")
         plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))
         plt.yticks(range(0,math.floor(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))))
         plt.xlabel("x")
         plt.ylabel("Number of spikes")
         plt.legend()
         plt.tight_layout()
-        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-tuning-"+str(i)+".png")
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-tuning-"+str(i)+".png")
 
     # Plot observed tuning for all neurons together
     colors = [plt.cm.viridis(t) for t in np.linspace(0, 1, N)]
@@ -163,6 +157,6 @@ def posterior_f_inference(F_estimate, sigma_n, y_spikes, path, X_estimate):
         plt.xlabel("x")
         plt.ylabel("Average number of spikes")
     plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-paral-robust-tuning-collected.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-tuning-collected.png")
     #plt.show()
 

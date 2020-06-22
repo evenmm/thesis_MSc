@@ -19,7 +19,7 @@
 
 # Other version:
 # 420 = 21 lambdas times 21 seeds
-# _%A_%a gives Master job id and array task id
+# %A gives Master job id, %a gives array task id
 
 WORKDIR=${SLURM_SUBMIT_DIR}
 cd ${WORKDIR}
