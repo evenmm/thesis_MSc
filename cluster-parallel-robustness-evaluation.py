@@ -15,8 +15,9 @@ numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
 #from parameter_file import * # where all the parameters are set (Not needed because importing in function library)
-#from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions
-from posterior_f_inference import * 
+from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions, posterior tuning curve inference
+                               # and parameter file (Peyrache or robustness)
+print("Remember to use the right parameter file")
 
 ###########################################
 ##### Cluster - Robustness evaluation #####
@@ -109,12 +110,15 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.figure(figsize=(10,3))
         else:
             plt.figure()
-        plt.plot(path, color="black", label='True X') #plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
+        plt.plot(path, color="black", label='True X') 
+        #plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
         #plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
         plt.xlabel("Time bin")
         plt.ylabel("x")
         plt.title("True path of X")
         plt.ylim((lower_domain_limit, upper_domain_limit))
+        #plt.title("Simulated path of X")
+        #plt.yticks([-15,-10,-5,0,5,10,15])
         plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T)  + "-seed-" + str(seeds[seedindex]) + "-path.png")
     ## Generate spike data. True tuning curves are defined here
@@ -190,6 +194,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     # Initialize X and F #
     ######################
     # Here the PCA ensemble comes into play:
+    ensemble_array_L_value = np.zeros(len(ensemble_smoothingwidths))
     ensemble_array_X_rmse = np.zeros(len(ensemble_smoothingwidths))
     ensemble_array_X_estimate = np.zeros((len(ensemble_smoothingwidths), T))
     ensemble_array_F_estimate = np.zeros((len(ensemble_smoothingwidths), N, T))
@@ -525,21 +530,23 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             #plt.ylim((lower_domain_limit, upper_domain_limit))
             plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
+        ensemble_array_L_value[smoothingwindow_index] = x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
         ensemble_array_X_rmse[smoothingwindow_index] = X_rmse
         ensemble_array_X_estimate[smoothingwindow_index] = X_estimate
         ensemble_array_F_estimate[smoothingwindow_index] = F_estimate
         ensemble_array_y_spikes[smoothingwindow_index] = y_spikes
         ensemble_array_path[smoothingwindow_index] = path
-        # Finish loop for one smoothingwidth
-    # Find best rmse across smoothingwindows for PCA start:
-    best_rmse_index = np.argmin(ensemble_array_X_rmse)
-    X_rmse = ensemble_array_X_rmse[best_rmse_index]
-    X_estimate = ensemble_array_X_estimate[best_rmse_index]
-    F_estimate = ensemble_array_F_estimate[best_rmse_index]
-    y_spikes = ensemble_array_y_spikes[best_rmse_index]
-    path = ensemble_array_path[best_rmse_index]
+        # End of loop for one smoothingwidth
+    # Find best X estimate based on L value across smoothingwindows for PCA start:
+    best_L_value_index = np.argmin(ensemble_array_L_value)
+    X_rmse = ensemble_array_X_rmse[best_L_value_index]
+    X_estimate = ensemble_array_X_estimate[best_L_value_index]
+    F_estimate = ensemble_array_F_estimate[best_L_value_index]
+    y_spikes = ensemble_array_y_spikes[best_L_value_index]
+    path = ensemble_array_path[best_L_value_index]
     endtime = time.time()
-    print("Seed", seeds[seedindex], "RMSEs:", ensemble_array_X_rmse, "Best smoothing window:", ensemble_smoothingwidths[best_rmse_index], "\n Best RMSE:", X_rmse, "Time use:", endtime - starttime)
+    print("Seed", seeds[seedindex], "RMSEs   :", ensemble_array_X_rmse, "Best smoothing window:", ensemble_smoothingwidths[best_L_value_index], "\n Best RMSE:", X_rmse, "Time use:", endtime - starttime)
+    print("Seed", seeds[seedindex], "L values:", ensemble_array_L_value, "Best smoothing window:", ensemble_smoothingwidths[best_L_value_index], "\n Best RMSE:", X_rmse, "Time use:", endtime - starttime)
     return [X_rmse, X_estimate, F_estimate, y_spikes, path]
 
 if __name__ == "__main__": 
@@ -607,5 +614,9 @@ if __name__ == "__main__":
         # Grid for plotting
         bins_for_plotting = np.linspace(lower_domain_limit, upper_domain_limit, num=N_plotgridpoints + 1)
         x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
-        posterior_f_inference(F_array[0], 1, Y_array[0], path_array[0] , X_array[0])
+        peak_lambda_global = peak_lambda_array[-1] 
+        print("Peak lambda:", peak_lambda_global)
+        peak_f_offset = np.log(peak_lambda_global) - baseline_f_value
+        #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
+        posterior_f_inference(X_array[0], F_array[0], 1, Y_array[0], path_array[0], x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
 

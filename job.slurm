@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --partition=CPUQ
 #SBATCH --account=share-ie-imf
-#SBATCH --time=90:00:00
+#SBATCH --time=99:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1    ### Number of tasks (MPI processes)
 #SBATCH --cpus-per-task=2      ### Number of threads per task (OMP threads)
