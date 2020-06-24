@@ -528,7 +528,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.legend(loc="upper right")
             #plt.ylim((lower_domain_limit, upper_domain_limit))
             plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-example-plotting-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-example-plotting-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final-L-" + str(x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)) + ".png")
         ensemble_array_X_rmse[smoothingwindow_index] = X_rmse
         ensemble_array_X_estimate[smoothingwindow_index] = X_estimate
         ensemble_array_F_estimate[smoothingwindow_index] = F_estimate

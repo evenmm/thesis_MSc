@@ -14,8 +14,10 @@ from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
-from posterior_f_inference import * # inneholder function library og parameter file (enten Peyrache eller robustness)
-print("Remember to use the rights parameter file")
+#from parameter_file import * # where all the parameters are set (Not needed because importing in function library)
+from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions, posterior tuning curve inference
+                               # and parameter file (Peyrache or robustness)
+print("Remember to use the right parameter file")
 
 ##### Inferring actual HD in Peyrache data #####
 ## Parameters were tuned shamelessly to find a good fit...
@@ -133,25 +135,38 @@ if PLOTTING:
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-path.png")
 
 ## 5) Remove neurons that are not actually tuned to head direction
-# On the entire range of time, these neurons are tuned to head direction:
-active_and_strongly_tuned_from_70400_to_74400 = [68,63,53,45,39,38,37,36,35,34,33,31,29,27,26,25,23,22,21,20] #33 has few spikes
+# 70400
+active_and_strongly_tuned_from_70400_to_74400 = [20,21,22,23,25,26,27,29,31,33,34,35,36,37,38,39,45,53,63,68] #33 has few spikes
 active_and_slightly_tuned_from_70400_to_74400 = [70,61,58,56,52,47,44,24,5,4]
-barely_active_maybe_tuned = [69,64,62,60,28,18,17,3,2]
+barely_active_maybe_tuned_from_70400_to_74400 = [69,64,62,60,28,18,17,3,2]
 active_but_not_tuned_from_70400_to_74400 = [71,67,66,15,14,13,12,11,10,1]
+# 0
+active_and_strongly_tuned_from_0_to_4000 = [20,21,22,23,24,25,26,27,29,31,35,36,37,38,39,68]  # 29 has only 97 spikes
+active_and_slightly_tuned_from_0_to_4000 = [17,18,19,28,34,44] #34 is quite good just a bit all over with 139 spikes
+active_and_maybe_tuned_from_0_to_4000 = [4,5,6,12,13,61,67,69]
+active_but_not_tuned_from_0_to_4000 = [1,10,11,14,15,43,45,47,58,70,71]
+# On the entire range of time, these neurons are tuned to head direction:
 #neuronsthataretunedtoheaddirection = [   17,18,   20,21,22,23,24,25,26,27,28,29,   31,32,34,35,36,37,38,39,68] # from my analysis and no spike cutoff
 #                                     [16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,            38, 47] ## froms tc-inference, after removing those with too few spikers
 #neuronsthataretunedtoheaddirection = [17,18,19,20,21,22,23,24,25,26,27,29,31,34,35,36,38,39,68] # for presentation
 #neuronsthataretunedtoheaddirection = [i for i in range(len(cellnames))] # all of them
 #neuronsthataretunedtoheaddirection = [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,34,35,36,37,38,39,47,68] # best of both worlds?
-cutoff_spike_number = 50
 sgood = np.zeros(len(cellnames))<1 
 for i in range(len(cellnames)):
-    #print(sum(binnedspikes[i,:]))
-    if ((i not in active_and_strongly_tuned_from_70400_to_74400) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
-        sgood[i] = False
+    #print("Neuron", i, "has" sum(binnedspikes[i,:]), "spikes in chosen interval")
+    if offset == 0:
+        if ((i not in active_and_strongly_tuned_from_0_to_4000) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
+            sgood[i] = False
+    elif offset == 70400:
+        if ((i not in active_and_strongly_tuned_from_70400_to_74400) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
+            sgood[i] = False
+    else:
+        if ((i not in active_and_strongly_tuned_from_70400_to_74400) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
+            sgood[i] = False
 binnedspikes = binnedspikes[sgood,:]
 cellnames = cellnames[sgood]
-print("len(cellnames)",len(cellnames))
+print("Cutoff value:", cutoff_spike_number)
+print("len(cellnames) after removing less active neurons:",len(cellnames))
 
 # Plot binned spikes for selected neurons in the selected interval (Bernoulli style since they are binned)
 bernoullispikes = (binnedspikes>0)*1
@@ -170,9 +185,15 @@ if PLOTTING:
 #N = len(cellnames) #51 with cutoff at 1000 spikes
 #print("N:",N)
 if len(cellnames) != N:
-    print("Wrong N. N must be set equal to" + str(N) + "in parameter_file_peyrache")
-    sys.exit("N must be set equal to" + str(N) + "in parameter_file_peyrache")
+    sys.exit("N must be set equal to " + str(len(cellnames)) + " in parameter_file_peyrache")
 y_spikes = binnedspikes
+if PLOTTING:
+    plt.figure()
+    plt.title("Total number of spikes in bin")
+    plt.xlabel("Time bin")
+    plt.plot(sum(y_spikes, axis=0))
+    plt.tight_layout()
+    #plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-spikesum.png",format="png")
 print("mean(y_spikes)",mean(y_spikes))
 print("mean(y_spikes>0)",mean(y_spikes[y_spikes>0]))
 # Spike distribution evaluation
@@ -210,7 +231,7 @@ if PLOTTING:
     foo_mat = ax.matshow(K_gg_plain, cmap=plt.cm.Blues)
     fig.colorbar(foo_mat, ax=ax)
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-kgg.png")
-K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points)
 
 # Grid for plotting
 bins_for_plotting = np.linspace(0, 2*np.pi, num=N_plotgridpoints + 1)
@@ -236,17 +257,20 @@ for i in range(T):
     elif PCA_TYPE == "1d":
         X_pca_initial[i] = X_pca_result_1comp[i]
 # Scale PCA initialization to fit domain:
-if KEEP_PATH_BETWEEN_ZERO_AND_TWO_PI:
-    X_pca_initial -= min(X_pca_initial)
-    X_pca_initial /= max(X_pca_initial)
-    X_pca_initial *= 2*np.pi
-    X_pca_initial += 0
+X_pca_initial -= min(X_pca_initial)
+X_pca_initial /= max(X_pca_initial)
+X_pca_initial *= 2*np.pi
+X_pca_initial += 0
 # Flip PCA initialization correctly by comparing to true path
 X_pca_initial_flipped = 2*mean(X_pca_initial) - X_pca_initial
 X_pca_initial_rmse = np.sqrt(sum((X_pca_initial-path)**2) / T)
 X_pca_initial_flipped_rmse = np.sqrt(sum((X_pca_initial_flipped-path)**2) / T)
 if X_pca_initial_flipped_rmse < X_pca_initial_rmse:
     X_pca_initial = X_pca_initial_flipped
+    X_pca_initial -= min(X_pca_initial)
+    X_pca_initial /= max(X_pca_initial)
+    X_pca_initial *= 2*np.pi
+    X_pca_initial += 0
 # Plot PCA initialization
 if T > 100:
     plt.figure(figsize=(10,3))
@@ -365,7 +389,7 @@ for iteration in range(N_iterations):
         sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
         if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
             x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
-    K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+    K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points) 
     K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     # Find F estimate only if we're not at the first iteration
     if iteration > 0:
@@ -414,6 +438,9 @@ if USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE:
     X_estimate /= max(X_estimate) #scale length to 1
     X_estimate *= (max(path)-min(path)) #scale length to length of path
     X_estimate += min(path) #set offset to offset of path
+if USE_ONLY_OFFSET_AFTER_CONVERGENCE:
+    X_estimate -= np.mean(X_estimate)
+    X_estimate += np.mean(path)
 # Flipped 
 X_flipped = - X_estimate + 2*mean(X_estimate)
 # Rootmeansquarederror for X
@@ -454,7 +481,7 @@ if X_flipped_rmse < X_rmse:
             sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
             if LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE:
                 x_grid_induce = np.linspace(min(X_estimate), max(X_estimate), N_inducing_points) # Change position of grid to position of estimate
-        K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
+        K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points)
         K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
         # Find F estimate only if we're not at the first iteration
         if iteration > 0:
@@ -505,6 +532,9 @@ if X_flipped_rmse < X_rmse:
         X_estimate /= max(X_estimate) #scale length to 1
         X_estimate *= (max(path)-min(path)) #scale length to length of path
         X_estimate += min(path) #set offset to offset of path
+    if USE_ONLY_OFFSET_AFTER_CONVERGENCE:
+        X_estimate -= np.mean(X_estimate)
+        X_estimate += np.mean(path)
     # Rootmeansquarederror for X
     X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
 ######################
@@ -526,13 +556,32 @@ if PLOTTING:
     plt.plot(path, color="black", label='True X')
     plt.plot(X_initial, label='Initial')
     plt.plot(X_estimate, label='Estimate')
-    plt.legend(loc="upper right")
+    plt.legend(loc="lower right")
     #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
     plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-final.png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-final-L-" + str(x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)) + ".png")
+    # And with just points
+    if T > 100:
+        plt.figure(figsize=(10,3))
+    else:
+        plt.figure()
+    plt.title("Final estimate") # as we go
+    plt.xlabel("Time bin")
+    plt.ylabel("x")
+    plt.plot(path, '.', markersize=1., color='black', label='True X')
+    plt.plot(X_initial, '.', markersize=1., label='Initial')
+    plt.plot(X_estimate, '.', markersize=1., label='Estimate')
+    plt.legend(loc="lower right")
+    #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
+    plt.tight_layout()
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-final-with-points-L-" + str(x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)) + ".png")
 
 #################################################
 # Find posterior prediction of log tuning curve #
 #################################################
 if INFER_F_POSTERIORS:
-    posterior_f_inference(F_estimate, 1, y_spikes, path , X_estimate)
+    print("Sigma_n:", sigma_n)
+    bins_for_plotting = np.linspace(0, 2*np.pi, num=N_plotgridpoints + 1)
+    x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
+    #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
+    posterior_f_inference(X_estimate, F_estimate, min(1, sigma_n), y_spikes, path, x_grid_for_plotting, bins_for_plotting, 0.1, 0.1) # the two latest are only for simulated
