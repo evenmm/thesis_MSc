@@ -222,11 +222,11 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         X_pca_initial_flipped_rmse = np.sqrt(sum((X_pca_initial_flipped-path)**2) / T)
         if X_pca_initial_flipped_rmse < X_pca_initial_rmse:
             X_pca_initial = X_pca_initial_flipped
-        # Scale PCA initialization to fit domain:
-        X_pca_initial -= min(X_pca_initial)
-        X_pca_initial /= max(X_pca_initial)
-        X_pca_initial *= (upper_domain_limit-lower_domain_limit)
-        X_pca_initial += lower_domain_limit
+            # Scale PCA initialization to fit domain:
+            X_pca_initial -= min(X_pca_initial)
+            X_pca_initial /= max(X_pca_initial)
+            X_pca_initial *= (upper_domain_limit-lower_domain_limit)
+            X_pca_initial += lower_domain_limit
         if PLOTTING:
             # Plot PCA initialization
             if T > 100:
@@ -529,25 +529,30 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             plt.legend(loc="upper right")
             #plt.ylim((lower_domain_limit, upper_domain_limit))
             plt.tight_layout()
-            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final.png")
-        ensemble_array_L_value[smoothingwindow_index] = x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
+            plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-robustness-eval-T-" + str(T) + "-lambda-" + str(peak_lambda_global) + "-background-" + str(baseline_lambda_value) + "-seed-" + str(seeds[seedindex]) + "-final-L-" + str(x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)) + ".png")
         ensemble_array_X_rmse[smoothingwindow_index] = X_rmse
+        ensemble_array_L_value[smoothingwindow_index] = x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)
         ensemble_array_X_estimate[smoothingwindow_index] = X_estimate
         ensemble_array_F_estimate[smoothingwindow_index] = F_estimate
         ensemble_array_y_spikes[smoothingwindow_index] = y_spikes
         ensemble_array_path[smoothingwindow_index] = path
         # End of loop for one smoothingwidth
-    # Find best X estimate based on L value across smoothingwindows for PCA start:
-    best_L_value_index = np.argmin(ensemble_array_L_value)
-    X_rmse = ensemble_array_X_rmse[best_L_value_index]
-    X_estimate = ensemble_array_X_estimate[best_L_value_index]
-    F_estimate = ensemble_array_F_estimate[best_L_value_index]
-    y_spikes = ensemble_array_y_spikes[best_L_value_index]
-    path = ensemble_array_path[best_L_value_index]
+    # Find best X estimate based on L value or RMSE score across smoothingwindows for PCA start:
+    index_of_smoothing_with_best_RMSE = np.argmin(ensemble_array_X_rmse)
+    best_X_rmse_based_on_RMSE = ensemble_array_X_rmse[index_of_smoothing_with_best_RMSE]
+    index_of_smoothing_with_best_L = np.argmin(ensemble_array_L_value)
+    best_X_rmse_based_on_L = ensemble_array_X_rmse[index_of_smoothing_with_best_L]
+    rmse_for_smoothingwidth_5 = ensemble_array_X_rmse[1]
+    X_estimate = ensemble_array_X_estimate[index_of_smoothing_with_best_L]
+    F_estimate = ensemble_array_F_estimate[index_of_smoothing_with_best_L]
+    y_spikes = ensemble_array_y_spikes[index_of_smoothing_with_best_L]
+    path = ensemble_array_path[index_of_smoothing_with_best_L]
     endtime = time.time()
-    print("Seed", seeds[seedindex], "RMSEs   :", ensemble_array_X_rmse, "Best smoothing window:", ensemble_smoothingwidths[best_L_value_index], "\n Best RMSE:", X_rmse, "Time use:", endtime - starttime)
-    print("Seed", seeds[seedindex], "L values:", ensemble_array_L_value, "Best smoothing window:", ensemble_smoothingwidths[best_L_value_index], "\n Best RMSE:", X_rmse, "Time use:", endtime - starttime)
-    return [X_rmse, X_estimate, F_estimate, y_spikes, path]
+    print("Seed", seeds[seedindex], "Time use:", endtime - starttime)
+    print("RMSEs   :", ensemble_array_X_rmse, "Best smoothing window based on RMSE:", ensemble_smoothingwidths[index_of_smoothing_with_best_RMSE], "\n Best RMSE:", best_X_rmse_based_on_RMSE)
+    print("L values:", ensemble_array_L_value, "Best smoothing window:", ensemble_smoothingwidths[index_of_smoothing_with_best_L], "\n Best RMSE:", best_X_rmse_based_on_L)
+    print("Smoothingwidth five RMSE:", rmse_for_smoothingwidth_5)
+    return [best_X_rmse_based_on_RMSE, best_X_rmse_based_on_L, rmse_for_smoothingwidth_5, X_estimate, F_estimate, y_spikes, path] # Returning X, F estimates based on L value since that is the best we can do unsupervised
 
 if __name__ == "__main__": 
     # The job index is the lambda index
@@ -583,7 +588,9 @@ if __name__ == "__main__":
     peak_lambda_global = peak_lambda_array[lambda_index]
 
     print("Lambda", peak_lambda_global, "started!")
-    seed_rmse_array = np.zeros(len(seeds))
+    seed_rmse_array_based_on_RMSE = np.zeros(len(seeds))
+    seed_rmse_array_based_on_L = np.zeros(len(seeds))
+    seed_rmse_array_for_smoothingwidth_5 = np.zeros(len(seeds))
     X_array = np.zeros((len(seeds), T))
     F_array = np.zeros((len(seeds), N, T))
     Y_array = np.zeros((len(seeds), N, T))
@@ -591,22 +598,32 @@ if __name__ == "__main__":
 
     for i in range(len(seeds)):
         result_array = find_rmse_for_this_lambda_this_seed(i) # i = seedindex
-        seed_rmse_array[i] = result_array[0]
-        X_array[i] = result_array[1]
-        F_array[i] = result_array[2]
-        Y_array[i] = result_array[3]
-        path_array[i] = result_array[4]
+        seed_rmse_array_based_on_RMSE[i] = result_array[0]
+        seed_rmse_array_based_on_L[i] = result_array[1]
+        seed_rmse_array_for_smoothingwidth_5[i] = result_array[2]
+        X_array[i] = result_array[3]
+        F_array[i] = result_array[4]
+        Y_array[i] = result_array[5]
+        path_array[i] = result_array[6]
     
-    # mean_rmse_values[lambda_index] = np.mean(seed_rmse_array)
-    #sum_of_squared_deviation_values[lambda_index] = sum((seed_rmse_array - np.mean(seed_rmse_array))**2)
-    np.save("m_s_arrays/m-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), np.mean(seed_rmse_array))
-    np.save("m_s_arrays/s-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), sum((seed_rmse_array - np.mean(seed_rmse_array))**2))
+    # Using RMSE to choose best final X:
+    np.save("m_s_arrays/RMSE-m-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), np.mean(seed_rmse_array_based_on_RMSE))
+    np.save("m_s_arrays/RMSE-s-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), sum((seed_rmse_array_based_on_RMSE - np.mean(seed_rmse_array_based_on_RMSE))**2))
+    # Using L to choose best final X:
+    np.save("m_s_arrays/L-m-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), np.mean(seed_rmse_array_based_on_L))
+    np.save("m_s_arrays/L-s-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), sum((seed_rmse_array_based_on_L - np.mean(seed_rmse_array_based_on_L))**2))
+    # Sticking with smoothingwidth 5:
+    np.save("m_s_arrays/FIVE-m-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), np.mean(seed_rmse_array_for_smoothingwidth_5))
+    np.save("m_s_arrays/FIVE-s-base-" + str(baseline_lambda_value) + "-T-" + str(T) + "-lambda-index-" + str(lambda_index), sum((seed_rmse_array_for_smoothingwidth_5 - np.mean(seed_rmse_array_for_smoothingwidth_5))**2))
 
     print("\n")
     print("Lambda strength:", peak_lambda_global)
-    #print("Array of rmse for seeds:", seed_rmse_array)
-    print("RMSE for X, Averaged across seeds:", np.mean(seed_rmse_array))
-    print("Sum of squared errors for RMSE:", sum((seed_rmse_array - np.mean(seed_rmse_array))**2))
+    print("RMSE for X (chosen by RMSE   ) averaged across seeds:", np.mean(seed_rmse_array_based_on_RMSE))
+    print("Sum of squared errors in the RMSE:", sum((seed_rmse_array_based_on_RMSE - np.mean(seed_rmse_array_based_on_RMSE))**2))
+    print("RMSE for X (chosen by L value) averaged across seeds:", np.mean(seed_rmse_array_based_on_L))
+    print("Sum of squared errors in the RMSE:", sum((seed_rmse_array_based_on_L - np.mean(seed_rmse_array_based_on_L))**2))
+    print("RMSE for X (smoothing width 5) averaged across seeds:", np.mean(seed_rmse_array_for_smoothingwidth_5))
+    print("Sum of squared errors in the RMSE:", sum((seed_rmse_array_for_smoothingwidth_5 - np.mean(seed_rmse_array_for_smoothingwidth_5))**2))
     print("\n")
     # Finished all seeds for this lambda
 
