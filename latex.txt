@@ -985,3 +985,51 @@ Det begrenser hvor mange jge får kjøre samtidig.
 Kanskje derfro verdt det å kjøre bare 2-3-4 cpu per lambda-job
 
 They are all running in the same virtual environment...
+
+\subsection{24.06}
+If posterior h regresses to 1 it is because the prior of f is 0.
+
+There seems to be no trend to which smoothingwindow is best in general, either for RMSE or L sselection.
+Now we want to see if selecting based on L criteria is better on average than sticking with just one window. Exciting!
+
+\subsection{25.06}
+idun-slurm-quota
+ie-imf
+Quota before I switch on 25.06:           395-11:0:13
+Etter jeg har kjørt 100 kjerner i en dag: 502-19:50:5
+\subsection{26.06}
+96-27 are plots of noisy and noiseless posterior. 
+State that the size of the confidence intervals depends on the choice of the assumed sigma.
+
+
+Add plot with and without noise in the inferring. THAT'S IT! Let go. 
+Generative: sigma 1.2, delta 1, sigma epsilon 0.05
+
+\subsection{01.07}
+
+Thoughts: 
+
+Background tuning strength does not seem to influence the results of robustness plots. 
+
+Maybe knowing the optimal tuning strength (#neurons per bin) could be used to set the binsize? But then again the dynamics of the parent variable would be more important I guess. 
+
+Let's face it: If we have a variable X = (x_1, ..., x_T) on a constrained domain, e.g. [0,2pi]^T, then it can't really be multivariate normally distributed. Multivariate normal variables must have infinite support...To infer it, there are two options: 
+1) Find the distribution of this cutoff variable 2) Just do a maximum likelihood estimate (MLE) instead of MAP, and drop the prior.
+
+Dealing with periodic X:
+    #if COVARIANCE_KERNEL_KX == "nonperiodic":
+    #    xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
+    #    x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
+    #if COVARIANCE_KERNEL_KX == "periodic":
+    #    # for every combination of x1 and x2, find out which + {-1,0,1} * 2pi has lowest distance between x1 and x2.
+    #        # only add 2pi to the smallest one so we don't get negative values, or that fine? I'm not sure I understand how this multivariate normal boy rolls
+    #        # maybe kill this prior by allowing negative values, for an almost zero quadratic form value?
+    #        # or just drop it and take maximum likelihood estimate
+    #        # make three matrices with distances between x1 and x2, + {-1,0,1} * 2pi
+    #        # make also three matrices with products of x1 and x2 + {-1,0,1} * 2pi
+    #        # use min of distance matrix as boolean mask to index into product matrix (can be tensor)
+    #    # Elementwise array multiply by Kt_inverse
+    #    # Sum all entries to get the quadratic form
+If the pdf is wrapped around.... how do you determine the likelihood of one observation? 
+By summing over all the wraps. That's fair.
+

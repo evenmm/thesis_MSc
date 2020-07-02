@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --partition=CPUQ
-#SBATCH --account=share-ie-imf
+#SBATCH --account=ie-imf     ###share-ie-imf
 #SBATCH --time=99:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1    ### Number of tasks (MPI processes)

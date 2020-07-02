@@ -320,67 +320,109 @@ def posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_gri
     #X_estimate = path
     #print("Setting X_estimate = path for posterior F")
 
-    ## X_estimate is used to make Kxg.
-    ## A new grid is introduced here for plotting (not really necessary but it works)
-    #################################################
-    # Find posterior prediction of log tuning curve #
-    #################################################
+    if N_inducing_points == N_plotgridpoints:
+        #################################################
+        # Find posterior prediction of log tuning curve #
+        #################################################
 
-    # Inducing points (g efers to inducing points. Originally u did.)
-    x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points)
+        # Inducing points (g efers to inducing points. Originally u did.)
+        x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points)
 
-    # K_xg = K_fu
-    K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-    K_gx = K_xg.T
+        # K_xg = K_fu
+        K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+        K_gx = K_xg.T
 
-    # K_gg = K_uu and stands for inducing points
-    K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
-    # Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
-    K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points)
-    K_gg_inverse = np.linalg.inv(K_gg)
+        # K_gg = K_uu and stands for inducing points
+        K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+        # Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
+        K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points)
+        K_gg_inverse = np.linalg.inv(K_gg)
 
-    # Plot K_gg inverse
-    fig, ax = plt.subplots()
-    kxmat = ax.matshow(K_gg_inverse, cmap=plt.cm.Blues)
-    fig.colorbar(kxmat, ax=ax)
-    plt.title("K_gg_inverse")
-    plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_gg_inverse.png")
+        # Plot K_gg inverse
+        fig, ax = plt.subplots()
+        kxmat = ax.matshow(K_gg_inverse, cmap=plt.cm.Blues)
+        fig.colorbar(kxmat, ax=ax)
+        plt.title("K_gg_inverse")
+        plt.tight_layout()
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_gg_inverse.png")
 
-    # Connect x to plotgrid through inducing points
-    K_g_plotgrid = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_for_plotting.reshape((N_plotgridpoints,1)), sigma_f_fit, delta_f_fit)
-    K_plotgrid_g = K_g_plotgrid.T
+        # Infer mean on the grid
+        smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
+        Q_xx_plus_sigma_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_gx)
+        Kxx_times_F = np.matmul(Q_xx_plus_sigma_inverse, F_estimate.T)
+        #mu_posterior = np.matmul(Q_plotgrid_x, Kxx_times_F) # Here we have Kx crossover. Check what happens if swapped with Q = KKK
+        mu_posterior = np.matmul(K_gx, Kxx_times_F)
 
-    # Plot K_g_plotgrid
-    fig, ax = plt.subplots()
-    kx_cross_mat = ax.matshow(K_g_plotgrid, cmap=plt.cm.Blues)
-    fig.colorbar(kx_cross_mat, ax=ax)
-    plt.title("K_g_plotgrid")
-    plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_g_plotgrid.png")
-    print("Making spatial covariance matrice: Kx grid")
+        # Calculate standard deviations
+        #sigma_posterior = K_plotgrid_plotgrid - np.matmul(Q_plotgrid_x, np.matmul(Q_xx_plus_sigma_inverse, Q_x_plotgrid))
+        sigma_posterior = K_gg - np.matmul(K_gx, np.matmul(Q_xx_plus_sigma_inverse, K_xg))
 
-    K_plotgrid_plotgrid = squared_exponential_covariance(x_grid_for_plotting.reshape((N_plotgridpoints,1)),x_grid_for_plotting.reshape((N_plotgridpoints,1)), sigma_f_fit, delta_f_fit)
+    else:
+        # If the number of plotgridpoints is different from inducing points, we do this: 
+        ## A new grid is introduced here for plotting 
 
-    # Plot K_plotgrid_plotgrid
-    fig, ax = plt.subplots()
-    kxmat = ax.matshow(K_plotgrid_plotgrid, cmap=plt.cm.Blues)
-    fig.colorbar(kxmat, ax=ax)
-    plt.title("K_plotgrid_plotgrid")
-    plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_plotgrid_plotgrid.png")
+        #################################################
+        # Find posterior prediction of log tuning curve #
+        #################################################
 
-    Q_plotgrid_x = np.matmul(np.matmul(K_plotgrid_g, K_gg_inverse), K_gx)
-    Q_x_plotgrid = Q_plotgrid_x.T
+        # Inducing points (g efers to inducing points. Originally u did.)
+        x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points)
 
-    # Infer mean on the grid
-    smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
-    Q_xx_plus_sigma_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_gx)
-    Kxx_times_F = np.matmul(Q_xx_plus_sigma_inverse, F_estimate.T)
-    mu_posterior = np.matmul(Q_plotgrid_x, Kxx_times_F) # Here we have Kx crossover. Check what happens if swapped with Q = KKK
+        # K_xg = K_fu
+        K_xg = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+        K_gx = K_xg.T
 
-    # Calculate standard deviations
-    sigma_posterior = K_plotgrid_plotgrid - np.matmul(Q_plotgrid_x, np.matmul(Q_xx_plus_sigma_inverse, Q_x_plotgrid))
+        # K_gg = K_uu and stands for inducing points
+        K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
+        # Adding tiny jitter term to diagonal of K_gg (not the same as sigma_n that we're adding to the diagonal of K_xgK_gg^-1K_gx later on)
+        K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points)
+        K_gg_inverse = np.linalg.inv(K_gg)
+
+        # Plot K_gg inverse
+        fig, ax = plt.subplots()
+        kxmat = ax.matshow(K_gg_inverse, cmap=plt.cm.Blues)
+        fig.colorbar(kxmat, ax=ax)
+        plt.title("K_gg_inverse")
+        plt.tight_layout()
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_gg_inverse.png")
+
+        # Connect x to plotgrid through inducing points
+        K_g_plotgrid = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_for_plotting.reshape((N_plotgridpoints,1)), sigma_f_fit, delta_f_fit)
+        K_plotgrid_g = K_g_plotgrid.T
+
+        # Plot K_g_plotgrid
+        fig, ax = plt.subplots()
+        kx_cross_mat = ax.matshow(K_g_plotgrid, cmap=plt.cm.Blues)
+        fig.colorbar(kx_cross_mat, ax=ax)
+        plt.title("K_g_plotgrid")
+        plt.tight_layout()
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_g_plotgrid.png")
+        print("Making spatial covariance matrice: Kx grid")
+
+        K_plotgrid_plotgrid = squared_exponential_covariance(x_grid_for_plotting.reshape((N_plotgridpoints,1)),x_grid_for_plotting.reshape((N_plotgridpoints,1)), sigma_f_fit, delta_f_fit)
+
+        # Plot K_plotgrid_plotgrid
+        fig, ax = plt.subplots()
+        kxmat = ax.matshow(K_plotgrid_plotgrid, cmap=plt.cm.Blues)
+        fig.colorbar(kxmat, ax=ax)
+        plt.title("K_plotgrid_plotgrid")
+        plt.tight_layout()
+        plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-posterior-f-infrence-K_plotgrid_plotgrid.png")
+
+        Q_plotgrid_x = np.matmul(np.matmul(K_plotgrid_g, K_gg_inverse), K_gx)
+        Q_x_plotgrid = Q_plotgrid_x.T
+
+        # Infer mean on the grid
+        smallinverse = np.linalg.inv(K_gg*sigma_n**2 + np.matmul(K_gx, K_xg))
+        Q_xx_plus_sigma_inverse = sigma_n**-2 * np.identity(T) - sigma_n**-2 * np.matmul(np.matmul(K_xg, smallinverse), K_gx)
+        Kxx_times_F = np.matmul(Q_xx_plus_sigma_inverse, F_estimate.T)
+        mu_posterior = np.matmul(Q_plotgrid_x, Kxx_times_F) # Here we have Kx crossover. Check what happens if swapped with Q = KKK
+
+        # Calculate standard deviations
+        sigma_posterior = K_plotgrid_plotgrid - np.matmul(Q_plotgrid_x, np.matmul(Q_xx_plus_sigma_inverse, Q_x_plotgrid))
+        #########################################
+        ### End of special treatment for different n.o. plotgridpoints ###
+        ##################################################################
 
     # Plot posterior covariance matrix
     fig, ax = plt.subplots()
@@ -439,14 +481,15 @@ def posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_gri
         plt.figure()
         plt.plot(x_grid_for_plotting, observed_mean_spikes_in_bins[i,:], color=plt.cm.viridis(0.1), label="Observed average")
         #plt.plot(x_grid_for_plotting, true_expectation[i,:], color=plt.cm.viridis(0.3), label="True expectation")
-        plt.plot(x_grid_for_plotting, h_estimate[i,:], color=plt.cm.viridis(0.5), label="Estimated expectation") 
-        plt.plot(x_grid_for_plotting, h_lower_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
-        plt.plot(x_grid_for_plotting, h_upper_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
-    #    plt.plot(x_grid_for_plotting, mu_posterior[i,:], color=plt.cm.viridis(0.5)) 
-        plt.title("Expected and average number of spikes, neuron "+str(i)) #spikes
-    #    plt.title("Neuron "+str(i)+" with "+str(int(sum(y_spikes[i,:])))+" spikes")
-        plt.ylim(ymin=0., ymax=max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))
-        plt.yticks(range(0,math.floor(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))))
+        #plt.plot(x_grid_for_plotting, h_estimate[i,:], color=plt.cm.viridis(0.5), label="Estimated expectation") 
+        #plt.plot(x_grid_for_plotting, h_lower_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
+        #plt.plot(x_grid_for_plotting, h_upper_confidence_limit[i,:], "--", color=plt.cm.viridis(0.5))
+        #plt.plot(x_grid_for_plotting, mu_posterior[i,:], color=plt.cm.viridis(0.5)) 
+        #plt.title("Expected and average number of spikes, neuron "+str(i)) #spikes
+        plt.title("Neuron "+str(i)+" with "+str(int(sum(y_spikes[i,:])))+" spikes")
+        plt.yticks(range(0,1+math.ceil(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))))
+        plt.ylim(ymin=0., ymax=max(1, 1.05*math.ceil(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))))
+        #plt.yticks([0, max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:]))])
         plt.xlabel("x")
         plt.ylabel("Number of spikes")
         plt.legend()
