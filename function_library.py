@@ -15,11 +15,17 @@ numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
 
-# Select one of these
-#from parameter_file_exampleplotting import * # Example plots
-from parameter_file_robustness import * # Robustness evaluation
-#from parameter_file_peyrache import * # Peyrache data
+# Peyrache data with head direction neurons
+if sys.argv[0] == "em-algorithm-peyrache-data.py":
+    from parameter_file_peyrache import * 
 
+# Robustness evaluation
+elif sys.argv[0] == "cluster-parallel-robustness-evaluation.py":
+    from parameter_file_robustness import *
+
+# Example plotting
+elif sys.argv[0] == "example_plotting.py":
+    from parameter_file_exampleplotting import * 
 
 ######################
 # Covariance kernels #
