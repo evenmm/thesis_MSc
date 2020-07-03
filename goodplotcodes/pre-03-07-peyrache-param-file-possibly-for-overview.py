@@ -20,7 +20,7 @@ from sklearn.decomposition import PCA
 ################################################
 T = 2000 #2000 # Max time 85504
 
-N = 16 #73 #16 # Total of 73 neurons
+N = 51 #73 #16 # Total of 73 neurons
        # Time offset 70400:   cutoff_spike_number 10:19   50:16  100:16   200:14
        # Time offset 0: downsample 2:  cutoff_spike_number 30-50:16   100:15
        #                downsample 1:  cutoff_spike_number 30:16   50:15
@@ -32,8 +32,8 @@ sigma_n = np.copy(global_initial_sigma_n) # Assumed variance of observations for
 lr = 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
 # Parameters for data loading    #
-downsampling_factor = 2 #supreme: 2
-offset = 70400 # 0 is good and wraps around a lot #64460 (not so good) #68170 (getting stuck lower in middle) # 70400 (supreme)
+downsampling_factor = 1 #supreme: 2
+offset = 0 # 0 is good and wraps around a lot #64460 (not so good) #68170 (getting stuck lower in middle) # 70400 (supreme)
 
 KEEP_PATH_BETWEEN_ZERO_AND_TWO_PI = True
 INFER_F_POSTERIORS = True
@@ -44,7 +44,7 @@ USE_ONLY_OFFSET_AFTER_CONVERGENCE = False
 TOLERANCE = 1e-5
 X_initialization = "pca" #"true" "ones" "pca" "randomrandom" "flatrandom" "randomprior" "linspace" "supreme"
 smoothingwindow_for_PCA = 4
-PCA_TYPE = "1d" #"angle" "1d"
+PCA_TYPE = "angle" #"angle" "1d"
 USE_ENTIRE_DATA_LENGTH_FOR_PCA_INITIALIZATION = False
 LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False # If False, they stay at (min_inducing_point, max_inducing_point)
 FLIP_AFTER_SOME_ITERATION = False

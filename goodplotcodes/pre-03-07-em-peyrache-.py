@@ -154,20 +154,21 @@ active_but_not_tuned_from_0_to_4000 = [1,10,11,14,15,43,45,47,58,70,71]
 #neuronsthataretunedtoheaddirection = [i for i in range(len(cellnames))] # all of them
 #neuronsthataretunedtoheaddirection = [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,34,35,36,37,38,39,47,68] # best of both worlds?
 sgood = np.zeros(len(cellnames))<1 
-#for i in range(len(cellnames)): # Threshold value of 1000
-#    if sum(entire_y_spikes[i,:]) < 1000:
-#        sgood[i] = False
 for i in range(len(cellnames)):
-    #print("Neuron", i, "has" sum(binnedspikes[i,:]), "spikes in chosen interval")
-    if offset == 0:
-        if ((i not in active_and_strongly_tuned_from_0_to_4000) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
-            sgood[i] = False
-    elif offset == 70400:
-        if ((i not in active_and_strongly_tuned_from_70400_to_74400) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
-            sgood[i] = False
-    else:
-        if ((i not in active_and_strongly_tuned_from_70400_to_74400) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
-            sgood[i] = False
+    if sum(entire_y_spikes[i,:]) < 1000:
+        sgood[i] = False
+
+#for i in range(len(cellnames)):
+#    #print("Neuron", i, "has" sum(binnedspikes[i,:]), "spikes in chosen interval")
+#    if offset == 0:
+#        if ((i not in active_and_strongly_tuned_from_0_to_4000) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
+#            sgood[i] = False
+#    elif offset == 70400:
+#        if ((i not in active_and_strongly_tuned_from_70400_to_74400) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
+#            sgood[i] = False
+#    else:
+#        if ((i not in active_and_strongly_tuned_from_70400_to_74400) or (sum(binnedspikes[i,:]) < cutoff_spike_number)):
+#            sgood[i] = False
 binnedspikes = binnedspikes[sgood,:]
 cellnames = cellnames[sgood]
 print("Cutoff value:", cutoff_spike_number)
@@ -248,16 +249,12 @@ x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
 # PCA initialization: 
 if USE_ENTIRE_DATA_LENGTH_FOR_PCA_INITIALIZATION: 
     celldata = zeros(shape(entire_y_spikes))
-    for i in range(N):
-    #    celldata[i,:] = entire_y_spikes[i,:] # not good
-        celldata[i,:] = scipy.ndimage.filters.gaussian_filter1d(entire_y_spikes[i,:], smoothingwindow_for_PCA) # smooth
-        #celldata[i,:] = (celldata[i,:]-mean(celldata[i,:]))/std(celldata[i,:])                 # standardization requires at least one spike
 else:
     celldata = zeros(shape(y_spikes))
-    for i in range(N):
-    #    celldata[i,:] = y_spikes[i,:] # not good
-        celldata[i,:] = scipy.ndimage.filters.gaussian_filter1d(y_spikes[i,:], smoothingwindow_for_PCA) # smooth
-        #celldata[i,:] = (celldata[i,:]-mean(celldata[i,:]))/std(celldata[i,:])                 # standardization requires at least one spike
+for i in range(N):
+#    celldata[i,:] = entire_y_spikes[i,:] # not good
+    celldata[i,:] = scipy.ndimage.filters.gaussian_filter1d(entire_y_spikes[i,:], smoothingwindow_for_PCA) # smooth
+    #celldata[i,:] = (celldata[i,:]-mean(celldata[i,:]))/std(celldata[i,:])                 # standardization requires at least one spike
 X_pca_result_2comp = PCA(n_components=2, svd_solver='full').fit_transform(transpose(celldata))
 X_pca_result_1comp = PCA(n_components=1, svd_solver='full').fit_transform(transpose(celldata))
 pca_radii = np.sqrt(X_pca_result_2comp[:,0]**2 + X_pca_result_2comp[:,1]**2)
@@ -280,7 +277,8 @@ X_pca_initial += 0
 X_pca_initial_flipped = 2*mean(X_pca_initial) - X_pca_initial
 X_pca_initial_rmse = np.sqrt(sum((X_pca_initial-path)**2) / T)
 X_pca_initial_flipped_rmse = np.sqrt(sum((X_pca_initial_flipped-path)**2) / T)
-if X_pca_initial_flipped_rmse < X_pca_initial_rmse:
+#if X_pca_initial_flipped_rmse < X_pca_initial_rmse:
+if True:
     X_pca_initial = X_pca_initial_flipped
     X_pca_initial -= min(X_pca_initial)
     X_pca_initial /= max(X_pca_initial)
@@ -293,11 +291,11 @@ else:
     plt.figure()
 plt.xlabel("Time bin")
 plt.ylabel("x")
-plt.title("PCA initial of X")
-plt.plot(path, color="black", label='True X')
-#plt.plot(linspace(offset, offset+T, T), path, color="black", label='True X')
-#plt.plot(linspace(offset, offset+T, T), X_pca_initial, label="Initial")
-plt.plot(X_pca_initial, label="Initial")
+#plt.title("PCA initial of X")
+#plt.plot(path, color="black", label='True X')
+plt.plot(linspace(offset, offset+T, T), path, color="black", label='True X')
+plt.plot(linspace(offset, offset+T, T), X_pca_initial, label="Initial")
+#plt.plot(X_pca_initial, label="Initial")
 plt.legend(loc="upper right")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-PCA-initial.png")
