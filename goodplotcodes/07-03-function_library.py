@@ -164,8 +164,22 @@ def x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce):
     # x prior term #####
     ####################
     start = time.time()
-    xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
-    x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
+    if COVARIANCE_KERNEL_KX == "nonperiodic":
+        xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
+        x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
+    if COVARIANCE_KERNEL_KX == "periodic":
+        # for every combination of x1 and x2, find out which + {-1,0,1} * 2pi has lowest distance between x1 and x2.
+            # only add 2pi to the smallest one so we don't get negative values, or that fine? I'm not sure I understand how this multivariate normal boy rolls
+            # maybe kill this prior by allowing negative values, for an almost zero quadratic form value?
+            # or just drop it and take maximum likelihood estimate
+            # make three matrices with distances between x1 and x2, + {-1,0,1} * 2pi
+            # make also three matrices with products of x1 and x2 + {-1,0,1} * 2pi
+            # use min of distance matrix as boolean mask to index into product matrix (can be tensor)
+        # Elementwise array multiply by Kt_inverse
+        # Sum all entries to get the quadratic form
+
+        xTKt = np.dot(X_estimate.T, K_t_inverse) # Inversion trick for this too? No. If we don't do Fourier then we are limited by this.
+        x_prior_term = - 0.5 * np.dot(xTKt, X_estimate)
     stop = time.time()
     if SPEEDCHECK:
         print("X prior term          :", stop-start)
@@ -322,8 +336,8 @@ def just_fprior_term(X_estimate):
 ##### Posterior inference of tuning curves on a grid ######
 ###########################################################
 
-def posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value, binsize):
-    #X_estimate = np.copy(path)
+def posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value):
+    #X_estimate = path
     #print("Setting X_estimate = path for posterior F")
 
     if N_inducing_points == N_plotgridpoints:
@@ -331,7 +345,7 @@ def posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_gri
         # Find posterior prediction of log tuning curve #
         #################################################
 
-        # Inducing points (g refers to inducing points. Originally u did.)
+        # Inducing points (g efers to inducing points. Originally u did.)
         x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points)
 
         # K_xg = K_fu
@@ -484,8 +498,6 @@ def posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_gri
             elif i==0:
                 print("No observations of X between",bins_for_plotting[x],"and",bins_for_plotting[x+1],".")
     for i in range(N):
-        max_firing_rate_per_bin = math.ceil(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))
-        max_firing_rate_per_second = int(max_firing_rate_per_bin / binsize)
         plt.figure()
         plt.plot(x_grid_for_plotting, observed_mean_spikes_in_bins[i,:], color=plt.cm.viridis(0.1), label="Observed average")
         #plt.plot(x_grid_for_plotting, true_expectation[i,:], color=plt.cm.viridis(0.3), label="True expectation")
@@ -495,8 +507,8 @@ def posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_gri
         #plt.plot(x_grid_for_plotting, mu_posterior[i,:], color=plt.cm.viridis(0.5)) 
         #plt.title("Expected and average number of spikes, neuron "+str(i)) #spikes
         plt.title("Neuron "+str(i)+" with "+str(int(sum(y_spikes[i,:])))+" spikes")
-        plt.yticks(range(0,1+max_firing_rate_per_bin))
-        plt.ylim(ymin=0., ymax=max(1, 1.05*max_firing_rate_per_bin))
+        plt.yticks(range(0,1+math.ceil(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))))
+        plt.ylim(ymin=0., ymax=max(1, 1.05*math.ceil(max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:])))))
         #plt.yticks([0, max(1, 1.05*max(observed_mean_spikes_in_bins[i,:]), 1.05*max(h_estimate[i,:]))])
         plt.xlabel("x")
         plt.ylabel("Number of spikes")

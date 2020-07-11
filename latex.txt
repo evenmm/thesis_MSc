@@ -1033,3 +1033,15 @@ Dealing with periodic X:
 If the pdf is wrapped around.... how do you determine the likelihood of one observation? 
 By summing over all the wraps. That's fair.
 
+For angle:
+For offset 0, it looks like it is worse to take the PCA angle generated from the entire dataset than just use the selected data bit 
+For offset 8000, 
+
+For 1d: 
+For offset 0, 
+For offset 8000, 
+
+From notes: 
+Length scale of the f prior is the only thing related to the scale of X, plus the range of inducing points. Set inducing points from 0 to 1 and optimize length scale, then scale X to fit true path afterwards?
+Rart at Wu ikke sier noe om at det er viktig å starte med X i stedet for F
+lasso regularizer on what?? 

@@ -14,10 +14,8 @@ from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
-#from parameter_file import * # where all the parameters are set (Not needed because importing in function library)
+#from parameter_file_robustness import * # where all the parameters are set (Not needed because importing in function library)
 from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions, posterior tuning curve inference
-                               # and parameter file (Peyrache or robustness)
-print("Remember to use the right parameter file")
 
 ###########################################
 ##### Cluster - Robustness evaluation #####
@@ -28,10 +26,11 @@ print("Remember to use the right parameter file")
 ## For each lambda peak strength: Run 20 seeds sequentially
 ## For each seed, the best RMSE is taken from an ensemble of 3-5 initializations with different wmoothingwindow in the PCA (run sequentially)
 
-# This bad boi branched off from em-algorithm on 11.05.2020
-# and from robust-sim-data on 28.05.2020
-# then from robust-efficient-script on 30.05.2020
-# then from parallel-robustness-evaluation.py on 18.06.2020
+## History:
+## Branched off from em-algorithm on 11.05.2020
+## and from robust-sim-data on 28.05.2020
+## then from robust-efficient-script on 30.05.2020
+## then from parallel-robustness-evaluation.py on 18.06.2020
 
 ######################################
 ## Data generation                  ##
@@ -244,17 +243,41 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         # Initialize X
         np.random.seed(0)
         if X_initialization == "true":
-            X_initial = path
+            X_initial = np.copy(path)
+        if X_initialization == "true_noisy":
+            X_initial = np.copy(path) + np.pi/4*np.sin(np.linspace(0,10*np.pi,T))
+            upper_domain_limit = 2*np.pi
+            lower_domain_limit = 0
+            #X_initial = np.copy(path) + 1*np.random.multivariate_normal(np.zeros(T), K_t) #2*np.random.random(T) - 1
+            X_initial -= lower_domain_limit # bring X_initial to 0
+            modulo_two_pi_values = X_initial // (upper_domain_limit)
+            oddmodulos = (modulo_two_pi_values % 2).astype(bool)
+            evenmodulos = np.invert(oddmodulos)
+            # Even modulos: Adjust for being outside
+            X_initial[evenmodulos] -= upper_domain_limit*modulo_two_pi_values[evenmodulos]
+            # Odd modulos: Adjust for being outside and flip for continuity
+            X_initial[oddmodulos] -= upper_domain_limit*(modulo_two_pi_values[oddmodulos])
+            differences = upper_domain_limit - X_initial[oddmodulos]
+            X_initial[oddmodulos] = differences
+            X_initial += lower_domain_limit # bring X_initial back to min value for tuning
         if X_initialization == "ones":
             X_initial = np.ones(T)
         if X_initialization == "pca":
             X_initial = X_pca_initial
         if X_initialization == "randomrandom":
-            X_initial = (upper_domain_limit - lower_domain_limit)*np.random.random(T)
+            X_initial = (max_inducing_point - min_inducing_point)*np.random.random(T)
         if X_initialization == "randomprior":
-            X_initial = (upper_domain_limit - lower_domain_limit)*np.random.multivariate_normal(np.zeros(T), K_t_generate)
+            X_initial = (max_inducing_point - min_inducing_point)*np.random.multivariate_normal(np.zeros(T), K_t)
         if X_initialization == "linspace":
-            X_initial = np.linspace(lower_domain_limit, upper_domain_limit, T) 
+            X_initial = np.linspace(min_inducing_point, max_inducing_point, T) 
+        if X_initialization == "supreme":
+            X_initial = np.load("X_estimate_supreme.npy")
+        if X_initialization == "flatrandom":
+            X_initial = 1.5*np.ones(T) + 0.2*np.random.random(T)
+        if X_initialization == "flat":
+            X_initial = 1.5*np.ones(T)
+        initial_rmse = np.sqrt(sum((X_initial-path)**2) / T)
+        print("Initial RMSE", initial_rmse)
         X_estimate = np.copy(X_initial)
         # Initialize F
         F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.log(y_spikes + 0.0008)
@@ -298,7 +321,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             exit()
             """
             print("Testing gradient...")
-            #X_estimate = path
+            #X_estimate = np.copy(path)
             #F_estimate = true_f
             print("Gradient difference using check_grad:",scipy.optimize.check_grad(func=x_posterior_no_la, grad=x_jacobian_no_la, x0=path, args=(sigma_n, F_estimate, K_gg, x_grid_induce)))
 
@@ -352,6 +375,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points) ##K_gg = K_gg_plain + sigma_n*np.identity(N_inducing_points)
             K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
             # Find F estimate only if we're not at the first iteration
+            if iteration == 0:
+                print("L value of initial estimate", x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce))
             if iteration > 0:
                 if LIKELIHOOD_MODEL == "bernoulli":
                     for i in range(N):
@@ -364,9 +389,6 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                         optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                         F_estimate[i] = optimization_result.x 
             # Find next X estimate, that can be outside (0,2pi)
-            if GIVEN_TRUE_F: 
-                print("NB! NB! We're setting the f value to the optimal F given the path.")
-                F_estimate = np.copy(true_f)
             if NOISE_REGULARIZATION:
                 X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t_generate) - 1
             if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
@@ -456,9 +478,6 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                             optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                             F_estimate[i] = optimization_result.x 
                 # Find next X estimate, that can be outside (0,2pi)
-                if GIVEN_TRUE_F: 
-                    print("NB! NB! We're setting the f value to the optimal F given the path.")
-                    F_estimate = np.copy(true_f)
                 if NOISE_REGULARIZATION:
                     X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t_generate) - 1
                 if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
@@ -535,9 +554,11 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         ensemble_array_X_estimate[smoothingwindow_index] = X_estimate
         ensemble_array_F_estimate[smoothingwindow_index] = F_estimate
         ensemble_array_y_spikes[smoothingwindow_index] = y_spikes
-        ensemble_array_path[smoothingwindow_index] = path
+        ensemble_array_path[smoothingwindow_index] = np.copy(path)
         # End of loop for one smoothingwidth
     # Three smoothingwidths done: Find best X estimate based on L value or RMSE score across
+    final_rmse = ensemble_array_X_rmse[0] # when only one window 
+    print("Final RMSE for tuning width 5", final_rmse)
     index_of_smoothing_with_best_RMSE = np.argmin(ensemble_array_X_rmse)
     best_X_rmse_based_on_RMSE = ensemble_array_X_rmse[index_of_smoothing_with_best_RMSE]
     index_of_smoothing_with_best_L = np.argmin(ensemble_array_L_value)
@@ -652,6 +673,6 @@ if __name__ == "__main__":
         peak_lambda_global = peak_lambda_array[-1] 
         print("Peak lambda:", peak_lambda_global)
         peak_f_offset = np.log(peak_lambda_global) - baseline_f_value
-        #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
-        posterior_f_inference(X_array[0], F_array[0], 1, Y_array[0], path_array[0], x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
+        #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value, binsize)
+        posterior_f_inference(X_array[0], F_array[0], 1, Y_array[0], path_array[0], x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value, 1000) # Bin size has no physical meaning for synthetic data
 

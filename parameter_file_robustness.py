@@ -18,7 +18,7 @@ from sklearn.decomposition import PCA
 ############################
 # Parameters for inference #
 ############################
-T = 200 # change only after previous job is definitely RUNNING on cluster 
+T = 1000 # change only after previous job is definitely RUNNING on cluster 
 N_iterations = 20
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
@@ -29,9 +29,9 @@ GRADIENT_FLAG = True # Set True to use analytic gradient
 USE_OFFSET_AND_SCALING_AT_EVERY_ITERATION = False
 USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE = True
 TOLERANCE = 1e-6
-X_initialization = "pca" #"true" "ones" "pca" "randomrandom" "randomprior" "linspace"
+X_initialization = "pca" #"true" "true_noisy" "ones" "pca" "randomrandom" "flat" "flatrandom" "randomprior" "linspace" "supreme"
 # Using ensemble of PCA values
-ensemble_smoothingwidths = [3,5,10] # [1,2,3,5,10,15,20,25,30,40,50,60,70]
+ensemble_smoothingwidths = [3,5,10]
 LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 1
@@ -52,9 +52,9 @@ tuning_width_delta = 1.2 # 0.1
 # Peak lambda should not be defined as less than baseline h value
 baseline_lambda_value = 0.5
 baseline_f_value = np.log(baseline_lambda_value)
-tuning_difference_array = [0.01,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4,5,6,7,8,9]
+tuning_difference_array = [0.01,0.1,0.2,0.3,0.4,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,3.5,4,5,6,7,8,9] # choose index 14 for a good example
 peak_lambda_array = [baseline_lambda_value + tuning_difference_array[i] for i in range(len(tuning_difference_array))]
-seeds = [0,2,3,4,5,6,8,9,11,12,16,17,18,19,21,22,25,26,28,29] # chosen only so that they cover the entire domain of X for T>=200 and sigma_x=40
+seeds = [11] #[0,2,3,4,5,6,8,9,11,12,16,17,18,19,21,22,25,26,28,29] # chosen only so that they cover the entire domain of X for T>=200 and sigma_x=40
 NUMBER_OF_SEEDS = len(seeds)
 sigma_f_fit = 2 #8 # Variance for the tuning curve GP that is fitted. 8
 delta_f_fit = 0.83 # sqrt(0.7) # Scale for the tuning curve GP that is fitted. 0.3
@@ -78,4 +78,4 @@ sigma_x_generate_path = 40 # Variance for path generation. Set high enough so th
 delta_x_generate_path = 100 # Scale for path generation.
 jitter_term = 1e-5
 
-print("Robustness evaluation parameter file")
+print("-- using Robustness evaluation parameter file --")

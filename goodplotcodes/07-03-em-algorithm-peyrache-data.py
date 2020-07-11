@@ -14,11 +14,16 @@ from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
-#from parameter_file_peyrache import * # where all the parameters are set (Not needed because importing in function library)
+#from parameter_file import * # where all the parameters are set (Not needed because importing in function library)
 from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions, posterior tuning curve inference
+                               # and parameter file (Peyrache or robustness)
+print("Remember to use the right parameter file")
 
 ##### Inferring actual HD in Peyrache data #####
+## Parameters were tuned shamelessly to find a good fit...
+## One smoothing window chosen for PCA must be chosen
 
+# infer-peyrache-data.py
 ## History: 
 ## Formerly known as em-algorithm-peyrache-data.py
 ## Made before parallel-robustness-evaluation.py
@@ -121,7 +126,7 @@ if PLOTTING:
         plt.figure(figsize=(10,3))
     else:
         plt.figure()
-    plt.plot(path, color="black", label='True X', linewidth=1) #plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
+    plt.plot(path, color="black", label='True X') #plt.plot(path, '.', color='black', markersize=1.) # trackingtimes as x optional
     #plt.plot(trackingtimes, path, '.', color='black', markersize=1.) # trackingtimes as x optional
     #plt.plot(trackingtimes-trackingtimes[0], path, '.', color='black', markersize=1.) # trackingtimes as x optional
     plt.xlabel("Time bin")
@@ -289,10 +294,10 @@ else:
 plt.xlabel("Time bin")
 plt.ylabel("x")
 plt.title("PCA initial of X")
-plt.plot(path, color="black", label='True X', linewidth=1)
-#plt.plot(linspace(offset, offset+T, T), path, color="black", label='True X', linewidth=1)
-#plt.plot(linspace(offset, offset+T, T), X_pca_initial, label="Initial", linewidth=1)
-plt.plot(X_pca_initial, label="Initial", linewidth=1)
+plt.plot(path, color="black", label='True X')
+#plt.plot(linspace(offset, offset+T, T), path, color="black", label='True X')
+#plt.plot(linspace(offset, offset+T, T), X_pca_initial, label="Initial")
+plt.plot(X_pca_initial, label="Initial")
 plt.legend(loc="upper right")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-PCA-initial.png")
@@ -301,23 +306,7 @@ plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-PCA-initial.png")
 # Initialize X
 np.random.seed(0)
 if X_initialization == "true":
-    X_initial = np.copy(path)
-if X_initialization == "true_noisy":
-    X_initial = np.copy(path) + np.pi/4*np.sin(np.linspace(0,10*np.pi,T))
-    upper_domain_limit = 2*np.pi
-    lower_domain_limit = 0
-    #X_initial = np.copy(path) + 1*np.random.multivariate_normal(np.zeros(T), K_t) #2*np.random.random(T) - 1
-    X_initial -= lower_domain_limit # bring X_initial to 0
-    modulo_two_pi_values = X_initial // (upper_domain_limit)
-    oddmodulos = (modulo_two_pi_values % 2).astype(bool)
-    evenmodulos = np.invert(oddmodulos)
-    # Even modulos: Adjust for being outside
-    X_initial[evenmodulos] -= upper_domain_limit*modulo_two_pi_values[evenmodulos]
-    # Odd modulos: Adjust for being outside and flip for continuity
-    X_initial[oddmodulos] -= upper_domain_limit*(modulo_two_pi_values[oddmodulos])
-    differences = upper_domain_limit - X_initial[oddmodulos]
-    X_initial[oddmodulos] = differences
-    X_initial += lower_domain_limit # bring X_initial back to min value for tuning
+    X_initial = path
 if X_initialization == "ones":
     X_initial = np.ones(T)
 if X_initialization == "pca":
@@ -332,11 +321,7 @@ if X_initialization == "supreme":
     X_initial = np.load("X_estimate_supreme.npy")
 if X_initialization == "flatrandom":
     X_initial = 1.5*np.ones(T) + 0.2*np.random.random(T)
-if X_initialization == "flat":
-    X_initial = 1.5*np.ones(T)
 
-initial_rmse = np.sqrt(sum((X_initial-path)**2) / T)
-print("Initial RMSE:", initial_rmse)
 X_estimate = np.copy(X_initial)
 
 if PLOTTING:
@@ -347,8 +332,8 @@ if PLOTTING:
     plt.title("Initial X")
     plt.xlabel("Time bin")
     plt.ylabel("x")
-    plt.plot(path, color="black", label='True X', linewidth=1)
-    plt.plot(X_initial, label='Initial', linewidth=1)
+    plt.plot(path, color="black", label='True X')
+    plt.plot(X_initial, label='Initial')
     #plt.legend(loc="upper right")
     #plt.ylim((0, 2*np.pi))
     plt.tight_layout()
@@ -368,17 +353,17 @@ if GIVEN_TRUE_F:
     # Initialize F at the values given path:
     print("Setting f hat to the estimates given the true path")
     temp_X_estimate = np.copy(X_estimate)
-    X_estimate = np.copy(path)
+    X_estimate = path
     K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     if LIKELIHOOD_MODEL == "bernoulli":
         for i in range(N):
             y_i = y_spikes[i]
-            optimization_result = optimize.minimize(fun=f_loglikelihood_bernoulli, x0=F_estimate[i], jac=f_jacobian_bernoulli, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
+            optimization_result = optimize.minimize(f_loglikelihood_bernoulli, F_estimate[i], jac=f_jacobian_bernoulli, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_bernoulli, 
             F_estimate[i] = optimization_result.x
     elif LIKELIHOOD_MODEL == "poisson":
         for i in range(N):
             y_i = y_spikes[i]
-            optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
+            optimization_result = optimize.minimize(f_loglikelihood_poisson, F_estimate[i], jac=f_jacobian_poisson, method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
             F_estimate[i] = optimization_result.x 
     true_f = np.copy(F_estimate)
     ## Plot F estimate
@@ -408,8 +393,8 @@ if PLOTTING:
     plt.title("X estimate")
     plt.xlabel("Time bin")
     plt.ylabel("x")
-    plt.plot(path, color="black", label='True X', linewidth=1)
-    plt.plot(X_initial, label='Initial', linewidth=1)
+    plt.plot(path, color="black", label='True X')
+    plt.plot(X_initial, label='Initial')
     #plt.legend(loc="upper right")
     #plt.ylim((0, 2*np.pi))
     plt.tight_layout()
@@ -426,8 +411,6 @@ for iteration in range(N_iterations):
     K_gg = K_gg_plain + jitter_term*np.identity(N_inducing_points) 
     K_xg_prev = squared_exponential_covariance(X_estimate.reshape((T,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     # Find F estimate only if we're not at the first iteration
-    if iteration == 0:
-        print("L value of initial estimate", x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce))
     if iteration > 0:
         if LIKELIHOOD_MODEL == "bernoulli":
             for i in range(N):
@@ -440,6 +423,9 @@ for iteration in range(N_iterations):
                 optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                 F_estimate[i] = optimization_result.x 
     # Find next X estimate, that can be outside (0,2pi)
+    if GIVEN_TRUE_F: 
+        print("NB! NB! We're setting the f value to the optimal F given the path.")
+        F_estimate = np.copy(true_f)
     if NOISE_REGULARIZATION:
         X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t) - 1
     if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
@@ -458,7 +444,7 @@ for iteration in range(N_iterations):
         X_estimate *= (max(path)-min(path)) #scale length to length of path
         X_estimate += min(path) #set offset to offset of path
     if PLOTTING:
-        plt.plot(X_estimate, label='Estimate', linewidth=1)
+        plt.plot(X_estimate, label='Estimate')
         #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
         plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-estimate.png")
@@ -490,7 +476,7 @@ if X_flipped_rmse < X_rmse:
     X_estimate = np.copy(X_flipped)
     F_estimate = np.copy(F_initial)
     if GIVEN_TRUE_F:
-        F_estimate = np.copy(true_f)
+        F_estimate = true_f
     if PLOTTING:
         if T > 100:
             plt.figure(figsize=(10,3))
@@ -499,8 +485,8 @@ if X_flipped_rmse < X_rmse:
         #plt.title("After flipping") # as we go
         plt.xlabel("Time bin")
         plt.ylabel("x")
-        plt.plot(path, color="black", label='True X', linewidth=1)
-        plt.plot(X_initial_2, label='Initial', linewidth=1)
+        plt.plot(path, color="black", label='True X')
+        plt.plot(X_initial_2, label='Initial')
         #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
         plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-flipped.png")
@@ -529,6 +515,9 @@ if X_flipped_rmse < X_rmse:
                     optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                     F_estimate[i] = optimization_result.x 
         # Find next X estimate, that can be outside (0,2pi)
+        if GIVEN_TRUE_F: 
+            print("NB! NB! We're setting the f value to the optimal F given the path.")
+            F_estimate = np.copy(true_f)
         if NOISE_REGULARIZATION:
             X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t) - 1
         if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
@@ -547,7 +536,7 @@ if X_flipped_rmse < X_rmse:
             X_estimate *= (max(path)-min(path)) #scale length to length of path
             X_estimate += min(path) #set offset to offset of path
         if PLOTTING:
-            plt.plot(X_estimate, label='Estimate (after flip)', linewidth=1)
+            plt.plot(X_estimate, label='Estimate (after flip)')
             #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
             plt.tight_layout()
             plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-flipped.png")
@@ -574,7 +563,7 @@ SStot = sum((path - mean(path))**2)
 SSdev = sum((X_estimate-path)**2)
 Rsquared = 1 - SSdev / SStot
 print("R squared value of X estimate:", Rsquared)
-print("RMSE value of X estimate:", X_rmse)
+
 print("L value of final estimate:", x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce))
 if PLOTTING:
     if T > 100:
@@ -584,13 +573,13 @@ if PLOTTING:
     plt.title("Final estimate") # as we go
     plt.xlabel("Time bin")
     plt.ylabel("x")
-    plt.plot(path, color="black", label='True X', linewidth=1)
-    plt.plot(X_initial, label='Initial', linewidth=1)
-    plt.plot(X_estimate, label='Estimate', linewidth=1)
+    plt.plot(path, color="black", label='True X')
+    plt.plot(X_initial, label='Initial')
+    plt.plot(X_estimate, label='Estimate')
     plt.legend(loc="lower right")
     #plt.ylim((min_neural_tuning_X, max_neural_tuning_X))
     plt.tight_layout()
-    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-final-RMSE-" + str(X_rmse) + "-L-" + str(x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)) + ".png")
+    plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-peyrache-X-final-L-" + str(x_posterior_no_la(X_estimate, sigma_n, F_estimate, K_gg, x_grid_induce)) + ".png")
 
 #################################################
 # Find posterior prediction of log tuning curve #
@@ -599,5 +588,5 @@ if INFER_F_POSTERIORS:
     print("Sigma_n:", sigma_n)
     bins_for_plotting = np.linspace(0, 2*np.pi, num=N_plotgridpoints + 1)
     x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
-    #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value, binsize)
-    posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, 0.1, 0.1, binsize) # the two latest are only for simulated
+    #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
+    posterior_f_inference(X_estimate, F_estimate, min(1, sigma_n), y_spikes, path, x_grid_for_plotting, bins_for_plotting, 0.1, 0.1) # the two latest are only for simulated

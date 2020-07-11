@@ -8,6 +8,8 @@ import time
 
 from sklearn.manifold import Isomap
 from sklearn.decomposition import PCA
+import cmocean
+plt.rc('image', cmap='cmo.phase')
 
 name = sys.argv[1] #'Mouse28-140313_stuff_BS0030_awakedata.mat'
 

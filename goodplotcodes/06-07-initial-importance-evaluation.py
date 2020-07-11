@@ -21,9 +21,10 @@ from multiprocessing import Pool
 ################################################
 # Parameters for inference, not for generating #
 ################################################
-T = 1000 #2000 # Max time 85504
+T = 100 #1000 #2000 # Max time 85504
 N = 100
 N_iterations = 200
+FLIPPING = True
 
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
@@ -451,10 +452,10 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     ######################
     np.random.seed(seedindex)
     print("Initializing X using seed", starting_seed_array[seedindex])
-    #X_initial = 2*np.pi*np.random.random(T)
-    X_initial = 1 * np.ones(T)
+    X_initial = 2*np.pi*np.random.random(T)
+    #X_initial = 1 * np.ones(T)
     #X_initial = 3*np.ones(T)
-    X_initial += 0.2*np.random.random(T)
+    #X_initial += 0.2*np.random.random(T)
     X_estimate = np.copy(X_initial)
     #epsilon_fstart = 1e-3
     #F_initial = np.log(y_spikes + epsilon_fstart)
@@ -544,7 +545,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
     X_flipped_rmse = np.sqrt(sum((X_flipped-path)**2) / T)
     ##### Check if flipped and maybe iterate again with flipped estimate
-    if X_flipped_rmse < X_rmse:
+    if X_flipped_rmse < X_rmse and FLIPPING == True_:
         #print("RMSE for X:", X_rmse)
         #print("RMSE for X flipped:", X_flipped_rmse)
         #print("Re-iterating because of flip")
@@ -624,7 +625,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     return [X_initial, X_estimate, X_rmse, L_value, L_value_true_f, seedindex]
 
 if __name__ == "__main__": 
-    starting_seed_array = [0] #range(7)
+    starting_seed_array = range(20) #range(20) #[0]
     # We gather initials, finals, rmse values and L values
     initial_array = np.zeros((N,T))
     final_array = np.zeros((N,T))
@@ -667,9 +668,9 @@ if __name__ == "__main__":
         plt.xlabel("Time")
         plt.ylabel("x")
         plt.title("Initial estimates") 
-        plt.plot(path, color="black", label='True X')
         for i in range(len(starting_seed_array)):
             plt.plot(initial_array[i])
+        plt.plot(path, color="black", label='True X')
         plt.legend(loc="upper right")
         plt.tight_layout()
         plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-ii-initial.png")
