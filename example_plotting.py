@@ -14,10 +14,8 @@ from scipy import optimize
 numpy.random.seed(13)
 from multiprocessing import Pool
 from sklearn.decomposition import PCA
-#from parameter_file import * # where all the parameters are set (Not needed because importing in function library)
+#from parameter_file_exampleplotting import * # where all the parameters are set (Not needed because importing in function library)
 from function_library import * # loglikelihoods, gradients, covariance functions, tuning curve definitions, posterior tuning curve inference
-                               # and parameter file (Peyrache or robustness)
-print("Remember to use the right parameter file")
 
 ###########################################
 ##### Cluster - Robustness evaluation #####
@@ -28,10 +26,11 @@ print("Remember to use the right parameter file")
 ## For each lambda peak strength: Run 20 seeds sequentially
 ## For each seed, the best RMSE is taken from an ensemble of 3-5 initializations with different wmoothingwindow in the PCA (run sequentially)
 
-# This bad boi branched off from em-algorithm on 11.05.2020
-# and from robust-sim-data on 28.05.2020
-# then from robust-efficient-script on 30.05.2020
-# then from parallel-robustness-evaluation.py on 18.06.2020
+## History
+## Branched off from em-algorithm on 11.05.2020
+## and from robust-sim-data on 28.05.2020
+## then from robust-efficient-script on 30.05.2020
+## then from parallel-robustness-evaluation.py on 18.06.2020
 
 ######################################
 ## Data generation                  ##
@@ -243,7 +242,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         # Initialize X
         np.random.seed(0)
         if X_initialization == "true":
-            X_initial = path
+            X_initial = np.copy(path)
         if X_initialization == "ones":
             X_initial = np.ones(T)
         if X_initialization == "pca":
@@ -259,7 +258,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         F_initial = np.sqrt(y_spikes) - np.amax(np.sqrt(y_spikes))/2 #np.log(y_spikes + 0.0008)
         F_estimate = np.copy(F_initial)
         if GIVEN_TRUE_F:
-            F_estimate = true_f
+            F_estimate = np.copy(true_f)
         if PLOTTING:
             if T > 100:
                 plt.figure(figsize=(10,3))
@@ -297,8 +296,8 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             exit()
             """
             print("Testing gradient...")
-            #X_estimate = path
-            #F_estimate = true_f
+            #X_estimate = np.copy(path)
+            #F_estimate = np.copy(true_f)
             print("Gradient difference using check_grad:",scipy.optimize.check_grad(func=x_posterior_no_la, grad=x_jacobian_no_la, x0=path, args=(sigma_n, F_estimate, K_gg, x_grid_induce)))
 
             #optim_gradient = optimization_result.jac
@@ -363,9 +362,6 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                         optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                         F_estimate[i] = optimization_result.x 
             # Find next X estimate, that can be outside (0,2pi)
-            if GIVEN_TRUE_F: 
-                print("NB! NB! We're setting the f value to the optimal F given the path.")
-                F_estimate = np.copy(true_f)
             if NOISE_REGULARIZATION:
                 X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t_generate) - 1
             if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
@@ -415,7 +411,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
             X_estimate = np.copy(X_flipped)
             F_estimate = np.copy(F_initial)
             if GIVEN_TRUE_F:
-                F_estimate = true_f
+                F_estimate = np.copy(true_f)
             if PLOTTING:
                 if T > 100:
                     plt.figure(figsize=(10,3))
@@ -455,9 +451,6 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
                             optimization_result = optimize.minimize(fun=f_loglikelihood_poisson, x0=F_estimate[i], jac=f_jacobian_poisson, args=(sigma_n, y_i, K_xg_prev, K_gg), method = 'L-BFGS-B', options={'disp':False}) #hess=f_hessian_poisson, 
                             F_estimate[i] = optimization_result.x 
                 # Find next X estimate, that can be outside (0,2pi)
-                if GIVEN_TRUE_F: 
-                    print("NB! NB! We're setting the f value to the optimal F given the path.")
-                    F_estimate = np.copy(true_f)
                 if NOISE_REGULARIZATION:
                     X_estimate += 2*np.random.multivariate_normal(np.zeros(T), K_t_generate) - 1
                 if SMOOTHING_REGULARIZATION and iteration < (N_iterations-1) :
@@ -533,7 +526,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         ensemble_array_X_estimate[smoothingwindow_index] = X_estimate
         ensemble_array_F_estimate[smoothingwindow_index] = F_estimate
         ensemble_array_y_spikes[smoothingwindow_index] = y_spikes
-        ensemble_array_path[smoothingwindow_index] = path
+        ensemble_array_path[smoothingwindow_index] = np.copy(path)
         # Finish loop for one smoothingwidth
     # Find best rmse across smoothingwindows for PCA start:
     best_rmse_index = np.argmin(ensemble_array_X_rmse)
@@ -578,5 +571,5 @@ if __name__ == "__main__":
         # Grid for plotting
         bins_for_plotting = np.linspace(lower_domain_limit, upper_domain_limit, num=N_plotgridpoints + 1)
         x_grid_for_plotting = 0.5*(bins_for_plotting[:(-1)]+bins_for_plotting[1:])
-        #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
-        posterior_f_inference(X_estimate, F_estimate, 1, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value)
+        #posterior_f_inference(X_estimate, F_estimate, sigma_n, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value, binsize)
+        posterior_f_inference(X_estimate, F_estimate, 1, y_spikes, path, x_grid_for_plotting, bins_for_plotting, peak_f_offset, baseline_f_value, 0)

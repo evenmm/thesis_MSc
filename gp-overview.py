@@ -25,7 +25,7 @@ def gaussian_periodic_covariance(x1,x2):
 
 def gaussian_NONPERIODIC_covariance(x1,x2):
     distancesquared = (x1-x2)**2
-    return sigma * exp(-distancesquared/(2*delta))
+    return sigma * exp(-distancesquared/(2*delta**2))
 
 ## Tuning curve GP
 # Define a grid of points in X direction - draw a tuning curve on this grid
@@ -33,24 +33,22 @@ def gaussian_NONPERIODIC_covariance(x1,x2):
 # Model parameters: 
 X_dim = 50
 sigma = 1.2 # Variance
-delta = 1 # Scale 
+delta = 2 #1 # 0.5 # Scale 
 N = 3 # number of neurons 
 sigma_epsilon = 0.05
-N_observations_total = 10
+N_observations_total = 5
+OBSERVATION_NOISE = False
+sigma_epsilon_generate = 0.5
 
-x_grid = np.linspace(0, 2*np.pi, num=X_dim)
+X_max = 10
+
+x_grid = np.linspace(0, X_max, num=X_dim)
 Kx_grid = np.zeros((X_dim,X_dim))
 for x1 in range(X_dim):
     for x2 in range(X_dim):
+#        Kx_grid[x1,x2] = exponential_covariance(x_grid[x1],x_grid[x2])
         Kx_grid[x1,x2] = gaussian_NONPERIODIC_covariance(x_grid[x1],x_grid[x2])
-Kx_grid = Kx_grid + np.identity(X_dim)*10e-5 # To be able to invert Kx we add a small amount on the diagonal
-Kx_grid_inverse = np.linalg.inv(Kx_grid)
-fig, ax = plt.subplots()
-kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
-fig.colorbar(kxmat, ax=ax)
-plt.tight_layout()
-plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-kx_grid.png")
-#plt.show()
+
 # Draw tuning curves with zero mean and covariance prior
 f_tuning_curve = np.zeros((N,X_dim))
 for i in range(N):
@@ -67,6 +65,7 @@ plt.ylabel("f")
 plt.ylabel("Spike rate")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-tuning-h.png")
+
 # Plot f realizations with 95 % confidence interval
 plt.figure()#(figsize=(10,8))
 for i in range(N):
@@ -74,17 +73,17 @@ for i in range(N):
     plt.plot(x_grid, sigma * 1.96 * np.ones_like(x_grid), "--", color="grey")
     plt.plot(x_grid, -sigma * 1.96 * np.ones_like(x_grid), "--", color="grey")
     plt.plot(x_grid, f_tuning_curve[i,:], "-", color=colors[i])
-#    plt.plot(x_grid, f_tuning_curve[i,:], ".", color=colors[i])
+    plt.plot(x_grid, f_tuning_curve[i,:], ".", color=colors[i])
 plt.xlabel("x")
 plt.ylabel("f")
-#plt.ylabel("Spike rate")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-tuning-f.png")
+
 # Plot prior
 mu_prior = np.zeros(X_dim)
 sigma_prior = sigma * np.identity(X_dim)
 plt.figure()
-plt.xlim(0,2*np.pi)
+plt.xlim(0,X_max)
 plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
 plt.plot(x_grid, mu_prior, "-", color="grey")
 plt.plot(x_grid, mu_prior + 1.96*np.sqrt(np.diag(sigma_prior)), "--", color="grey")
@@ -95,18 +94,31 @@ plt.ylabel("f")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-prior.png")
 
+# Posterior
+Kx_grid = Kx_grid + np.identity(X_dim)*10e-5 # To be able to invert Kx we add a small amount on the diagonal
+Kx_grid_inverse = np.linalg.inv(Kx_grid)
+fig, ax = plt.subplots()
+kxmat = ax.matshow(Kx_grid, cmap=plt.cm.Blues)
+fig.colorbar(kxmat, ax=ax)
+plt.tight_layout()
+plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-kx_grid.png")
+#plt.show()
+
 ## Observations
 x_array_positions = np.random.randint(0, X_dim, size=N_observations_total)
-for N_observations in range(1,N_observations_total+1):
+for N_observations in [N_observations_total]: #range(1,N_observations_total+1):
     x_values_observed = x_grid[x_array_positions[0:N_observations]]
     print(x_values_observed)
     f_values_observed = f_tuning_curve[0][x_array_positions[0:N_observations]]
+    if OBSERVATION_NOISE:
+        f_values_observed += np.random.normal(0, sigma_epsilon_generate, N_observations)
 
     # Calculate covariance matrices
     Kx_observed = np.zeros((N_observations,N_observations))
     for x1 in range(N_observations):
         for x2 in range(N_observations):
             Kx_observed[x1,x2] = gaussian_NONPERIODIC_covariance(x_values_observed[x1],x_values_observed[x2])
+#    Kx_observed += 1e-3*np.identity(N_observations)
     Kx_observed_inverse = np.linalg.inv(Kx_observed)
 
     Kx_crossover = np.zeros((N_observations,X_dim))
@@ -119,18 +131,19 @@ for N_observations in range(1,N_observations_total+1):
     pre = np.dot(Kx_observed_inverse, f_values_observed)
     mu_posterior = np.dot(Kx_crossover_T, pre)
     plt.figure()
-    plt.xlim(0,2*np.pi)
+    plt.xlim(0,X_max)
     # Plot posterior mean
-    plt.plot(x_grid, mu_posterior, "-", color="grey")
+    plt.plot(x_grid, mu_posterior, "-", color="grey", label="Posterior mean")
     # Calculate standard deviations and add 95 % confidence interval to plot
     sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(Kx_observed_inverse, Kx_crossover))
-    plt.plot(x_grid, mu_posterior + 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
+    plt.plot(x_grid, mu_posterior + 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey", label="95 % conf.int.")
     plt.plot(x_grid, mu_posterior - 1.96*np.sqrt(np.diag(sigma_posterior)), "--", color="grey")
-    plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
-    plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10) # Plot observed data points
+    plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0], label="True function")
+    plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10, label="Observations") # Plot observed data points
     plt.ylim(-3,3)
     plt.xlabel("x")
     plt.ylabel("f")
+    plt.legend()
     plt.tight_layout()
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-posterior-%s.png" % int(N_observations))
 
@@ -141,15 +154,19 @@ for N_observations in range(1,N_observations_total+1):
     noisy_mu_posterior = np.dot(Kx_crossover_T, pre)
     noisy_sigma_posterior = (Kx_grid) - np.dot(Kx_crossover_T, np.dot(noisy_Kx_observed_inverse, Kx_crossover))    
     plt.figure()
-    plt.xlim(0,2*np.pi)
-    plt.plot(x_grid, noisy_mu_posterior, "-", color="grey")
-    plt.plot(x_grid, noisy_mu_posterior + 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
+    plt.xlim(0,X_max)
+    plt.plot(x_grid, noisy_mu_posterior, "-", color="grey", label="Posterior mean")
+#    plt.plot(x_grid, noisy_mu_posterior, "-", color=colors[0])
+    plt.plot(x_grid, noisy_mu_posterior + 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey", label="95 % conf.int.")
     plt.plot(x_grid, noisy_mu_posterior - 1.96*np.sqrt(np.diag(noisy_sigma_posterior)), "--", color="grey")
-    plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0])
-    plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10)
+    plt.plot(x_grid, f_tuning_curve[0,:], "-", color=colors[0], label="True function")
+#    plt.plot(x_grid, f_tuning_curve[0,:], "-", color="grey")
+    plt.plot(x_values_observed, f_values_observed, ".", color=colors[0], markersize=10, label="Observations")
+#    plt.plot(x_values_observed, f_values_observed, ".", color="grey", markersize=10)
     plt.xlabel("x")
     plt.ylabel("f")
     plt.ylim(-3,3)
+    plt.legend()
     plt.tight_layout()
     plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-noisy-posterior-%s.png" % int(N_observations))
 
@@ -157,7 +174,7 @@ for N_observations in range(1,N_observations_total+1):
 T = 200
 sigma = 1 # Variance
 delta = 50 # Scale 
-sigma_epsilon = 0.0
+sigma_epsilon_x = 0.0
 
 print("Making Kt")
 Kt = np.zeros((T, T)) 
@@ -173,7 +190,7 @@ plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-kt.pdf",format="pdf")
 
 path = numpy.random.multivariate_normal(np.zeros(T), Kt)
-#path = np.mod(path, 2*np.pi) # Truncate to keep it between 0 and 2pi
+#path = np.mod(path, X_max) # Truncate to keep it between 0 and 2pi
 # plot path
 plt.figure()#(figsize=(10,2))
 plt.plot(path, '.', color='black', markersize=1.)
@@ -182,4 +199,3 @@ plt.ylabel("x value")
 plt.tight_layout()
 plt.savefig(time.strftime("./plots/%Y-%m-%d")+"-gp-overview-path.pdf",format="pdf")
 
-plt.show()

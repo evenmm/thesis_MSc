@@ -31,7 +31,7 @@ USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE = True
 TOLERANCE = 1e-6
 X_initialization = "ones" #"true" "ones" "pca" "randomrandom" "randomprior" "linspace"
 # Using ensemble of PCA values
-ensemble_smoothingwidths = [3,5,10] # [1,2,3,5,10,15,20,25,30,40,50,60,70]
+ensemble_smoothingwidths = [5] #[3,5,10] # [1,2,3,5,10,15,20,25,30,40,50,60,70]
 LET_INDUCING_POINTS_CHANGE_PLACE_WITH_X_ESTIMATE = False
 FLIP_AFTER_SOME_ITERATION = False
 FLIP_AFTER_HOW_MANY = 1
