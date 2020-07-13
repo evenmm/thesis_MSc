@@ -77,6 +77,8 @@ def scale_and_offset_function(scale_offset, X_estimate, sigma_n, F_estimate, K_g
 ## RMSE function                    ##
 ######################################
 def find_rmse_for_this_lambda_this_seed(seedindex):
+    global lower_domain_limit
+    global upper_domain_limit
     starttime = time.time()
     #print("Seed", seeds[seedindex], "started.")
     peak_f_offset = np.log(peak_lambda_global) - baseline_f_value
@@ -366,6 +368,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         #############################
         prev_X_estimate = np.Inf
         sigma_n = np.copy(global_initial_sigma_n)
+        startalgorithmtime = time.time()
         for iteration in range(N_iterations):
             if iteration > 0:
                 sigma_n = sigma_n * lr  # decrease the noise variance with a learning rate
@@ -428,7 +431,7 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
         X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
         X_flipped_rmse = np.sqrt(sum((X_flipped-path)**2) / T)
         ##### Check if flipped and maybe iterate again with flipped estimate
-        if X_flipped_rmse < X_rmse:
+        if X_flipped_rmse < X_rmse and RECONVERGE_IF_FLIPPED:
             #print("RMSE for X:", X_rmse)
             #print("RMSE for X flipped:", X_flipped_rmse)
             #print("Re-iterating because of flip")
@@ -571,7 +574,9 @@ def find_rmse_for_this_lambda_this_seed(seedindex):
     y_spikes = ensemble_array_y_spikes[index_of_smoothing_with_best_L]
     path = ensemble_array_path[index_of_smoothing_with_best_L]
     endtime = time.time()
-    print("\nSeed", seeds[seedindex], "Time use:", endtime - starttime)
+    print("\nSeed", seeds[seedindex])
+    print("Time use:", endtime - starttime)
+    print("Time use without overhead", time.time()-startalgorithmtime)
     print("RMSEs   :", ensemble_array_X_rmse, "Best smoothing window:         ", ensemble_smoothingwidths[index_of_smoothing_with_best_RMSE], "Best RMSE:", best_X_rmse_based_on_RMSE)
     print("L values:", ensemble_array_L_value, "Best smoothing window:", ensemble_smoothingwidths[index_of_smoothing_with_best_L], "Best RMSE:", best_X_rmse_based_on_L)
     print("                                                                  Smoothingwidth 3  RMSE:", rmse_for_smoothingwidth_3)

@@ -24,6 +24,7 @@ N_iterations = 20
 global_initial_sigma_n = 2.5 # Assumed variance of observations for the GP that is fitted. 10e-5
 lr = 0.95 # 0.99 # Learning rate by which we multiply sigma_n at every iteration
 
+RECONVERGE_IF_FLIPPED = False
 INFER_F_POSTERIORS = False
 GRADIENT_FLAG = True # Set True to use analytic gradient
 USE_OFFSET_AND_SCALING_AT_EVERY_ITERATION = False

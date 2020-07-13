@@ -417,6 +417,7 @@ if PLOTTING:
 
 collected_estimates = np.zeros((N_iterations, T))
 prev_X_estimate = np.Inf
+startalgorithmtime = time.time()
 ### EM algorithm: Find f given X, then X given f.
 for iteration in range(N_iterations):
     if iteration > 0:
@@ -466,6 +467,7 @@ for iteration in range(N_iterations):
         break
     prev_X_estimate = X_estimate
     #np.save("X_estimate", X_estimate)
+print("Time used:", time.time()-startalgorithmtime)
 if USE_OFFSET_AND_SCALING_AFTER_CONVERGENCE:
     X_estimate -= min(X_estimate) #set offset of min to 0
     X_estimate /= max(X_estimate) #scale length to 1
@@ -480,10 +482,10 @@ X_flipped = - X_estimate + 2*mean(X_estimate)
 X_rmse = np.sqrt(sum((X_estimate-path)**2) / T)
 X_flipped_rmse = np.sqrt(sum((X_flipped-path)**2) / T)
 ##### Check if flipped and maybe iterate again with flipped estimate
-if X_flipped_rmse < X_rmse:
+if X_flipped_rmse < X_rmse and RECONVERGE_IF_FLIPPED:
     #print("RMSE for X:", X_rmse)
     #print("RMSE for X flipped:", X_flipped_rmse)
-    #print("Re-iterating because of flip")
+    print("Re-iterating because of flip")
     x_grid_induce = np.linspace(min_inducing_point, max_inducing_point, N_inducing_points) #np.linspace(min(path), max(path), N_inducing_points)
     K_gg_plain = squared_exponential_covariance(x_grid_induce.reshape((N_inducing_points,1)),x_grid_induce.reshape((N_inducing_points,1)), sigma_f_fit, delta_f_fit)
     X_initial_2 = np.copy(X_flipped)

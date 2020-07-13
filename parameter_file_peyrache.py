@@ -35,6 +35,7 @@ lr = 0.99 # Learning rate by which we multiply sigma_n at every iteration
 downsampling_factor = 1 #supreme: 2
 offset = 0 #3700 #0 #70400 # 0 is good and wraps around a lot #64460 (not so good) #68170 (getting stuck lower in middle) # 70400 (supreme)
 
+RECONVERGE_IF_FLIPPED = False
 KEEP_PATH_BETWEEN_ZERO_AND_TWO_PI = True
 INFER_F_POSTERIORS = True
 GRADIENT_FLAG = True # Set True to use analytic gradient
