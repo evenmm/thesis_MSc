@@ -3,7 +3,7 @@ Robustness Analysis of Anqi Wu's Latent Manifold Tuning Model (https://github.co
 
 Application to head direction data by Peyrache et al. 
 
-Infear head direction:
+Infer head direction:
 
 `python em-algorithm.py Mouse12-120806_stuff_simple_awakedata.mat`
 
